@@ -1,0 +1,37 @@
+# SecureScope Default Configuration
+app:
+  name: SecureScope
+  version: 1.0.0
+  company: NiTechSpark
+  license: MIT
+
+reporting:
+  org_name: NiTechSpark
+  output_dir: reports/
+  default_format: pdf
+
+scanning:
+  timeout: 30
+  ssh_timeout: 10
+  snmp_community: public
+
+web:
+  port: 8080
+  debug: false
+  session_timeout_hours: 8
+  auth:
+    enabled: true
+    username: "nitechspark"
+    password: "SecureScope@2026"
+    users:
+      - username: "admin"
+        password: "SecureScope@2026"
+        role: "admin"
+      - username: "viewer"
+        password: "ViewOnly@2026"
+        role: "viewer"
+
+branding:
+  organization_name: "NiTechSpark"
+  client_name: "Default Client"
+  report_primary_color: "#00d4ff"

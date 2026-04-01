@@ -1,0 +1,2 @@
+{"ts_utc": "2026-04-01T07:04:03.767610+00:00", "run_id": "cab046884c4f48be9029860c45eca5c5", "actor": "cli", "action": "offsec.web", "target": "https://example.com/?q=test", "mode": "ctf", "in_scope": true, "safe_mode": true, "meta": {"host": "example.com", "project": null}}
+{"ts_utc": "2026-04-01T07:10:11.614027+00:00", "run_id": "dbe7ecb129394713a322dc3bbce3c0a3", "actor": "cli", "action": "offsec.web", "target": "https://example.com/?q=test", "mode": "ctf", "in_scope": true, "safe_mode": true, "meta": {"host": "example.com", "project": null}}

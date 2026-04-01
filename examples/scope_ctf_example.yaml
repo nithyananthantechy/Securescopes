@@ -1,0 +1,12 @@
+mode: ctf
+ack: I_HAVE_AUTHORIZATION_AND_WILL_STAY_IN_SCOPE
+
+# Scope allowlist (CTF organizers typically provide a domain or range)
+allowed_domains:
+  - example.com
+
+# Optional: expiration (UTC). Remove or adjust for your event window.
+expires_utc: "2030-01-01T00:00:00Z"
+
+notes: "Example scope file for demo/testing. Replace with actual CTF scope."
+

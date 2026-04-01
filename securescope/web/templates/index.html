@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureScope Enterprise</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="progress-top"><div id="progressTop" class="progress-bar-top"></div></div>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
+        <div>
+          <div style="font-size:10px;color:#8892a4;letter-spacing:.12em;">{{ org_name|upper }}</div>
+          <div class="brand-title">SecureScope</div>
+        </div>
+      </div>
+      <div class="nav-tabs-enterprise">
+        <button class="tab-btn active" onclick="switchTab('dashboard')" id="tab-dashboard">Dashboard</button>
+        <button class="tab-btn" onclick="switchTab('targets')" id="tab-targets">Targets</button>
+        <button class="tab-btn" onclick="switchTab('reports')" id="tab-reports">Reports</button>
+        <button class="tab-btn" onclick="switchTab('settings')" id="tab-settings">Settings</button>
+        <button class="tab-btn" onclick="switchTab('executive')" id="tab-executive">Executive View</button>
+      </div>
+      <div class="header-right">
+        <div class="pill threat-pill"><span class="blinker">●</span> Threats: <b id="threatCounter">0</b></div>
+        <div class="pill" id="headerPlatform">{{ plat_info.os }}</div>
+        <div class="pill" id="liveClock"></div>
+        <div class="pill"><i class="bi bi-person-circle"></i> {{ username }} ({{ role }})</div>
+        <a href="/logout" class="btn btn-sm btn-outline-danger"><i class="bi bi-box-arrow-right"></i></a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-grid" id="dashboardTab">
+    <section>
+      <div class="card-scope">
+        <div class="section-title">Compliance Score</div>
+        <div class="gauge-wrap">
+          <svg width="210" height="210" viewBox="0 0 210 210">
+            <circle cx="105" cy="105" r="92" fill="none" stroke="#1e2d4a" stroke-width="12"></circle>
+            <circle id="scoreArc" cx="105" cy="105" r="92" fill="none" stroke="#00ff88" stroke-width="12" stroke-linecap="round" stroke-dasharray="578" stroke-dashoffset="578" transform="rotate(-90 105 105)"></circle>
+          </svg>
+          <div class="gauge-score">
+            <div id="scoreNum" class="score-num">0</div>
+            <div class="score-label">Compliance Index</div>
+          </div>
+        </div>
+        <div id="riskChip" class="risk-chip risk-critical">CRITICAL</div>
+        <div class="stats-grid">
+          <div class="stat"><b id="statFail">0</b>❌ FAIL</div>
+          <div class="stat"><b id="statPass">0</b>✅ PASS</div>
+          <div class="stat"><b id="statWarn">0</b>⚠️ WARN</div>
+        </div>
+      </div>
+      <div class="card-scope mt-2">
+        <div class="section-title">System Properties</div>
+        <div class="small" style="line-height:1.8;">
+          <div><span style="color:#8892a4;">Hostname:</span> <b id="sysHost">--</b></div>
+          <div><span style="color:#8892a4;">OS:</span> <b id="sysOs">--</b></div>
+          <div><span style="color:#8892a4;">IP:</span> <b id="sysIp">--</b></div>
+          <div><span style="color:#8892a4;">Privileges:</span> <b id="sysPriv">--</b></div>
+          <div><span style="color:#8892a4;">Last Scan:</span> <b id="sysLast">--</b></div>
+          <div><span style="color:#8892a4;">Client:</span> <b>{{ client_name }}</b></div>
+        </div>
+      </div>
+      <div class="card-scope mt-2">
+        <div class="section-title">Vulnerability Badges</div>
+        <div id="vulnBadges">🔴 0 Critical  🟠 0 High  🟡 0 Medium  🟢 0 Low</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card-scope">
+        <div class="section-title">Security Audit Findings</div>
+        <div class="findings-toolbar">
+          <input id="searchInput" class="form-control form-control-sm" placeholder="Search..." style="max-width:240px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+          <select id="sortBy" class="form-select form-select-sm" style="max-width:150px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="category">Sort: Category</option>
+            <option value="status">Sort: Status</option>
+            <option value="severity">Sort: Severity</option>
+          </select>
+          <span class="filter-pill active" data-filter="all">All</span>
+          <span class="filter-pill" data-filter="ssh">SSH</span>
+          <span class="filter-pill" data-filter="firewall">Firewall</span>
+          <span class="filter-pill" data-filter="user">Users</span>
+          <span class="filter-pill" data-filter="service">Services</span>
+        </div>
+        <div id="skeletons" class="d-none"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+        <div class="findings-list" id="findingsList"></div>
+      </div>
+      <div class="card-scope mt-2">
+        <div class="section-title">Real-time Threat Feed</div>
+        <div class="threat-feed" id="threatFeed"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card-scope quick-actions">
+        <div class="section-title">Quick Actions</div>
+        <button class="btn btn-primary-enterprise" id="btnScan"><i class="bi bi-search"></i> Scan</button>
+        <button class="btn btn-outline-info" onclick="openModal()"><i class="bi bi-globe"></i> Remote Scan</button>
+        <button class="btn btn-warning" id="btnHarden"><i class="bi bi-shield-check"></i> Harden Now</button>
+        <div class="dropdown">
+          <button class="btn btn-outline-light dropdown-toggle w-100" data-bs-toggle="dropdown"><i class="bi bi-download"></i> Download Report</button>
+          <ul class="dropdown-menu dropdown-menu-dark w-100">
+            <li><a class="dropdown-item" href="#" onclick="downloadHtmlReport()">Download HTML Report</a></li>
+            <li><a class="dropdown-item" href="#" onclick="downloadJson()">Download JSON Data</a></li>
+            <li><a class="dropdown-item" href="#" onclick="copyShareLink()">Copy Share Link</a></li>
+            <li><a class="dropdown-item" href="#" onclick="window.print()">Print Report</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="card-scope mt-2">
+        <div class="section-title">Assessment Targets</div>
+        <div id="targetsWrap"></div>
+        <button class="btn btn-outline-secondary w-100" onclick="openModal()" style="border-style:dashed;">+ Add target</button>
+      </div>
+      <div class="card-scope mt-2">
+        <div class="section-title">Threat Timeline</div>
+        <div class="timeline-wrap"><canvas id="historyChart"></canvas></div>
+      </div>
+      <div class="card-scope mt-2">
+        <div class="section-title">Contact</div>
+        <div class="small"><b>{{ org_name }}</b><br>Enterprise Security Services<br>nitechspark@gmail.com<br>nitechspark.vercel.app</div>
+      </div>
+      <div class="small mt-2 text-center" style="color:#8892a4;">Shortcuts: Ctrl+S Scan | Ctrl+R Remote | Ctrl+H Harden | Ctrl+D Download</div>
+    </section>
+  </main>
+
+  <main class="main-grid d-none" id="executiveTab">
+    <section class="card-scope" style="grid-column:1/-1;">
+      <h4>Executive View</h4>
+      <div class="row g-3">
+        <div class="col-lg-4"><div class="card-scope"><div class="section-title">Risk Meter</div><h2 id="execRisk">CRITICAL</h2><div class="progress"><div class="progress-bar bg-danger" id="execBar" style="width:0%"></div></div></div></div>
+        <div class="col-lg-8"><div class="card-scope"><div class="section-title">Top Critical Issues</div><div id="execTop"></div></div></div>
+      </div>
+      <div class="mt-3"><button class="btn btn-primary-enterprise" onclick="downloadHtmlReport()">Share Report</button></div>
+    </section>
+  </main>
+
+  <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="hardenCanvas" style="width:480px;">
+    <div class="offcanvas-header"><h5>Hardening Live Log</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button></div>
+    <div class="offcanvas-body"><pre id="hardenLog" style="height:70vh;overflow:auto;background:#000;color:#00ff88;padding:10px;"></pre></div>
+  </div>
+
+  <div id="remoteScanModal" class="modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>🌐 Remote Scan</h3>
+        <button onclick="closeModal()" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Scan Type</label>
+          <select id="remote-type" onchange="updateModalFields()" class="form-control">
+            <option value="linux">🐧 Linux Server (SSH)</option>
+            <option value="windows">🪟 Windows (WinRM)</option>
+            <option value="network">🔌 Network Device (No SSH)</option>
+            <option value="firewall">🛡️ Firewall Audit (SNMP)</option>
+            <option value="portscan">🔍 Port Scan Only</option>
+            <option value="web">🌐 Web Server (HTTP)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Host IP Address *</label>
+          <input type="text" id="remote-host" class="form-control" placeholder="e.g. 192.168.1.100" required>
+        </div>
+
+        <div id="ssh-fields">
+          <div class="form-group">
+            <label>Username *</label>
+            <input type="text" id="remote-username" class="form-control" placeholder="e.g. root or admin">
+          </div>
+          <div class="form-group">
+            <label>Password *</label>
+            <input type="password" id="remote-password" class="form-control" placeholder="Enter password">
+          </div>
+          <div class="form-group">
+            <label>Port</label>
+            <input type="number" id="remote-port" class="form-control" placeholder="22" value="22">
+          </div>
+        </div>
+
+        <div id="snmp-fields" style="display:none">
+          <div class="form-group">
+            <label>SNMP Community String</label>
+            <input type="text" id="snmp-community" class="form-control" placeholder="public" value="public">
+          </div>
+          <div class="form-group">
+            <label>SNMP Port</label>
+            <input type="number" id="snmp-port" class="form-control" value="161">
+          </div>
+        </div>
+
+        <div id="portrange-fields" style="display:none">
+          <div class="form-group">
+            <label>Port Range</label>
+            <input type="text" id="port-range" class="form-control" placeholder="1-1024" value="1-1024">
+          </div>
+        </div>
+
+        <div id="http-fields" style="display:none">
+          <div class="form-group">
+            <label>HTTP Port</label>
+            <input type="number" id="http-port" class="form-control" value="80">
+          </div>
+        </div>
+
+        <div id="scan-note" style="display:none;background:rgba(0,212,255,0.08);border:1px solid #00d4ff;border-radius:8px;padding:12px 16px;color:#00d4ff;font-size:13px;margin-top:12px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal()" class="btn-secondary">Cancel</button>
+        <button onclick="startRemoteScan()" id="start-scan-btn" class="btn-primary">🚀 Start Assessment</button>
+      </div>
+    </div>
+  </div>
+
+  {% if demo_mode %}<div class="demo-watermark">LIVE DEMO</div>{% endif %}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const CSRF_TOKEN = "{{ csrf_token }}";
+    const DEMO_MODE = {{ "true" if demo_mode else "false" }};
+    let allScanData = {};
+    let allScanCreds = {};
+    let currentTarget = "localhost";
+    let activeFilter = "all";
+    let chart = null;
+    let currentChecks = [];
+    let lastScanTime = null;
+    const SCAN_CACHE_MINUTES = 5;
+    const LS_KEY_DATA = "securescope_scan_data_v1";
+    const LS_KEY_META = "securescope_scan_meta_v1";
+    const apiHeaders = () => ({"Content-Type":"application/json","X-CSRF-Token":CSRF_TOKEN});
+    const nowStr = () => new Date().toLocaleString("en-GB");
+    const setProgress = v => document.getElementById("progressTop").style.width = v + "%";
+    setInterval(()=>document.getElementById("liveClock").textContent = nowStr(),1000);
+    document.getElementById("liveClock").textContent = nowStr();
+    function switchTab(tab){["dashboard","targets","reports","settings","executive"].forEach(t=>document.getElementById("tab-"+t)?.classList.remove("active"));document.getElementById("tab-"+tab)?.classList.add("active");document.getElementById("dashboardTab").classList.toggle("d-none", tab==="executive");document.getElementById("executiveTab").classList.toggle("d-none", tab!=="executive");}
+    function riskLabel(score){ if(score>=86) return ["EXCELLENT","risk-excellent"]; if(score>=71) return ["GOOD","risk-good"]; if(score>=41) return ["FAIR","risk-fair"]; return ["CRITICAL","risk-critical"]; }
+    function sevClass(s){s=(s||"").toLowerCase(); if(s.includes("critical"))return"critical"; if(s.includes("high"))return"high"; if(s.includes("medium"))return"medium"; return"low";}
+    function statusClass(s){if(s==="PASS")return"status-pass"; if(s==="FAIL")return"status-fail"; return"status-warning";}
+    function catIcon(c){const t=(c||"").toLowerCase(); if(t.includes("ssh"))return"bi-shield-lock"; if(t.includes("firewall"))return"bi-fire"; if(t.includes("user"))return"bi-people"; if(t.includes("web"))return"bi-globe"; return"bi-gear";}
+    function countSeverity(checks){const o={critical:0,high:0,medium:0,low:0}; checks.forEach(c=>{const s=sevClass(c.severity); o[s]=(o[s]||0)+1;}); return o;}
+    function animateScore(score){const arc=document.getElementById("scoreArc"); const max=578; let t0=null; function step(ts){if(!t0)t0=ts; const p=Math.min((ts-t0)/1500,1); const val=Math.round(score*p); document.getElementById("scoreNum").textContent=val; arc.style.strokeDashoffset=String(max-(val/100)*max); if(p<1)requestAnimationFrame(step);} requestAnimationFrame(step);}
+    function toggleDetail(id){const el=document.getElementById(id); el.style.display=el.style.display==="block"?"none":"block";}
+    function quickFix(check){ if(!confirm(`Run fix for "${check}" on ${currentTarget}?`)) return; runHarden(); }
+    function renderFindings(checks){const q=document.getElementById("searchInput").value.toLowerCase().trim(); const sortBy=document.getElementById("sortBy").value; let rows=[...checks]; if(activeFilter!=="all"){rows=rows.filter(c=>((c.category||"")+" "+(c.check||"")).toLowerCase().includes(activeFilter));} if(q){rows=rows.filter(c=>JSON.stringify(c).toLowerCase().includes(q));} rows.sort((a,b)=>String(a[sortBy]||"").localeCompare(String(b[sortBy]||""))); const list=document.getElementById("findingsList"); list.innerHTML=""; if(!rows.length){list.innerHTML="<div style='color:#8892a4'>No findings match filters.</div>"; return;} rows.forEach((c,idx)=>{const row=document.createElement("div"); row.className=`finding-row ${sevClass(c.severity)}`; const frameworks=(c.frameworks||[]).map(f=>`<span>${f}</span>`).join(""); row.innerHTML=`<div class="finding-main"><i class="bi ${catIcon(c.category)}"></i><div><b>${c.check||"Check"}</b><div style="font-size:12px;color:#8892a4">${c.category||"General"}</div></div><span class="status-chip ${statusClass(c.status)}">${c.status==="WARNING"?"⚠️ WARN":(c.status==="PASS"?"✅ PASS":"❌ FAIL")}</span><span style="font-size:12px;color:#8892a4">${c.severity||"Low"}</span><span class="fw-badges">${frameworks}</span><button class="btn btn-sm btn-outline-info" onclick="toggleDetail('d${idx}')"><i class="bi bi-chevron-down"></i></button></div><div id="d${idx}" class="finding-details">${c.details||"No details"} ${c.status==="FAIL"?`<div class='mt-2'><button class='btn btn-sm btn-outline-warning' onclick='quickFix("${(c.check||"").replace(/"/g,"")}");event.stopPropagation();'>Fix</button></div>`:""}</div>`; list.appendChild(row);});}
+    function persistScanCache(){
+      try{
+        localStorage.setItem(LS_KEY_DATA, JSON.stringify(allScanData));
+        localStorage.setItem(LS_KEY_META, JSON.stringify({
+          currentTarget,
+          lastScanTime: lastScanTime ? lastScanTime.toISOString() : null
+        }));
+      }catch(_){}
+    }
+    function loadScanCache(){
+      try{
+        const dataRaw = localStorage.getItem(LS_KEY_DATA);
+        const metaRaw = localStorage.getItem(LS_KEY_META);
+        if(!dataRaw) return false;
+        const data = JSON.parse(dataRaw);
+        const meta = metaRaw ? JSON.parse(metaRaw) : {};
+        if(!data || typeof data !== "object") return false;
+        allScanData = data;
+        currentTarget = meta.currentTarget || (allScanData.localhost ? "localhost" : Object.keys(allScanData)[0]);
+        lastScanTime = meta.lastScanTime ? new Date(meta.lastScanTime) : null;
+        if(currentTarget && allScanData[currentTarget]){
+          switchToTarget(currentTarget);
+          return true;
+        }
+      }catch(_){}
+      return false;
+    }
+    function clearFilters(){
+      const input = document.getElementById("searchInput");
+      if(input) input.value = "";
+      activeFilter = "all";
+      document.querySelectorAll(".filter-pill").forEach(x=>x.classList.remove("active"));
+      document.querySelector(".filter-pill[data-filter='all']")?.classList.add("active");
+      renderFindings(currentChecks);
+    }
+    function renderTargetCards(){const wrap=document.getElementById("targetsWrap"); wrap.innerHTML=""; Object.entries(allScanData).forEach(([k,v])=>{const active=k===currentTarget?"active":""; const div=document.createElement("div"); div.className="target-card "+active; div.onclick=()=>switchToTarget(k); div.innerHTML=`<div style="display:flex;justify-content:space-between;"><b>${v.hostname||k}</b><span class="badge ${active?"bg-success":"bg-secondary"}">${active?"Active":"Scan Now"}</span></div><div style="font-size:12px;color:#8892a4">${v.os||"--"} | ${v.last_scan||"--"}</div><div style="color:#00d4ff">Score: ${v.score||0}</div>`; wrap.appendChild(div);});}
+    function renderExecutive(data){const checks=data.checks||[]; const fails=checks.filter(c=>c.status==="FAIL"); const [label, cls]=riskLabel(data.score||0); document.getElementById("execRisk").textContent=label; document.getElementById("execRisk").className=cls; document.getElementById("execBar").style.width=`${100-(data.score||0)}%`; document.getElementById("execTop").innerHTML=fails.slice(0,3).map(f=>`<div class="card-scope mb-2">🔴 <b>${f.check}</b><br><span style="color:#8892a4">${f.details}</span></div>`).join("") || "<div class='card-scope'>No critical issues.</div>";}
+    function renderChart(history){const targetHist=history[currentTarget]||[]; const labels=targetHist.map(x=>x.time); const scores=targetHist.map(x=>x.score); const improving=scores.length<2||scores[scores.length-1]>=scores[0]; const ctx=document.getElementById("historyChart"); if(chart) chart.destroy(); chart=new Chart(ctx,{type:"line",data:{labels,datasets:[{label:"Score",data:scores,borderColor:improving?"#00ff88":"#ff4757",tension:.3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8892a4"}},y:{ticks:{color:"#8892a4"},min:0,max:100}}}});}
+    function renderData(data){currentChecks=data.checks||[]; document.getElementById("headerPlatform").textContent=data.os||"{{ plat_info.os }}"; document.getElementById("sysHost").textContent=data.hostname||"--"; document.getElementById("sysOs").textContent=data.os||"--"; document.getElementById("sysIp").textContent=data.ip_address||data.target||"--"; document.getElementById("sysPriv").textContent=data.is_admin===true?"ADMIN":(data.is_admin===false?"USER":"REMOTE"); document.getElementById("sysLast").textContent=data.last_scan||"--"; document.getElementById("statFail").textContent=data.failed||0; document.getElementById("statPass").textContent=data.passed||0; document.getElementById("statWarn").textContent=data.warnings||0; const [label, cls]=riskLabel(data.score||0); const risk=document.getElementById("riskChip"); risk.textContent=label; risk.className="risk-chip "+cls; animateScore(Number(data.score||0)); renderFindings(currentChecks); renderExecutive(data); const sev=countSeverity(currentChecks); document.getElementById("vulnBadges").textContent=`🔴 ${sev.critical} Critical  🟠 ${sev.high} High  🟡 ${sev.medium} Medium  🟢 ${sev.low} Low`; document.getElementById("threatCounter").textContent=sev.critical;}
+    function switchToTarget(key){currentTarget=key; const d=allScanData[key]; if(d) renderData(d); renderTargetCards(); refreshFeed();}
+    async function runLocalScan(force=false){
+      const now = new Date();
+      if(!force && lastScanTime){
+        const diff = (now - lastScanTime) / 60000;
+        if(diff < SCAN_CACHE_MINUTES){
+          if(allScanData.localhost){ switchToTarget("localhost"); }
+          return;
+        }
+      }
+      setProgress(15);
+      document.getElementById("skeletons").classList.remove("d-none");
+      const scoreEl = document.getElementById("scoreNum");
+      if(scoreEl){ scoreEl.textContent = "..."; }
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 120000);
+      try{
+        const r = await fetch("/api/scan/local", {signal: controller.signal});
+        const d = await r.json();
+        if(d.error) throw new Error(d.error);
+        allScanData.localhost = d;
+        lastScanTime = new Date();
+        switchToTarget("localhost");
+        persistScanCache();
+      }catch(e){
+        console.error("Scan failed:", e);
+        if(scoreEl){ scoreEl.textContent = "ERR"; }
+        alert(`Could not run local scan.\n${e.message}`);
+      }finally{
+        clearTimeout(timer);
+        setProgress(100);
+        setTimeout(()=>setProgress(0),500);
+        document.getElementById("skeletons").classList.add("d-none");
+      }
+    }
+    function openModal(){ document.getElementById("remoteScanModal").classList.add("active"); }
+    function closeModal(){ document.getElementById("remoteScanModal").classList.remove("active"); }
+    function updateModalFields() {
+      const type = document.getElementById('remote-type').value;
+      document.getElementById('ssh-fields').style.display = 'none';
+      document.getElementById('snmp-fields').style.display = 'none';
+      document.getElementById('portrange-fields').style.display = 'none';
+      document.getElementById('http-fields').style.display = 'none';
+      document.getElementById('scan-note').style.display = 'none';
+      const note = document.getElementById('scan-note');
+      if (type === 'linux') { document.getElementById('ssh-fields').style.display = 'block'; document.getElementById('remote-port').value = '22'; }
+      else if (type === 'windows') { document.getElementById('ssh-fields').style.display = 'block'; document.getElementById('remote-port').value = '5985'; }
+      else if (type === 'firewall') { document.getElementById('snmp-fields').style.display = 'block'; note.style.display = 'block'; note.textContent = 'ℹ️ Checks SNMP community strings and open management ports. No SSH needed.'; }
+      else if (type === 'network') { note.style.display = 'block'; note.textContent = 'ℹ️ Performs ICMP ping and dangerous port scan. No credentials needed.'; }
+      else if (type === 'portscan') { document.getElementById('portrange-fields').style.display = 'block'; note.style.display = 'block'; note.textContent = 'ℹ️ Scans for open ports only. No credentials needed.'; }
+      else if (type === 'web') { document.getElementById('http-fields').style.display = 'block'; note.style.display = 'block'; note.textContent = 'ℹ️ Checks HTTP headers and web server security configuration.'; }
+    }
+    async function startRemoteScan(){
+      const startBtn = document.getElementById("start-scan-btn");
+      const originalText = startBtn ? startBtn.textContent : "🚀 Start Assessment";
+      const type = document.getElementById("remote-type").value;
+      const host = document.getElementById("remote-host").value.trim();
+      if(!host){ alert("Host IP Address is required."); return; }
+      const username = document.getElementById("remote-username")?.value || "";
+      const password = document.getElementById("remote-password")?.value || "";
+      const port = document.getElementById("remote-port")?.value || "22";
+      let url = "/api/scan/remote";
+      let apiType = type;
+      let body = {host, type: apiType, port, username, password};
+      if(type === "portscan" || type === "network"){ url = "/api/scan/ports"; body = {host}; apiType = "ports"; }
+      if(type === "web"){ url = "/api/scan/web"; body = {url: host}; apiType = "web"; }
+      if(type === "firewall"){ url = "/api/scan/ports"; body = {host}; apiType = "ports"; }
+      if(startBtn){ startBtn.disabled = true; startBtn.textContent = "🔄 Scanning..."; }
+      setProgress(20);
+      try{
+        const r = await fetch(url,{method:"POST",headers:apiHeaders(),body:JSON.stringify(body)});
+        const d = await r.json(); if(d.error) throw new Error(d.error);
+        const key = apiType==="web" ? `web-${host}` : (apiType==="ports" ? `ports-${host}` : host);
+        allScanData[key] = d;
+        allScanCreds[key] = {host, type: apiType, port, username, password};
+        switchToTarget(key);
+        persistScanCache();
+        closeModal();
+      }catch(e){
+        alert(`Could not connect to ${host}\nCheck: Is SSH/Web reachable?\n${e.message}`);
+      }finally{
+        if(startBtn){ startBtn.disabled = false; startBtn.textContent = originalText; }
+        setProgress(100); setTimeout(()=>setProgress(0),500);
+      }
+    }
+    async function runHarden(){const data=allScanData[currentTarget]; if(!data) return; const payload={checks:data.checks||[]}; if(currentTarget!=="localhost"){Object.assign(payload, allScanCreds[currentTarget]||{});} const panel=new bootstrap.Offcanvas("#hardenCanvas"); panel.show(); const logEl=document.getElementById("hardenLog"); logEl.textContent="[*] Starting hardening...\n"; try{const r=await fetch("/api/harden",{method:"POST",headers:apiHeaders(),body:JSON.stringify(payload)}); const d=await r.json(); (d.log||[]).forEach(x=>{logEl.textContent+=`${x.success?"[✓]":"[✗]"} ${x.check}: ${x.message}\n`;}); logEl.textContent+="[*] Hardening complete. Re-scanning...\n"; await runLocalScan();}catch(e){logEl.textContent+=`[✗] Hardening failed: ${e.message}\n`;} logEl.scrollTop=logEl.scrollHeight;}
+    function downloadHtmlReport(){window.location.href=currentTarget==="localhost"?"/api/report/local":`/api/report/remote?host=${encodeURIComponent(currentTarget)}`;}
+    function downloadJson(){window.location.href=`/api/export/json?host=${encodeURIComponent(currentTarget)}`;}
+    function copyShareLink(){navigator.clipboard.writeText(`${location.origin}?target=${encodeURIComponent(currentTarget)}`); alert("Share link copied.");}
+    async function refreshFeed(){try{const r=await fetch("/api/feed"); const d=await r.json(); const box=document.getElementById("threatFeed"); box.innerHTML=(d.events||[]).slice(-30).map(e=>{const cls=e.level==="FAIL"?"feed-red":(e.level==="PASS"?"feed-green":"feed-yellow"); return `<div class="${cls}">[${e.time}] ${e.icon} ${e.level}: ${e.message}</div>`;}).join(""); box.scrollTop=box.scrollHeight; renderChart(d.history||{});}catch(_){}} 
+    document.querySelectorAll(".filter-pill").forEach(p=>p.addEventListener("click",()=>{document.querySelectorAll(".filter-pill").forEach(x=>x.classList.remove("active")); p.classList.add("active"); activeFilter=p.dataset.filter; renderFindings(currentChecks);}));
+    document.getElementById("searchInput").addEventListener("input",()=>renderFindings(currentChecks));
+    document.getElementById("sortBy").addEventListener("change",()=>renderFindings(currentChecks));
+    document.getElementById("btnScan").addEventListener("click",runLocalScan);
+    document.getElementById("btnHarden").addEventListener("click",runHarden);
+    document.addEventListener("keydown",(e)=>{
+      if(e.key === "Escape"){ closeModal(); return; }
+      if(!e.ctrlKey)return;
+      const k=e.key.toLowerCase();
+      if(k==="s"){e.preventDefault();runLocalScan();}
+      if(k==="r"){e.preventDefault();openModal();}
+      if(k==="h"){e.preventDefault();runHarden();}
+      if(k==="d"){e.preventDefault();downloadHtmlReport();}
+    });
+    function runDemoSequence(){const fake={score:90,failed:1,passed:8,warnings:1,hostname:"DEMO-HOST",ip_address:"192.168.56.1",os:"Windows 11",is_admin:true,last_scan:nowStr(),checks:[{category:"User Security",check:"Root login disabled",status:"FAIL",severity:"Critical",details:"Root login enabled",frameworks:["CIS","NIST"]},{category:"Service",check:"Print Spooler",status:"WARNING",severity:"Medium",details:"Service running",frameworks:["ISO"]},{category:"System",check:"Defender Active",status:"PASS",severity:"Low",details:"Defender active",frameworks:["CIS"]}]}; let s=0; const iv=setInterval(()=>{s+=5; fake.score=Math.min(90,s); allScanData.localhost=fake; switchToTarget("localhost"); if(s>=90) clearInterval(iv);},120);}
+    document.addEventListener("DOMContentLoaded", async ()=>{
+      updateModalFields();
+      const modal = document.getElementById("remoteScanModal");
+      const dialog = modal?.querySelector(".modal-dialog");
+      if(modal && dialog){
+        // Use mousedown on backdrop only to avoid closing while selecting dropdown options.
+        modal.addEventListener("mousedown", (e)=>{ if(e.target === modal){ closeModal(); } });
+        dialog.addEventListener("mousedown", (e)=> e.stopPropagation());
+      }
+      const restored = loadScanCache();
+      if(DEMO_MODE){ runDemoSequence(); }
+      else if(!restored){ setTimeout(()=>runLocalScan(), 500); }
+      refreshFeed();
+      setInterval(refreshFeed,4000);
+    });
+  </script>
+</body>
+</html>

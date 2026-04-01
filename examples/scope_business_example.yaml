@@ -1,0 +1,16 @@
+mode: business
+project: "ACME - Q2 2026 External Web App Assessment"
+ack: I_HAVE_AUTHORIZATION_AND_WILL_STAY_IN_SCOPE
+
+allowed_domains:
+  - example.com
+
+# You can also allow explicit hosts/IPs and CIDRs:
+# allowed_hosts:
+#   - "203.0.113.10"
+# allowed_cidrs:
+#   - "203.0.113.0/24"
+
+expires_utc: "2030-01-01T00:00:00Z"
+notes: "Example scope file. In real engagements, keep this with the signed authorization letter."
+
