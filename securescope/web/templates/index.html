@@ -20,11 +20,11 @@
         </div>
       </div>
       <div class="nav-tabs-enterprise">
-        <button class="tab-btn active" onclick="switchTab('dashboard')" id="tab-dashboard">Dashboard</button>
-        <button class="tab-btn" onclick="switchTab('targets')" id="tab-targets">Targets</button>
-        <button class="tab-btn" onclick="switchTab('reports')" id="tab-reports">Reports</button>
-        <button class="tab-btn" onclick="switchTab('settings')" id="tab-settings">Settings</button>
-        <button class="tab-btn" onclick="switchTab('executive')" id="tab-executive">Executive View</button>
+        <button class="tab-btn active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</button>
+        <button class="tab-btn" onclick="showTab('targets')" id="tab-targets">Targets</button>
+        <button class="tab-btn" onclick="showTab('reports')" id="tab-reports">Reports</button>
+        <button class="tab-btn" onclick="showTab('settings')" id="tab-settings">Settings</button>
+        <button class="tab-btn" onclick="showTab('executive')" id="tab-executive">Executive View</button>
       </div>
       <div class="header-right">
         <div class="pill threat-pill"><span class="blinker">●</span> Threats: <b id="threatCounter">0</b></div>
@@ -221,14 +221,96 @@
     </div>
   </div>
 
+  <div id="targets-page" style="display:none;padding:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h2 style="color:#e8eaf6;margin:0">🎯 Assessment Targets</h2>
+      <button onclick="showTab('dashboard');openRemoteModal()" style="background:#00d4ff;color:#000;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px;">+ Add New Target</button>
+    </div>
+    <div id="targets-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+    <div id="targets-empty" style="display:none;text-align:center;padding:80px;color:#8892a4;">
+      <div style="font-size:64px;margin-bottom:16px">🎯</div>
+      <h3 style="color:#e8eaf6">No targets yet</h3>
+      <p>Click "+ Add New Target" to scan a remote machine</p>
+    </div>
+  </div>
+
+  <div id="reports-page" style="display:none;padding:24px;">
+    <h2 style="color:#e8eaf6;margin-bottom:24px;">📄 Security Reports</h2>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:20px;">Generate Report</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div>
+          <label style="color:#8892a4;font-size:12px;text-transform:uppercase;display:block;margin-bottom:8px;">TARGET</label>
+          <select id="report-target" style="width:100%;background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;"><option value="localhost">🖥️ Localhost (This Machine)</option></select>
+        </div>
+        <div>
+          <label style="color:#8892a4;font-size:12px;text-transform:uppercase;display:block;margin-bottom:8px;">FORMAT</label>
+          <select id="report-format" style="width:100%;background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;"><option value="html">📄 HTML Report</option><option value="json">📦 JSON Export</option></select>
+        </div>
+      </div>
+      <button onclick="generateReport()" style="background:#00d4ff;color:#000;border:none;padding:12px 32px;border-radius:8px;cursor:pointer;font-weight:700;font-size:15px;">⬇️ Generate & Download</button>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;">
+      <h3 style="color:#00d4ff;margin-bottom:16px;">Report History (This Session)</h3>
+      <div id="report-history"><p style="color:#8892a4;text-align:center;padding:20px;">No reports generated yet.</p></div>
+    </div>
+  </div>
+
+  <div id="settings-page" style="display:none;padding:24px;">
+    <h2 style="color:#e8eaf6;margin-bottom:24px;">⚙️ Settings</h2>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:20px;">🏢 Organization</h3>
+      <div style="display:grid;gap:16px;">
+        <div>
+          <label style="color:#8892a4;font-size:12px;display:block;margin-bottom:6px;">ORGANIZATION NAME</label>
+          <input type="text" id="set-org" value="NiTechSpark" style="width:100%;background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="color:#8892a4;font-size:12px;display:block;margin-bottom:6px;">CLIENT NAME</label>
+          <input type="text" id="set-client" placeholder="e.g. ABC Corporation" style="width:100%;background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="color:#8892a4;font-size:12px;display:block;margin-bottom:6px;">CONTACT EMAIL</label>
+          <input type="email" id="set-email" value="nitechspark@gmail.com" style="width:100%;background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;box-sizing:border-box;">
+        </div>
+      </div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:20px;">🔍 Scan Preferences</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #1e2d4a;">
+        <div>
+          <div style="color:#e8eaf6;font-weight:600">Auto-scan on load</div>
+          <div style="color:#8892a4;font-size:13px">Run scan automatically on dashboard open</div>
+        </div>
+        <input type="checkbox" id="set-autoscan" checked>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">
+        <div>
+          <div style="color:#e8eaf6;font-weight:600">Show threat feed</div>
+          <div style="color:#8892a4;font-size:13px">Display real-time security events</div>
+        </div>
+        <input type="checkbox" id="set-threatfeed" checked>
+      </div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:20px;">🔐 Change Password</h3>
+      <div style="display:grid;gap:12px;">
+        <input type="password" id="set-newpass" placeholder="New password" style="background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;box-sizing:border-box;width:100%;">
+        <input type="password" id="set-confirmpass" placeholder="Confirm new password" style="background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;box-sizing:border-box;width:100%;">
+      </div>
+    </div>
+    <button onclick="saveSettings()" style="background:#00d4ff;color:#000;border:none;padding:12px 40px;border-radius:8px;cursor:pointer;font-weight:700;font-size:15px;">💾 Save All Settings</button>
+    <span id="save-msg" style="color:#00ff88;margin-left:16px;display:none;">✅ Saved successfully!</span>
+  </div>
+
   {% if demo_mode %}<div class="demo-watermark">LIVE DEMO</div>{% endif %}
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     const CSRF_TOKEN = "{{ csrf_token }}";
     const DEMO_MODE = {{ "true" if demo_mode else "false" }};
-    let allScanData = {};
-    let allScanCreds = {};
+    let allScanData = window.allScanData = {};
+    let allScanCreds = window.allScanCreds = {};
     let currentTarget = "localhost";
     let activeFilter = "all";
     let chart = null;
@@ -242,7 +324,7 @@
     const setProgress = v => document.getElementById("progressTop").style.width = v + "%";
     setInterval(()=>document.getElementById("liveClock").textContent = nowStr(),1000);
     document.getElementById("liveClock").textContent = nowStr();
-    function switchTab(tab){["dashboard","targets","reports","settings","executive"].forEach(t=>document.getElementById("tab-"+t)?.classList.remove("active"));document.getElementById("tab-"+tab)?.classList.add("active");document.getElementById("dashboardTab").classList.toggle("d-none", tab==="executive");document.getElementById("executiveTab").classList.toggle("d-none", tab!=="executive");}
+    function switchTab(tab){ showTab(tab); }
     function riskLabel(score){ if(score>=86) return ["EXCELLENT","risk-excellent"]; if(score>=71) return ["GOOD","risk-good"]; if(score>=41) return ["FAIR","risk-fair"]; return ["CRITICAL","risk-critical"]; }
     function sevClass(s){s=(s||"").toLowerCase(); if(s.includes("critical"))return"critical"; if(s.includes("high"))return"high"; if(s.includes("medium"))return"medium"; return"low";}
     function statusClass(s){if(s==="PASS")return"status-pass"; if(s==="FAIL")return"status-fail"; return"status-warning";}
@@ -263,6 +345,7 @@
     function renderTargetCards() {
       const wrap = document.getElementById("targetsWrap");
       wrap.innerHTML = "";
+      console.log('renderTargetCards - Processing targets:', Object.keys(allScanData));
       Object.entries(allScanData).forEach(([k, v]) => {
         if (window.removedTargets && window.removedTargets.has(k)) {
           return; // skip permanently removed targets
@@ -305,8 +388,8 @@
       window.removedTargets = window.removedTargets || new Set();
       window.removedTargets.add(host);
 
-      if(window.allScanData && window.allScanData[host]){
-        delete window.allScanData[host];
+      if(allScanData && allScanData[host]){
+        delete allScanData[host];
       }
 
       const row = document.getElementById('target-row-' + host.replace(/\./g, '-'));
@@ -317,7 +400,7 @@
       }
 
       if(currentTarget === host){
-        if(window.allScanData && window.allScanData['localhost']){
+        if(allScanData && allScanData['localhost']){
           switchToTarget('localhost');
         } else {
           currentTarget = 'localhost';
@@ -354,8 +437,10 @@
         const d = await r.json();
         if(d.error) throw new Error(d.error);
         allScanData.localhost = d;
+        console.log('Local scan complete. All targets:', Object.keys(allScanData));
         lastScanTime = new Date();
         switchToTarget("localhost");
+        updateAllTargetDisplays();
       }catch(e){
         console.error("Scan failed:", e);
         if(scoreEl){ scoreEl.textContent = "ERR"; }
@@ -415,8 +500,10 @@
         const key = apiType==="web" ? `web-${host}` : (apiType==="ports" ? `ports-${host}` : host);
         allScanData[key] = d;
         allScanCreds[key] = {host, type: apiType, port, username, password};
+        console.log('Remote scan stored. Key:', key, 'Data:', d, 'All targets:', Object.keys(allScanData));
         switchToTarget(key);
         closeModal();
+        updateAllTargetDisplays();
       }catch(e){
         alert(`Could not connect to ${host}\nCheck: Is SSH/Web reachable?\n${e.message}`);
       }finally{
@@ -428,7 +515,168 @@
     function downloadHtmlReport(){window.location.href=currentTarget==="localhost"?"/api/report/local":`/api/report/remote?host=${encodeURIComponent(currentTarget)}`;}
     function downloadJson(){window.location.href=`/api/export/json?host=${encodeURIComponent(currentTarget)}`;}
     function copyShareLink(){navigator.clipboard.writeText(`${location.origin}?target=${encodeURIComponent(currentTarget)}`); alert("Share link copied.");}
-    async function refreshFeed(){try{const r=await fetch("/api/feed"); const d=await r.json(); const box=document.getElementById("threatFeed"); box.innerHTML=(d.events||[]).slice(-30).map(e=>{const cls=e.level==="FAIL"?"feed-red":(e.level==="PASS"?"feed-green":"feed-yellow"); return `<div class="${cls}">[${e.time}] ${e.icon} ${e.level}: ${e.message}</div>`;}).join(""); box.scrollTop=box.scrollHeight; renderChart(d.history||{});}catch(_){}} 
+    async function refreshFeed(){try{const r=await fetch("/api/feed"); const d=await r.json(); const box=document.getElementById("threatFeed"); box.innerHTML=(d.events||[]).slice(-30).map(e=>{const cls=e.level==="FAIL"?"feed-red":(e.level==="PASS"?"feed-green":"feed-yellow"); return `<div class="${cls}">[${e.time}] ${e.icon} ${e.level}: ${e.message}</div>`;}).join(""); box.scrollTop=box.scrollHeight; renderChart(d.history||{});}catch(_){}}
+    function updateAllTargetDisplays() {
+      console.log('updateAllTargetDisplays called. Current targets:', Object.keys(allScanData || {}));
+      renderTargetCards();
+      updateReportTargets();
+      if (document.getElementById('targets-page')?.style.display === 'block') {
+        renderTargetsPage();
+      }
+    }
+    function showTab(tabName) {
+      // Hide ALL possible content containers first
+      const allPages = ['targets-page', 'reports-page', 'settings-page'];
+      allPages.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      
+      // Hide both main grids and ensure d-none state is applied/removed properly
+      const dashboardTab = document.getElementById('dashboardTab');
+      const executiveTab = document.getElementById('executiveTab');
+      if (dashboardTab) {
+        dashboardTab.style.display = 'none';
+        dashboardTab.classList.remove('d-none');
+      }
+      if (executiveTab) {
+        executiveTab.style.display = 'none';
+        executiveTab.classList.add('d-none');
+      }
+      
+      // Remove active class from ALL nav buttons
+      document.querySelectorAll('.tab-btn, .nav-tab').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      console.log('showTab called with:', tabName);
+      
+      // Now show only the requested tab
+      if (tabName === 'dashboard') {
+        // Show main dashboard grid
+        if (dashboardTab) dashboardTab.style.display = 'grid';
+        document.getElementById('tab-dashboard')?.classList.add('active');
+      } else if (tabName === 'executive') {
+        // Show executive view grid
+        if (executiveTab) {
+          executiveTab.classList.remove('d-none');
+          executiveTab.style.display = 'grid';
+        }
+        document.getElementById('tab-executive')?.classList.add('active');
+      } else {
+        // Show other tab pages (targets, reports, settings)
+        const page = document.getElementById(tabName + '-page');
+        if (page) {
+          page.style.display = 'block';
+          document.getElementById('tab-' + tabName)?.classList.add('active');
+          // Call render functions for specific tabs
+          if (tabName === 'targets') renderTargetsPage();
+          if (tabName === 'reports') updateReportTargets();
+          if (tabName === 'settings') console.log('Settings tab opened');
+        }
+      }
+    }
+    function renderTargetsPage() {
+      const grid = document.getElementById('targets-grid');
+      const empty = document.getElementById('targets-empty');
+      if (!grid) return;
+      grid.innerHTML = '';
+      const data = allScanData || {};
+      let hosts = Object.keys(data);
+      if (window.removedTargets && window.removedTargets.size > 0) {
+        hosts = hosts.filter(h => !window.removedTargets.has(h));
+      }
+      console.log('renderTargetsPage - Found hosts:', hosts, 'Total data keys:', Object.keys(data));
+      if (hosts.length === 0) {
+        if (empty) empty.style.display = 'block';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      hosts.forEach(host => {
+        const d = data[host];
+        if (!d || typeof d !== 'object') {
+          console.warn('Invalid data for host:', host, d);
+          return;
+        }
+        const score = d.score || 0;
+        const color = score >= 86 ? '#00ff88' : score >= 71 ? '#3b82f6' : score >= 41 ? '#f97316' : '#ff4757';
+        const isLocal = host === 'localhost';
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;transition:all 0.2s;cursor:pointer;';
+        card.onmouseenter = () => {
+          card.style.borderColor = '#00d4ff';
+          card.style.transform = 'translateY(-3px)';
+        };
+        card.onmouseleave = () => {
+          card.style.borderColor = '#1e2d4a';
+          card.style.transform = 'translateY(0)';
+        };
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#e8eaf6;margin-bottom:4px;">${isLocal ? '🖥️ Localhost' : '🌐 '+host}</div>
+              <div style="color:#8892a4;font-size:12px;">${d.os || 'Unknown OS'}</div>
+            </div>
+            <div style="font-size:32px;font-weight:800;color:${color}">${score}</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+            <span style="background:rgba(255,71,87,0.15);color:#ff4757;padding:3px 10px;border-radius:20px;font-size:12px;">❌ ${d.failed||0} Failed</span>
+            <span style="background:rgba(0,255,136,0.15);color:#00ff88;padding:3px 10px;border-radius:20px;font-size:12px;">✅ ${d.passed||0} Passed</span>
+            <span style="background:rgba(255,165,2,0.15);color:#ffa502;padding:3px 10px;border-radius:20px;font-size:12px;">⚠️ ${d.warnings||0} Warn</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="switchToTarget('${host}');showTab('dashboard')" style="flex:1;background:#00d4ff;color:#000;border:none;padding:9px;border-radius:6px;cursor:pointer;font-weight:700;">📊 View Details</button>
+            ${!isLocal ? '<button onclick="removeTarget(\''+host+'\')" style="background:none;border:1px solid #ff4757;color:#ff4757;padding:9px 12px;border-radius:6px;cursor:pointer;">✕</button>' : ''}
+          </div>`;
+        grid.appendChild(card);
+      });
+    }
+    function updateReportTargets() {
+      const sel = document.getElementById('report-target');
+      if (!sel) return;
+      sel.innerHTML = '<option value="localhost">🖥️ Localhost</option>';
+      Object.keys(allScanData || {})
+        .filter(h => h !== 'localhost')
+        .forEach(h => {
+          sel.innerHTML += '<option value="'+h+'">🌐 '+h+'</option>';
+        });
+      console.log('updateReportTargets - Current targets:', Object.keys(allScanData || {}));
+    }
+    function generateReport() {
+      const target = document.getElementById('report-target').value;
+      const format = document.getElementById('report-format').value;
+      let url;
+      if (format === 'json') {
+        url = '/api/export/json';
+      } else {
+        url = target === 'localhost' ? '/api/report/local' : '/api/report/remote?host=' + encodeURIComponent(target);
+      }
+      window.location.href = url;
+      const hist = document.getElementById('report-history');
+      const now = new Date().toLocaleString();
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:12px 0;border-bottom:1px solid #1e2d4a;display:flex;justify-content:space-between;align-items:center;';
+      item.innerHTML = '<div><span style="color:#e8eaf6;font-weight:600">'+(target==='localhost'?'Localhost':target)+' Report</span><span style="color:#8892a4;font-size:12px;margin-left:12px;">'+now+'</span></div><button onclick="window.location.href=\''+url+'\'" style="background:none;border:1px solid #00d4ff;color:#00d4ff;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">↓ Again</button>';
+      if (hist.querySelector('p')) hist.innerHTML='';
+      hist.prepend(item);
+    }
+    function saveSettings() {
+      const payload = {
+        org_name: document.getElementById('set-org').value,
+        client_name: document.getElementById('set-client').value,
+        email: document.getElementById('set-email').value
+      };
+      fetch('/api/settings/save', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-Token':CSRF_TOKEN},
+        body: JSON.stringify(payload)
+      }).then(r => r.json()).then(() => {
+        const msg = document.getElementById('save-msg');
+        msg.style.display = 'inline';
+        setTimeout(() => msg.style.display='none', 3000);
+      });
+    }
+    function openRemoteModal(){openModal();}
     document.querySelectorAll(".filter-pill").forEach(p=>p.addEventListener("click",()=>{document.querySelectorAll(".filter-pill").forEach(x=>x.classList.remove("active")); p.classList.add("active"); activeFilter=p.dataset.filter; renderFindings(currentChecks);}));
     document.getElementById("searchInput").addEventListener("input",()=>renderFindings(currentChecks));
     document.getElementById("sortBy").addEventListener("change",()=>renderFindings(currentChecks));

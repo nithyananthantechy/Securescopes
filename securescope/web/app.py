@@ -525,5 +525,17 @@ def api_export_json():
         return jsonify({"error": "No data for host"}), 404
     return jsonify(data)
 
+@app.route('/api/settings/save', methods=['POST'])
+@login_required
+@secure_post
+def save_settings():
+    try:
+        data = request.json
+        app.config['ORG_NAME'] = data.get('org_name', 'NiTechSpark')
+        app.config['CLIENT_NAME'] = data.get('client_name', '')
+        return jsonify({'status': 'saved'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=False, port=8080)
