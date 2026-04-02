@@ -235,9 +235,9 @@
     let chart = null;
     let currentChecks = [];
     let lastScanTime = null;
+    // Track removed targets
+    window.removedTargets = window.removedTargets || new Set();
     const SCAN_CACHE_MINUTES = 5;
-    const LS_KEY_DATA = "securescope_scan_data_v1";
-    const LS_KEY_META = "securescope_scan_meta_v1";
     const apiHeaders = () => ({"Content-Type":"application/json","X-CSRF-Token":CSRF_TOKEN});
     const nowStr = () => new Date().toLocaleString("en-GB");
     const setProgress = v => document.getElementById("progressTop").style.width = v + "%";
@@ -253,33 +253,6 @@
     function toggleDetail(id){const el=document.getElementById(id); el.style.display=el.style.display==="block"?"none":"block";}
     function quickFix(check){ if(!confirm(`Run fix for "${check}" on ${currentTarget}?`)) return; runHarden(); }
     function renderFindings(checks){const q=document.getElementById("searchInput").value.toLowerCase().trim(); const sortBy=document.getElementById("sortBy").value; let rows=[...checks]; if(activeFilter!=="all"){rows=rows.filter(c=>((c.category||"")+" "+(c.check||"")).toLowerCase().includes(activeFilter));} if(q){rows=rows.filter(c=>JSON.stringify(c).toLowerCase().includes(q));} rows.sort((a,b)=>String(a[sortBy]||"").localeCompare(String(b[sortBy]||""))); const list=document.getElementById("findingsList"); list.innerHTML=""; if(!rows.length){list.innerHTML="<div style='color:#8892a4'>No findings match filters.</div>"; return;} rows.forEach((c,idx)=>{const row=document.createElement("div"); row.className=`finding-row ${sevClass(c.severity)}`; const frameworks=(c.frameworks||[]).map(f=>`<span>${f}</span>`).join(""); row.innerHTML=`<div class="finding-main"><i class="bi ${catIcon(c.category)}"></i><div><b>${c.check||"Check"}</b><div style="font-size:12px;color:#8892a4">${c.category||"General"}</div></div><span class="status-chip ${statusClass(c.status)}">${c.status==="WARNING"?"⚠️ WARN":(c.status==="PASS"?"✅ PASS":"❌ FAIL")}</span><span style="font-size:12px;color:#8892a4">${c.severity||"Low"}</span><span class="fw-badges">${frameworks}</span><button class="btn btn-sm btn-outline-info" onclick="toggleDetail('d${idx}')"><i class="bi bi-chevron-down"></i></button></div><div id="d${idx}" class="finding-details">${c.details||"No details"} ${c.status==="FAIL"?`<div class='mt-2'><button class='btn btn-sm btn-outline-warning' onclick='quickFix("${(c.check||"").replace(/"/g,"")}");event.stopPropagation();'>Fix</button></div>`:""}</div>`; list.appendChild(row);});}
-    function persistScanCache(){
-      try{
-        localStorage.setItem(LS_KEY_DATA, JSON.stringify(allScanData));
-        localStorage.setItem(LS_KEY_META, JSON.stringify({
-          currentTarget,
-          lastScanTime: lastScanTime ? lastScanTime.toISOString() : null
-        }));
-      }catch(_){}
-    }
-    function loadScanCache(){
-      try{
-        const dataRaw = localStorage.getItem(LS_KEY_DATA);
-        const metaRaw = localStorage.getItem(LS_KEY_META);
-        if(!dataRaw) return false;
-        const data = JSON.parse(dataRaw);
-        const meta = metaRaw ? JSON.parse(metaRaw) : {};
-        if(!data || typeof data !== "object") return false;
-        allScanData = data;
-        currentTarget = meta.currentTarget || (allScanData.localhost ? "localhost" : Object.keys(allScanData)[0]);
-        lastScanTime = meta.lastScanTime ? new Date(meta.lastScanTime) : null;
-        if(currentTarget && allScanData[currentTarget]){
-          switchToTarget(currentTarget);
-          return true;
-        }
-      }catch(_){}
-      return false;
-    }
     function clearFilters(){
       const input = document.getElementById("searchInput");
       if(input) input.value = "";
@@ -288,11 +261,78 @@
       document.querySelector(".filter-pill[data-filter='all']")?.classList.add("active");
       renderFindings(currentChecks);
     }
-    function renderTargetCards(){const wrap=document.getElementById("targetsWrap"); wrap.innerHTML=""; Object.entries(allScanData).forEach(([k,v])=>{const active=k===currentTarget?"active":""; const div=document.createElement("div"); div.className="target-card "+active; div.onclick=()=>switchToTarget(k); div.innerHTML=`<div style="display:flex;justify-content:space-between;"><b>${v.hostname||k}</b><span class="badge ${active?"bg-success":"bg-secondary"}">${active?"Active":"Scan Now"}</span></div><div style="font-size:12px;color:#8892a4">${v.os||"--"} | ${v.last_scan||"--"}</div><div style="color:#00d4ff">Score: ${v.score||0}</div>`; wrap.appendChild(div);});}
+    function renderTargetCards() {
+      const wrap = document.getElementById("targetsWrap");
+      wrap.innerHTML = "";
+      Object.entries(allScanData).forEach(([k, v]) => {
+        if (window.removedTargets && window.removedTargets.has(k)) {
+          return; // skip permanently removed targets
+        }
+        const active = k === currentTarget ? "active" : "";
+        const div = document.createElement("div");
+        div.id = `target-row-${k.replace(/\./g, "-")}`;
+        div.className = "target-card " + active;
+        div.onclick = () => switchToTarget(k);
+
+        let removeButton = "";
+        if (k !== "localhost") {
+          removeButton = `<button class="target-remove-btn" title="Remove target" style="background: none; border: 1px solid #ff4757; color: #ff4757; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 11px; margin-left: 8px;">✕ Remove</button>`;
+        }
+
+        div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;"><b>${v.hostname||k}</b><span class="badge ${active?"bg-success":"bg-secondary"}">${active?"Active":"Scan Now"}</span></div>
+          <div style="font-size:12px;color:#8892a4">${v.os||"--"} | ${v.last_scan||"--"}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;"><span style="color:#00d4ff">Score: ${v.score||0}</span>${removeButton}</div>
+        `;
+
+        if (k !== "localhost") {
+          const btn = div.querySelector(".target-remove-btn");
+          if (btn) {
+            btn.addEventListener("click", (e) => { e.stopPropagation(); removeTarget(k); });
+          }
+        }
+
+        wrap.appendChild(div);
+      });
+    }
     function renderExecutive(data){const checks=data.checks||[]; const fails=checks.filter(c=>c.status==="FAIL"); const [label, cls]=riskLabel(data.score||0); document.getElementById("execRisk").textContent=label; document.getElementById("execRisk").className=cls; document.getElementById("execBar").style.width=`${100-(data.score||0)}%`; document.getElementById("execTop").innerHTML=fails.slice(0,3).map(f=>`<div class="card-scope mb-2">🔴 <b>${f.check}</b><br><span style="color:#8892a4">${f.details}</span></div>`).join("") || "<div class='card-scope'>No critical issues.</div>";}
     function renderChart(history){const targetHist=history[currentTarget]||[]; const labels=targetHist.map(x=>x.time); const scores=targetHist.map(x=>x.score); const improving=scores.length<2||scores[scores.length-1]>=scores[0]; const ctx=document.getElementById("historyChart"); if(chart) chart.destroy(); chart=new Chart(ctx,{type:"line",data:{labels,datasets:[{label:"Score",data:scores,borderColor:improving?"#00ff88":"#ff4757",tension:.3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8892a4"}},y:{ticks:{color:"#8892a4"},min:0,max:100}}}});}
     function renderData(data){currentChecks=data.checks||[]; document.getElementById("headerPlatform").textContent=data.os||"{{ plat_info.os }}"; document.getElementById("sysHost").textContent=data.hostname||"--"; document.getElementById("sysOs").textContent=data.os||"--"; document.getElementById("sysIp").textContent=data.ip_address||data.target||"--"; document.getElementById("sysPriv").textContent=data.is_admin===true?"ADMIN":(data.is_admin===false?"USER":"REMOTE"); document.getElementById("sysLast").textContent=data.last_scan||"--"; document.getElementById("statFail").textContent=data.failed||0; document.getElementById("statPass").textContent=data.passed||0; document.getElementById("statWarn").textContent=data.warnings||0; const [label, cls]=riskLabel(data.score||0); const risk=document.getElementById("riskChip"); risk.textContent=label; risk.className="risk-chip "+cls; animateScore(Number(data.score||0)); renderFindings(currentChecks); renderExecutive(data); const sev=countSeverity(currentChecks); document.getElementById("vulnBadges").textContent=`🔴 ${sev.critical} Critical  🟠 ${sev.high} High  🟡 ${sev.medium} Medium  🟢 ${sev.low} Low`; document.getElementById("threatCounter").textContent=sev.critical;}
     function switchToTarget(key){currentTarget=key; const d=allScanData[key]; if(d) renderData(d); renderTargetCards(); refreshFeed();}
+    function removeTarget(host){
+      if(host === 'localhost') return;
+      if(!confirm('Remove ' + host + ' from targets list?')) return;
+
+      window.removedTargets = window.removedTargets || new Set();
+      window.removedTargets.add(host);
+
+      if(window.allScanData && window.allScanData[host]){
+        delete window.allScanData[host];
+      }
+
+      const row = document.getElementById('target-row-' + host.replace(/\./g, '-'));
+      if(row){
+        row.style.transition = 'opacity 0.3s';
+        row.style.opacity = '0';
+        setTimeout(()=>row.remove(), 300);
+      }
+
+      if(currentTarget === host){
+        currentTarget = 'localhost';
+        const localData = window.allScanData && window.allScanData['localhost'];
+        if(localData){
+          renderData(localData);
+        }
+      }
+
+      renderTargetCards();
+
+      fetch('/api/targets/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
+        body: JSON.stringify({host: host})
+      }).catch(err => console.log('Backend remove:', err));
+    }
     async function runLocalScan(force=false){
       const now = new Date();
       if(!force && lastScanTime){
@@ -315,7 +355,6 @@
         allScanData.localhost = d;
         lastScanTime = new Date();
         switchToTarget("localhost");
-        persistScanCache();
       }catch(e){
         console.error("Scan failed:", e);
         if(scoreEl){ scoreEl.textContent = "ERR"; }
@@ -350,6 +389,10 @@
       const type = document.getElementById("remote-type").value;
       const host = document.getElementById("remote-host").value.trim();
       if(!host){ alert("Host IP Address is required."); return; }
+
+      if(window.removedTargets){
+        window.removedTargets.delete(host);
+      }
       const username = document.getElementById("remote-username")?.value || "";
       const password = document.getElementById("remote-password")?.value || "";
       const port = document.getElementById("remote-port")?.value || "22";
@@ -368,7 +411,6 @@
         allScanData[key] = d;
         allScanCreds[key] = {host, type: apiType, port, username, password};
         switchToTarget(key);
-        persistScanCache();
         closeModal();
       }catch(e){
         alert(`Could not connect to ${host}\nCheck: Is SSH/Web reachable?\n${e.message}`);
@@ -406,9 +448,8 @@
         modal.addEventListener("mousedown", (e)=>{ if(e.target === modal){ closeModal(); } });
         dialog.addEventListener("mousedown", (e)=> e.stopPropagation());
       }
-      const restored = loadScanCache();
       if(DEMO_MODE){ runDemoSequence(); }
-      else if(!restored){ setTimeout(()=>runLocalScan(), 500); }
+      else { setTimeout(()=>runLocalScan(), 500); }
       refreshFeed();
       setInterval(refreshFeed,4000);
     });

@@ -40,6 +40,7 @@ scanner = SecureScanner()
 stored_scan_results = {}
 scan_history = {}
 scan_events = []
+removed_hosts = set()
 rate_limit_state = {}
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.start()
@@ -260,10 +261,33 @@ def api_scan_remote():
         }
         for c in res["checks"]:
             c["frameworks"] = _frameworks_for_check(c.get("check"))
-        stored_scan_results[host] = res
-        _record_scan(host, res["score"])
-        _add_events(host, res["checks"])
+
+        target_key = host
+        if target_key in removed_hosts:
+            removed_hosts.discard(target_key)
+
+        stored_scan_results[target_key] = res
+        _record_scan(target_key, res["score"])
+        _add_events(target_key, res["checks"])
         return jsonify(res)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/targets/remove', methods=['POST'])
+@login_required
+@secure_post
+def api_targets_remove():
+    try:
+        data = request.json or {}
+        host = (data.get('host') or '').strip()
+        if host:
+            if host in stored_scan_results:
+                del stored_scan_results[host]
+            if host in scan_history:
+                del scan_history[host]
+            removed_hosts.add(host)
+        return jsonify({'status': 'removed', 'host': host})
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -295,8 +319,13 @@ def api_scan_ports():
         }
         for c in res["checks"]:
             c["frameworks"] = _frameworks_for_check(c.get("check"))
-        stored_scan_results[f'ports-{host}'] = res
-        _record_scan(f'ports-{host}', res["score"])
+
+        target_key = f'ports-{host}'
+        if target_key in removed_hosts:
+            removed_hosts.discard(target_key)
+
+        stored_scan_results[target_key] = res
+        _record_scan(target_key, res["score"])
         _add_events(host, res["checks"])
         return jsonify(res)
     except Exception as e:
@@ -327,8 +356,13 @@ def api_scan_web():
         }
         for c in res["checks"]:
             c["frameworks"] = _frameworks_for_check(c.get("check"))
-        stored_scan_results[f'web-{url}'] = res
-        _record_scan(f'web-{url}', res["score"])
+
+        target_key = f'web-{url}'
+        if target_key in removed_hosts:
+            removed_hosts.discard(target_key)
+
+        stored_scan_results[target_key] = res
+        _record_scan(target_key, res["score"])
         _add_events(url, res["checks"])
         return jsonify(res)
     except Exception as e:
