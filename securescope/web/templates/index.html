@@ -16,7 +16,6 @@
       <div class="brand">
         <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
         <div>
-          <div style="font-size:10px;color:#8892a4;letter-spacing:.12em;">{{ org_name|upper }}</div>
           <div class="brand-title">SecureScope</div>
         </div>
       </div>
@@ -79,7 +78,7 @@
       <div class="card-scope">
         <div class="section-title">Security Audit Findings</div>
         <div class="findings-toolbar">
-          <input id="searchInput" class="form-control form-control-sm" placeholder="Search..." style="max-width:240px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+          <input id="searchInput" name="search-query" class="form-control form-control-sm" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" style="max-width:240px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
           <select id="sortBy" class="form-select form-select-sm" style="max-width:150px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
             <option value="category">Sort: Category</option>
             <option value="status">Sort: Status</option>
@@ -170,17 +169,17 @@
 
         <div class="form-group">
           <label>Host IP Address *</label>
-          <input type="text" id="remote-host" class="form-control" placeholder="e.g. 192.168.1.100" required>
+          <input type="text" id="remote-host" name="remote-host" autocomplete="off" class="form-control" placeholder="e.g. 192.168.1.100" required>
         </div>
 
         <div id="ssh-fields">
           <div class="form-group">
             <label>Username *</label>
-            <input type="text" id="remote-username" class="form-control" placeholder="e.g. root or admin">
+            <input type="text" id="remote-username" name="remote-username" autocomplete="off" class="form-control" placeholder="e.g. root or admin">
           </div>
           <div class="form-group">
             <label>Password *</label>
-            <input type="password" id="remote-password" class="form-control" placeholder="Enter password">
+            <input type="password" id="remote-password" name="remote-password" autocomplete="new-password" class="form-control" placeholder="Enter password">
           </div>
           <div class="form-group">
             <label>Port</label>
@@ -318,10 +317,12 @@
       }
 
       if(currentTarget === host){
-        currentTarget = 'localhost';
-        const localData = window.allScanData && window.allScanData['localhost'];
-        if(localData){
-          renderData(localData);
+        if(window.allScanData && window.allScanData['localhost']){
+          switchToTarget('localhost');
+        } else {
+          currentTarget = 'localhost';
+          renderTargetCards();
+          renderData({checks: [], score: 0, hostname: '--', os: '--', ip_address: '--', last_scan: '--', failed:0, passed:0, warnings:0});
         }
       }
 
@@ -366,7 +367,11 @@
         document.getElementById("skeletons").classList.add("d-none");
       }
     }
-    function openModal(){ document.getElementById("remoteScanModal").classList.add("active"); }
+    function openModal(){
+      document.getElementById("remoteScanModal").classList.add("active");
+      const searchEl = document.getElementById("searchInput");
+      if(searchEl){ searchEl.value = ""; renderFindings(currentChecks); }
+    }
     function closeModal(){ document.getElementById("remoteScanModal").classList.remove("active"); }
     function updateModalFields() {
       const type = document.getElementById('remote-type').value;
