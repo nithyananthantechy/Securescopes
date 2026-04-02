@@ -155,3 +155,106 @@
 2026-04-02 14:22:59,971|INFO|securescope|Starting remote linux scan on 192.0.2.1:22...
 2026-04-02 14:23:09,974|ERROR|securescope|Remote scan failed: timed out
 2026-04-02 14:24:49,438|ERROR|securescope|Command timed out: ping -n 100 127.0.0.1
+2026-04-02 14:25:07,641|INFO|apscheduler.scheduler|Scheduler started
+2026-04-02 14:25:07,714|INFO|werkzeug|[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://10.91.206.221:8080
+2026-04-02 14:25:07,725|INFO|werkzeug|[33mPress CTRL+C to quit[0m
+2026-04-02 14:25:12,046|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:12] "GET / HTTP/1.1" 200 -
+2026-04-02 14:25:12,147|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:12] "[36mGET /logo.png HTTP/1.1[0m" 304 -
+2026-04-02 14:25:12,293|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:12] "[36mGET /static/style.css HTTP/1.1[0m" 304 -
+2026-04-02 14:25:12,469|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:12] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 204 -
+2026-04-02 14:25:12,470|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:12] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:12,929|INFO|securescope|Starting local scan on Windows 11...
+2026-04-02 14:25:16,445|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:16] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:20,440|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:20] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:24,436|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:24] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:28,431|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:28] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:31,002|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:31] "GET /api/scan/local HTTP/1.1" 200 -
+2026-04-02 14:25:31,034|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:33,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:33] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:36,438|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:36] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:40,430|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:40] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:44,434|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:44] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:48,445|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:48] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:52,431|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:52] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:25:56,432|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:25:56] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:00,429|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:00] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:00,594|INFO|securescope|Starting remote linux scan on 103.192.65.59:2222...
+2026-04-02 14:26:00,966|INFO|paramiko.transport|Connected (version 2.0, client OpenSSH_9.6p1)
+2026-04-02 14:26:01,714|INFO|paramiko.transport|Authentication (password) successful!
+2026-04-02 14:26:04,425|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:04] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:08,001|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:08] "POST /api/scan/remote HTTP/1.1" 200 -
+2026-04-02 14:26:08,034|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:08] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:08,431|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:08] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:12,199|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:12] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:12,445|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:12] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:16,124|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:16] "POST /api/targets/remove HTTP/1.1" 200 -
+2026-04-02 14:26:16,429|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:16] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:17,560|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:17] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:20,433|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:20] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:24,429|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:24] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:29,193|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:29] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:33,194|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:33] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:37,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:37] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:41,191|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:41] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:44,443|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:44] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:48,441|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:48] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:52,429|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:52] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:26:56,425|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:26:56] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:00,429|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:00] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:04,426|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:04] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:08,424|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:08] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:12,424|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:12] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:16,426|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:16] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:20,440|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:20] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:23,497|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:23] "GET /api/report/local HTTP/1.1" 200 -
+2026-04-02 14:27:24,426|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:24] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:28,427|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:28] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:32,426|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:32] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:36,436|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:36] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:41,196|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:41] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:45,195|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:45] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:49,191|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:49] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:53,199|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:53] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:27:57,196|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:27:57] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:01,190|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:01] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:05,204|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:05] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:09,204|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:09] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:13,203|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:13] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:17,195|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:17] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:21,199|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:21] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:25,193|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:25] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:29,195|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:29] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:28:33,194|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:28:33] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:07,230|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:07] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:08,428|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:08] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:13,199|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:13] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:17,216|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:17] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:21,191|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:21] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:25,193|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:25] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:29,193|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:29] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:33,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:33] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:37,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:37] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:41,926|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:41] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:45,221|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:45] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:49,193|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:49] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:53,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:53] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:29:57,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:29:57] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:30:01,194|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:30:01] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:30:05,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:30:05] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:30:09,192|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:30:09] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:30:30,210|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:30:30] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:31:30,210|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:31:30] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:32:30,387|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:32:30] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:33:30,197|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:33:30] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:34:31,453|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:34:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:35:31,460|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:35:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:36:31,447|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:36:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:37:31,450|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:37:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:38:31,448|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:38:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 14:39:31,445|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 14:39:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 15:00:45,315|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 15:00:45] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 15:01:31,440|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 15:01:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-02 15:02:31,445|INFO|werkzeug|127.0.0.1 - - [02/Apr/2026 15:02:31] "GET /api/feed HTTP/1.1" 200 -
