@@ -7,16 +7,22 @@ import secrets
 import re
 from datetime import datetime, timedelta
 from functools import wraps
+from threading import Thread
 from urllib.parse import urlparse
 
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from securescope.core.scanner import SecureScanner
+from securescope.core.scanner import Scanner
 from securescope.core.hardener import SecureHardener
-from securescope.core.reporter import SecureReporter
+from securescope.core.reporter import Reporter
 from securescope.core.utils import detect_platform
+from securescope.scanners.llm_scanner import LLMSecurityScanner
+from securescope.web.llm_store import LLMStore
+from securescope.web.report_generator import LLMReportGenerator
+from securescope.integrations.slack import send_slack_alert
+from securescope.integrations.email import send_email_report
 
 # Load Configuration
 def load_config():
@@ -36,7 +42,7 @@ app.secret_key = os.environ.get(
   'nitechspark-securescope-2026-prod')
 app.permanent_session_lifetime = timedelta(hours=config.get("web", {}).get("session_timeout_hours", 8))
 
-scanner = SecureScanner()
+scanner = Scanner()
 stored_scan_results = {}
 scan_history = {}
 scan_events = []
@@ -44,6 +50,11 @@ removed_hosts = set()
 rate_limit_state = {}
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.start()
+llm_store = LLMStore(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "llm_audit.db"))
+llm_store.init_db()
+llm_scan_state = {}
+llm_reporter = LLMReportGenerator()
+SUPER_ADMINS = set((os.environ.get("SECURESCOPE_SUPER_ADMINS", "nitechspark").split(",")))
 
 
 def _now():
@@ -136,6 +147,99 @@ def _frameworks_for_check(check_name):
         mapping = ["ISO"]
     return list(dict.fromkeys(mapping))
 
+
+def _llm_user_id() -> str:
+    org_id = session.get("org_id")
+    if org_id:
+        return f"org:{org_id}"
+    return session.get("username", "anonymous")
+
+
+def _is_super_admin() -> bool:
+    return (session.get("username") or "").strip() in SUPER_ADMINS
+
+
+def _build_llm_html_report(scan: dict):
+    data = scan.get("report_json") or {}
+    vulnerabilities = data.get("vulnerabilities", [])
+    score = int(scan.get("security_score", 0))
+    score_color = "#22c55e" if score >= 80 else "#f97316" if score >= 50 else "#ef4444"
+    vuln_html = "".join(
+        (
+            f"<li><b>{v.get('severity', 'low').upper()}</b> - {v.get('type', 'unknown')}: "
+            f"{v.get('description', 'No description')}<br><i>Remediation:</i> {v.get('remediation', 'N/A')}</li>"
+        )
+        for v in vulnerabilities
+    ) or "<li>No vulnerabilities found.</li>"
+    compliance = data.get("compliance_status", {})
+    compliance_html = "".join(
+        f"<li><b>{k}</b>: {(v or {}).get('status', 'partial')}</li>" for k, v in compliance.items()
+    ) or "<li>No compliance mapping available.</li>"
+    return f"""
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>SecureScope LLM Report</title>
+      <style>
+        body {{ font-family: Arial, sans-serif; margin: 0; background: #f5f7fb; color: #0f172a; }}
+        .header {{ display: flex; align-items: center; gap: 12px; background: #0b1730; color: #fff; padding: 16px 24px; }}
+        .logo {{ height: 38px; width: auto; }}
+        .wrap {{ padding: 24px; }}
+        .score {{ font-size: 42px; font-weight: 700; color: {score_color}; }}
+        .box {{ background: #fff; border: 1px solid #d6deea; border-radius: 10px; padding: 16px; margin-bottom: 16px; }}
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <img src="/logo.png" class="logo" alt="SecureScope logo" />
+        <div>
+          <div style="font-size:20px;font-weight:700;">SecureScope</div>
+          <div style="font-size:12px;opacity:.9;">LLM & Chatbot Security Audit Report</div>
+        </div>
+      </div>
+      <div class="wrap">
+        <div class="box">
+          <div>Scan ID: {scan.get("scan_id")}</div>
+          <div class="score">{score}/100</div>
+        </div>
+        <div class="box"><h3>Vulnerabilities</h3><ul>{vuln_html}</ul></div>
+        <div class="box"><h3>Compliance</h3><ul>{compliance_html}</ul></div>
+      </div>
+    </body>
+    </html>
+    """
+
+
+def _set_llm_scan_state(scan_id: str, progress: int, message: str, status: str = "in_progress") -> None:
+    llm_scan_state[scan_id] = {
+        "progress": max(0, min(100, int(progress))),
+        "message": message,
+        "status": status,
+    }
+
+
+def _run_llm_scan_job(scan_id: str, model: dict) -> None:
+    try:
+        _set_llm_scan_state(scan_id, 5, "Scan queued")
+        scanner = LLMSecurityScanner(
+            model_id=model["id"],
+            model_type=model["model_type"],
+            api_endpoint=model.get("api_endpoint"),
+            api_key=model.get("api_key"),
+            model_parameters=model.get("model_parameters"),
+        )
+        report = scanner.scan_all(on_progress=lambda p, m: _set_llm_scan_state(scan_id, p, m))
+        report["model_name"] = model.get("model_name")
+        html_report = llm_reporter.build_html(
+            {"scan_id": scan_id, "security_score": report.get("security_score"), "report_json": report}
+        )
+        llm_store.complete_scan(scan_id, report, html_report)
+        _set_llm_scan_state(scan_id, 100, "Completed", status="completed")
+    except Exception as exc:
+        llm_store.fail_scan(scan_id, str(exc))
+        _set_llm_scan_state(scan_id, 100, f"Failed: {exc}", status="failed")
+
 # --- Authentication ---
 def login_required(f):
     @wraps(f)
@@ -166,6 +270,17 @@ def role_required(*roles):
     return deco
 
 
+def super_admin_required(f):
+    @wraps(f)
+    def inner(*args, **kwargs):
+        if app.config.get('TESTING'):
+            return f(*args, **kwargs)
+        if not _is_super_admin():
+            return jsonify({"error": "Super admin required"}), 403
+        return f(*args, **kwargs)
+    return inner
+
+
 def secure_post(f):
     @wraps(f)
     def inner(*args, **kwargs):
@@ -193,11 +308,21 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        db_user = llm_store.authenticate_user(username, password)
+        if db_user:
+            session['logged_in'] = True
+            session['username'] = db_user["username"]
+            session['role'] = db_user.get("role", "viewer")
+            session['org_id'] = db_user.get("org_id")
+            session["last_seen"] = datetime.utcnow().timestamp()
+            _csrf_token()
+            return redirect(url_for('index'))
         for user in _allowed_users():
             if username == user.get("username") and password == user.get("password"):
                 session['logged_in'] = True
                 session['username'] = username
                 session['role'] = user.get("role", "viewer")
+                session['org_id'] = None
                 session["last_seen"] = datetime.utcnow().timestamp()
                 _csrf_token()
                 return redirect(url_for('index'))
@@ -372,20 +497,44 @@ def api_scan_web():
 @app.route('/api/report/local')
 @login_required
 def report_local():
-    results = stored_scan_results.get('localhost')
-    if not results:
-        data = scanner.scan_local()
-        results = {
-            'checks': data['checks'],
-            'score': data['score'],
-            'passed': data['passed'],
-            'failed': data['failed'],
-            'warnings': data['warnings'],
-        }
-    reporter = SecureReporter()
-    html = reporter.generate(results, org='NiTechSpark')
-    return Response(html, mimetype='text/html',
-        headers={'Content-Disposition': 'attachment; filename=NiTechSpark_Local_Report.html'})
+    from securescope.core.scanner import Scanner
+    from securescope.core.reporter import Reporter
+    from flask import send_file
+    import os, tempfile
+    scanner = Scanner()
+    results = scanner.scan_local()
+    
+    # Enrich results with system info as required by Reporter
+    plat_info = detect_platform()
+    hostname = socket.gethostname()
+    try:
+        ip_address = socket.gethostbyname(hostname)
+    except Exception:
+        ip_address = "127.0.0.1"
+        
+    report_data = {
+        'checks': results['checks'],
+        'score': results['score'],
+        'hostname': hostname,
+        'os': plat_info['os'],
+        'kernel': platform.version(),
+        'ip_address': ip_address
+    }
+    
+    reporter = Reporter()
+    org = config.get('branding', {}).get('organization_name', 'NiTechSpark')
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.html', 
+        delete=False, encoding='utf-8') as f:
+        content = reporter.generate_html(
+            report_data, org=org)
+        f.write(content)
+        tmp_path = f.name
+    return send_file(
+        tmp_path,
+        as_attachment=True,
+        download_name='NiTechSpark_Security_Report.html',
+        mimetype='text/html')
 
 @app.route('/api/report/remote')
 @login_required
@@ -394,7 +543,7 @@ def report_remote():
     results = stored_scan_results.get(host)
     if not results:
         return jsonify({'error': f'No scan data for {host}'}), 404
-    reporter = SecureReporter()
+    reporter = Reporter()
     html = reporter.generate(results, org='NiTechSpark')
     return Response(html, mimetype='text/html',
         headers={'Content-Disposition': f'attachment; filename=NiTechSpark_{host}_Report.html'})
@@ -457,7 +606,7 @@ def api_scan_local():
             'is_admin': is_admin, 'kernel': platform.version(),
             'platform': 'WSL' if plat_info['is_wsl'] else 'Native',
             'last_scan': datetime.now().strftime('%d %b %Y %H:%M:%S'),
-            'checks': checks, 'org': config['reporting']['org_name']
+            'checks': checks, 'org': config.get('branding', {}).get('organization_name', 'NiTechSpark')
         }
         stored_scan_results['localhost'] = res
         _record_scan('localhost', res["score"])
@@ -536,6 +685,381 @@ def save_settings():
         return jsonify({'status': 'saved'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/llm/models', methods=['POST'])
+@login_required
+@secure_post
+@role_required("admin", "org_admin")
+def add_llm_model():
+    try:
+        import json
+
+        data = request.json or {}
+        model_name = (data.get("model_name") or "").strip()
+        model_type = (data.get("model_type") or "").strip()
+        if not model_name or not model_type:
+            return jsonify({"error": "model_name and model_type are required"}), 400
+        raw_params = data.get("model_parameters")
+        model_parameters = {}
+        if isinstance(raw_params, dict):
+            model_parameters = raw_params
+        elif isinstance(raw_params, str) and raw_params.strip():
+            try:
+                parsed = json.loads(raw_params)
+                if isinstance(parsed, dict):
+                    model_parameters = parsed
+            except Exception:
+                return jsonify({"error": "model_parameters must be valid JSON object"}), 400
+
+        model_id = llm_store.add_model(
+            user_id=_llm_user_id(),
+            model_name=model_name,
+            model_type=model_type,
+            api_endpoint=data.get("api_endpoint"),
+            api_key=data.get("api_key"),
+            model_parameters=model_parameters,
+        )
+        llm_store.log_activity(_llm_user_id(), "create_model", "model", model_id, {"model_name": model_name, "model_type": model_type})
+        return jsonify({"model_id": model_id, "status": "created"}), 201
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/llm/models', methods=['GET'])
+@login_required
+def list_llm_models():
+    try:
+        rows = llm_store.list_models(_llm_user_id())
+        return jsonify(rows)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/llm/scan', methods=['POST'])
+@login_required
+@secure_post
+@role_required("admin", "org_admin")
+def start_llm_scan():
+    try:
+        data = request.json or {}
+        model_id = data.get("model_id")
+        if not model_id:
+            return jsonify({"error": "model_id is required"}), 400
+
+        model = llm_store.get_model(model_id, _llm_user_id())
+        if not model:
+            return jsonify({"error": "Model not found"}), 404
+
+        scan_id = llm_store.create_scan(model_id)
+        _set_llm_scan_state(scan_id, 0, "Starting", status="in_progress")
+        worker = Thread(target=_run_llm_scan_job, args=(scan_id, model), daemon=True)
+        worker.start()
+        return jsonify({"scan_id": scan_id, "status": "in_progress"})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/llm/scan/<scan_id>', methods=['GET'])
+@login_required
+def get_llm_scan(scan_id):
+    scan = llm_store.get_scan(scan_id)
+    if not scan:
+        return jsonify({"error": "Scan not found"}), 404
+    state = llm_scan_state.get(scan_id, {})
+    db_status = scan.get("status")
+    # Always trust terminal DB states to avoid endless polling loops.
+    if db_status in ("completed", "failed"):
+        state = {
+            "progress": 100,
+            "message": "Completed" if db_status == "completed" else "Failed",
+            "status": db_status,
+        }
+        llm_scan_state[scan_id] = state
+    return jsonify(
+        {
+            "scan_id": scan["scan_id"],
+            "progress": int(state.get("progress", scan["progress"])),
+            "message": state.get("message", ""),
+            "status": state.get("status", scan["status"]),
+            "vulnerabilities": scan["report_json"].get("vulnerabilities", []),
+            "security_score": scan["security_score"],
+            "vulnerabilities_count": scan["vulnerabilities_count"],
+            "critical_count": scan["critical_count"],
+            "high_count": scan["high_count"],
+            "medium_count": scan["medium_count"],
+            "low_count": scan["low_count"],
+        }
+    )
+
+
+@app.route('/api/llm/report/<scan_id>', methods=['GET'])
+@login_required
+def get_llm_report(scan_id):
+    scan = llm_store.get_scan(scan_id)
+    if not scan:
+        return jsonify({"error": "Report not found"}), 404
+    fmt = request.args.get("format", "json")
+    if fmt == "html":
+        return Response(scan.get("report_html") or llm_reporter.build_html(scan), mimetype='text/html')
+    if fmt == "pdf":
+        pdf_data = llm_reporter.build_pdf(scan)
+        return Response(
+            pdf_data,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=LLM_Security_Report_{scan_id}.pdf"},
+        )
+    return jsonify(scan.get("report_json") or {})
+
+
+@app.route('/api/llm/dashboard', methods=['GET'])
+@login_required
+def llm_dashboard():
+    user_id = _llm_user_id()
+    models = llm_store.list_models(user_id)
+    scans = llm_store.list_recent_scans(user_id, limit=30)
+    vulns = llm_store.list_vulnerabilities(user_id, limit=500)
+    total = len(scans)
+    avg_score = int(sum(s.get("security_score", 0) for s in scans) / total) if total else 0
+    open_items = sum(1 for v in vulns if v.get("status") in ("open", "in_progress"))
+    resolved_items = sum(1 for v in vulns if v.get("status") in ("resolved", "verified", "fixed"))
+    remediation_rate = int((resolved_items / max(1, len(vulns))) * 100) if vulns else 0
+    critical_open = sum(1 for v in vulns if v.get("severity") == "critical" and v.get("status") in ("open", "in_progress"))
+    return jsonify(
+        {
+            "models_count": len(models),
+            "avg_security_score": avg_score,
+            "total_scans": total,
+            "open_items": open_items,
+            "critical_open": critical_open,
+            "remediation_rate": remediation_rate,
+            "recent_scans": scans,
+        }
+    )
+
+
+@app.route('/api/llm/vulnerabilities', methods=['GET'])
+@login_required
+def llm_vulnerabilities():
+    status = request.args.get("status")
+    rows = llm_store.list_vulnerabilities(_llm_user_id(), status=status, limit=500)
+    return jsonify(rows)
+
+
+@app.route('/api/llm/vulnerabilities/<vuln_id>', methods=['PATCH'])
+@login_required
+@secure_post
+@role_required("admin")
+def patch_llm_vulnerability(vuln_id):
+    payload = request.json or {}
+    if llm_store.update_vulnerability(vuln_id, payload):
+        llm_store.log_activity(_llm_user_id(), "update_vulnerability", "vulnerability", vuln_id, payload)
+        return jsonify({"ok": True})
+    return jsonify({"error": "vulnerability not found or no valid fields"}), 404
+
+
+@app.route('/api/llm/vulnerabilities/trending', methods=['GET'])
+@login_required
+def llm_vuln_trending():
+    rows = llm_store.list_recent_scans(_llm_user_id(), limit=30)
+    series = [{"date": r.get("scan_date", "")[:10], "open": r.get("vulnerabilities_count", 0)} for r in rows]
+    return jsonify({"series": list(reversed(series))})
+
+
+@app.route('/api/llm/models/<model_id>/rescan', methods=['POST'])
+@login_required
+@secure_post
+@role_required("admin", "org_admin")
+def llm_rescan(model_id):
+    model = llm_store.get_model(model_id, _llm_user_id())
+    if not model:
+        return jsonify({"error": "Model not found"}), 404
+    scan_id = llm_store.create_scan(model_id)
+    _set_llm_scan_state(scan_id, 0, "Starting", status="in_progress")
+    worker = Thread(target=_run_llm_scan_job, args=(scan_id, model), daemon=True)
+    worker.start()
+    llm_store.log_activity(_llm_user_id(), "rescan_model", "model", model_id, {"scan_id": scan_id})
+    return jsonify({"scan_id": scan_id, "status": "in_progress"})
+
+
+@app.route('/api/llm/vulnerabilities/<vuln_id>/assign', methods=['POST'])
+@login_required
+@secure_post
+@role_required("admin")
+def assign_llm_vulnerability(vuln_id):
+    data = request.json or {}
+    payload = {
+        "assigned_to": data.get("assigned_to"),
+        "due_date": data.get("due_date"),
+        "jira_ticket": data.get("jira_ticket"),
+        "status": data.get("status", "in_progress"),
+    }
+    if llm_store.update_vulnerability(vuln_id, payload):
+        llm_store.log_activity(_llm_user_id(), "assign_vulnerability", "vulnerability", vuln_id, payload)
+        return jsonify({"ok": True})
+    return jsonify({"error": "vulnerability not found"}), 404
+
+
+@app.route('/api/llm/vulnerabilities/<vuln_id>/comments', methods=['POST'])
+@login_required
+@secure_post
+def comment_llm_vulnerability(vuln_id):
+    data = request.json or {}
+    text = (data.get("comment") or "").strip()
+    if not text:
+        return jsonify({"error": "comment is required"}), 400
+    cid = llm_store.add_comment(vuln_id, _llm_user_id(), text)
+    llm_store.log_activity(_llm_user_id(), "comment_vulnerability", "vulnerability", vuln_id, {"comment_id": cid})
+    return jsonify({"comment_id": cid, "status": "created"}), 201
+
+
+@app.route('/api/llm/vulnerabilities/<vuln_id>/comments', methods=['GET'])
+@login_required
+def list_llm_vuln_comments(vuln_id):
+    return jsonify(llm_store.list_comments(vuln_id))
+
+
+@app.route('/api/llm/activity', methods=['GET'])
+@login_required
+def llm_activity():
+    return jsonify(llm_store.list_activity(_llm_user_id(), limit=120))
+
+
+@app.route('/api/integrations/slack/alert', methods=['POST'])
+@login_required
+@secure_post
+@role_required("admin")
+def slack_alert():
+    payload = request.json or {}
+    ok, msg = send_slack_alert(payload, webhook_url=payload.get("webhook_url"))
+    if ok:
+        llm_store.log_activity(_llm_user_id(), "slack_alert", "integration", "slack", {"summary": payload.get("summary", "")})
+        return jsonify({"ok": True, "result": msg})
+    return jsonify({"ok": False, "error": msg}), 400
+
+
+@app.route('/api/llm/report/<scan_id>/email', methods=['POST'])
+@login_required
+@secure_post
+@role_required("admin")
+def email_llm_report(scan_id):
+    scan = llm_store.get_scan(scan_id)
+    if not scan:
+        return jsonify({"error": "Report not found"}), 404
+    data = request.json or {}
+    recipients = data.get("recipients") or []
+    if not isinstance(recipients, list):
+        return jsonify({"error": "recipients must be a list"}), 400
+    message = data.get("message", "Please find the attached LLM security report summary.")
+    html = scan.get("report_html") or llm_reporter.build_html(scan)
+    score = scan.get("security_score", 0)
+    body = f"SecureScope LLM report\nScan ID: {scan_id}\nScore: {score}/100\n\n{message}"
+    ok, msg = send_email_report(recipients=recipients, subject=f"SecureScope LLM Report {scan_id}", body=body, html=html)
+    if ok:
+        llm_store.log_activity(_llm_user_id(), "email_report", "report", scan_id, {"recipients": recipients})
+        return jsonify({"ok": True, "result": msg})
+    return jsonify({"ok": False, "error": msg}), 400
+
+
+@app.route('/api/admin/users', methods=['GET'])
+@login_required
+def list_admin_users():
+    if _is_super_admin():
+        return jsonify(llm_store.list_users())
+    if session.get("role") == "org_admin":
+        return jsonify(llm_store.list_users(org_id=session.get("org_id")))
+    return jsonify({"error": "Forbidden"}), 403
+
+
+@app.route('/api/admin/users', methods=['POST'])
+@login_required
+@secure_post
+def create_admin_user():
+    payload = request.json or {}
+    username = (payload.get("username") or "").strip()
+    password = (payload.get("password") or "").strip()
+    role = (payload.get("role") or "viewer").strip()
+    if not username or not password:
+        return jsonify({"error": "username and password required"}), 400
+    if _is_super_admin():
+        org_id = payload.get("org_id")
+    elif session.get("role") == "org_admin":
+        org_id = session.get("org_id")
+        if role not in ("normal", "viewer"):
+            return jsonify({"error": "org_admin can only create normal/viewer users"}), 403
+    else:
+        return jsonify({"error": "Forbidden"}), 403
+    uid = llm_store.create_user(username=username, password=password, role=role, org_id=org_id)
+    llm_store.log_activity(_llm_user_id(), "create_user", "user", uid, {"username": username, "role": role})
+    return jsonify({"user_id": uid, "status": "created"}), 201
+
+
+@app.route('/api/admin/licenses', methods=['GET'])
+@login_required
+@super_admin_required
+def list_admin_licenses():
+    return jsonify(llm_store.list_licenses())
+
+
+@app.route('/api/admin/licenses', methods=['POST'])
+@login_required
+@secure_post
+@super_admin_required
+def create_admin_license():
+    payload = request.json or {}
+    tier = payload.get("tier", "standard")
+    max_users = int(payload.get("max_users", 5))
+    expires_at = payload.get("expires_at")
+    organization_id = payload.get("organization_id")
+    lic = llm_store.create_license(tier=tier, expires_at=expires_at, max_users=max_users, organization_id=organization_id)
+    llm_store.log_activity(_llm_user_id(), "create_license", "license", lic["id"], {"tier": tier})
+    return jsonify({"status": "created", **lic}), 201
+
+
+@app.route('/api/admin/organizations', methods=['GET'])
+@login_required
+def list_admin_orgs():
+    if _is_super_admin():
+        return jsonify(llm_store.list_organizations())
+    if session.get("org_id"):
+        rows = [o for o in llm_store.list_organizations() if o.get("id") == session.get("org_id")]
+        return jsonify(rows)
+    return jsonify([])
+
+
+@app.route('/api/admin/organizations', methods=['POST'])
+@login_required
+@secure_post
+@super_admin_required
+def create_admin_org():
+    payload = request.json or {}
+    org_name = (payload.get("name") or "").strip()
+    admin_username = (payload.get("admin_username") or "").strip()
+    admin_password = (payload.get("admin_password") or "").strip()
+    if not org_name or not admin_username or not admin_password:
+        return jsonify({"error": "name, admin_username, admin_password are required"}), 400
+    oid = llm_store.create_organization(org_name, admin_username, admin_password, license_id=payload.get("license_id"))
+    llm_store.log_activity(_llm_user_id(), "create_organization", "organization", oid, {"name": org_name})
+    return jsonify({"organization_id": oid, "status": "created"}), 201
+
+
+@app.route('/api/llm/remediate', methods=['POST'])
+@login_required
+@secure_post
+@role_required("admin")
+def llm_remediate():
+    data = request.json or {}
+    vulnerability_id = data.get("vulnerability_id")
+    action = data.get("action", "mark_fixed")
+    if not vulnerability_id:
+        return jsonify({"error": "vulnerability_id is required"}), 400
+    new_status = "fixed" if action in ("fix", "mark_fixed") else "in_progress"
+    ok = llm_store.update_vulnerability_status(vulnerability_id, new_status)
+    if not ok:
+        return jsonify({"error": "vulnerability not found"}), 404
+    return jsonify({"status": "ok", "result": f"vulnerability {new_status}"})
 
 if __name__ == '__main__':
     app.run(debug=False, port=8080)

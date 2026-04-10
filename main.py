@@ -2,13 +2,15 @@ import click
 from rich.console import Console
 from rich.table import Table
 from securescope.core.utils import detect_platform, get_banner, logger, console
-from securescope.core.scanner import SecureScanner
+from securescope.core.scanner import Scanner
 from securescope.core.hardener import SecureHardener
-from securescope.core.reporter import SecureReporter
+from securescope.core.reporter import Reporter
 from securescope.offsec.audit import AuditLogger
 from securescope.offsec.engine import OffsecEngine
 from securescope.offsec.scope_io import load_scope_yaml
 import sys
+import socket
+import platform
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -22,7 +24,7 @@ def cli():
 @click.argument('target', type=click.Choice(['local']))
 def scan(target):
     """Scan the local machine."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_local()
     checks = data["checks"]
     score = data["score"]
@@ -47,7 +49,7 @@ def scan(target):
 @click.option('--type', 'target_type', default='linux', type=click.Choice(['linux', 'windows', 'network']))
 def remote(host, user, password, target_type):
     """Scan a remote target."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_remote(host, user, password=password, target_type=target_type)
     checks = data["checks"]
     score = data["score"]
@@ -68,7 +70,7 @@ def remote(host, user, password, target_type):
 @click.option('--yes', is_flag=True, help='Auto-confirm all fixes')
 def harden(yes):
     """Harden the local system based on scan results."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_local()
     hardener = SecureHardener(auto_confirm=yes)
     log = hardener.apply_fixes(data["checks"])
@@ -79,21 +81,47 @@ def harden(yes):
         console.print("[green]Hardening process complete.[/green]")
 
 @cli.command()
-@click.option('--format', 'fmt', default='pdf', type=click.Choice(['pdf']), help='Report format: pdf')
-@click.option('--output', default='securescope_report.pdf', help='Output filename')
+@click.option('--format', 'fmt', default='html', type=click.Choice(['html', 'pdf']), help='Report format: html|pdf')
+@click.option('--output', default='NiTechSpark_Security_Report.html', help='Output filename')
 @click.option('--org', default='NiTechSpark', help='Organization name')
 def report(fmt, output, org):
     """Generate security assessment report"""
     import warnings
     warnings.filterwarnings('ignore')
     console.print("[cyan]Running scan for report...[/cyan]")
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_local()
     
-    reporter = SecureReporter(org_name=org)
+    reporter = Reporter(org_name=org)
     plat_info = detect_platform()
-    output_file = reporter.generate_pdf(data["checks"], data["score"], plat_info, output_path=output)
-    console.print(f"[green]Report saved: {output_file}[/green]")
+    hostname = socket.gethostname()
+    try:
+        ip_address = socket.gethostbyname(hostname)
+    except Exception:
+        ip_address = "127.0.0.1"
+        
+    report_data = {
+        'checks': data['checks'],
+        'score': data['score'],
+        'hostname': hostname,
+        'os': plat_info['os'],
+        'kernel': platform.version(),
+        'ip_address': ip_address
+    }
+    
+    if fmt == 'html':
+        if not output.endswith('.html') and output == 'NiTechSpark_Security_Report.html':
+            pass # keep as is
+        elif not output.endswith('.html'):
+            output += '.html'
+            
+        html_content = reporter.generate_html(report_data, org=org)
+        with open(output, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        console.print(f"[green]HTML Report saved: {output}[/green]")
+    else:
+        output_file = reporter.generate_pdf(data["checks"], data["score"], plat_info, output_path=output)
+        console.print(f"[green]PDF Report saved: {output_file}[/green]")
 
 @cli.command()
 @click.option('--port', default=8080, help='Port to run web dashboard')

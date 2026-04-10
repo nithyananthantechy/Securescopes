@@ -1,16 +1,16 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from securescope.core.scanner import SecureScanner
+from securescope.core.scanner import Scanner
 
 
 def test_calculate_stats_empty():
-    scanner = SecureScanner()
+    scanner = Scanner()
     stats = scanner.calculate_stats([])
     assert stats == {"score": 0, "passed": 0, "failed": 0, "warnings": 0}
 
 
 def test_calculate_stats_all_pass():
-    scanner = SecureScanner()
+    scanner = Scanner()
     checks = [{"status": "PASS"} for _ in range(10)]
     stats = scanner.calculate_stats(checks)
     assert stats["score"] == 100
@@ -20,7 +20,7 @@ def test_calculate_stats_all_pass():
 
 
 def test_calculate_stats_mixed():
-    scanner = SecureScanner()
+    scanner = Scanner()
     checks = [
         {"status": "PASS"},
         {"status": "FAIL"},
@@ -35,7 +35,7 @@ def test_calculate_stats_mixed():
 
 
 def test_calculate_stats_all_fail():
-    scanner = SecureScanner()
+    scanner = Scanner()
     checks = [{"status": "FAIL"} for _ in range(5)]
     stats = scanner.calculate_stats(checks)
     assert stats["score"] == 0
@@ -45,7 +45,7 @@ def test_calculate_stats_all_fail():
 
 
 def test_calculate_stats_all_warnings():
-    scanner = SecureScanner()
+    scanner = Scanner()
     checks = [{"status": "WARNING"} for _ in range(3)]
     stats = scanner.calculate_stats(checks)
     assert stats["score"] == 0
@@ -56,7 +56,7 @@ def test_calculate_stats_all_warnings():
 
 def test_scan_local_returns_dict_with_expected_keys():
     """scan_local() must return a dict with all required keys."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_local()
     assert isinstance(data, dict)
     for key in ("checks", "score", "passed", "failed", "warnings", "platform"):
@@ -65,21 +65,21 @@ def test_scan_local_returns_dict_with_expected_keys():
 
 def test_scan_local_checks_is_list():
     """The 'checks' value must be a list."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_local()
     assert isinstance(data["checks"], list)
 
 
 def test_scan_local_score_range():
     """Score must be between 0 and 100."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_local()
     assert 0 <= data["score"] <= 100
 
 
 def test_scan_local_each_check_has_required_fields():
     """Each check dict must contain category, check, status, severity, details."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_local()
     required_fields = {"category", "check", "status", "severity", "details"}
     for check in data["checks"]:
@@ -88,7 +88,7 @@ def test_scan_local_each_check_has_required_fields():
 
 def test_scan_remote_returns_dict_with_expected_keys():
     """scan_remote() must return a dict even when connection fails."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     # Use a non-routable address to trigger quick failure
     data = scanner.scan_remote(host="192.0.2.1", user="test", password="test", target_type="linux")
     assert isinstance(data, dict)
@@ -98,14 +98,14 @@ def test_scan_remote_returns_dict_with_expected_keys():
 
 def test_scan_remote_failed_connection_has_fail_check():
     """When connection fails, there should be a FAIL check in results."""
-    scanner = SecureScanner()
+    scanner = Scanner()
     data = scanner.scan_remote(host="192.0.2.1", user="test", password="test", target_type="linux")
     fail_checks = [c for c in data["checks"] if c["status"] == "FAIL"]
     assert len(fail_checks) >= 1
 
 
 def test_calculate_stats_single_pass():
-    scanner = SecureScanner()
+    scanner = Scanner()
     stats = scanner.calculate_stats([{"status": "PASS"}])
     assert stats["score"] == 100
     assert stats["passed"] == 1

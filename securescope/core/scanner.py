@@ -9,7 +9,7 @@ from securescope.scanners.port_scanner import PortScanner
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
-class SecureScanner:
+class Scanner:
     def __init__(self):
         self.plat_info = detect_platform()
 
@@ -70,7 +70,15 @@ class SecureScanner:
                 import paramiko
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(host, port=int(port), username=user, password=password, timeout=10)
+                ssh.connect(
+                    host,
+                    port=int(port),
+                    username=user,
+                    password=password,
+                    timeout=8,
+                    banner_timeout=8,
+                    auth_timeout=8,
+                )
                 checks.extend(LinuxScanner(target_host=host).scan_remote(ssh))
                 ssh.close()
             elif target_type == "network":

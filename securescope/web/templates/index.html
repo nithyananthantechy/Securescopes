@@ -15,14 +15,16 @@
     <div class="header-inner">
       <div class="brand">
         <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
-        <div>
-          <div class="brand-title">SecureScope</div>
-        </div>
+        <div class="brand-title">SecureScope</div>
       </div>
       <div class="nav-tabs-enterprise">
         <button class="tab-btn active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</button>
         <button class="tab-btn" onclick="showTab('targets')" id="tab-targets">Targets</button>
         <button class="tab-btn" onclick="showTab('reports')" id="tab-reports">Reports</button>
+        <button class="tab-btn" onclick="showTab('llm')" id="tab-llm">LLM</button>
+        <button class="tab-btn" onclick="showTab('users')" id="tab-users">Users</button>
+        <button class="tab-btn" onclick="showTab('licenses')" id="tab-licenses">Licenses</button>
+        <button class="tab-btn" onclick="showTab('organizations')" id="tab-organizations">Orgs</button>
         <button class="tab-btn" onclick="showTab('settings')" id="tab-settings">Settings</button>
         <button class="tab-btn" onclick="showTab('executive')" id="tab-executive">Executive View</button>
       </div>
@@ -84,11 +86,13 @@
             <option value="status">Sort: Status</option>
             <option value="severity">Sort: Severity</option>
           </select>
-          <span class="filter-pill active" data-filter="all">All</span>
-          <span class="filter-pill" data-filter="ssh">SSH</span>
-          <span class="filter-pill" data-filter="firewall">Firewall</span>
-          <span class="filter-pill" data-filter="user">Users</span>
-          <span class="filter-pill" data-filter="service">Services</span>
+          <select id="categoryFilter" class="form-select form-select-sm" style="max-width:170px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="all">Filter: All</option>
+            <option value="ssh">Filter: SSH</option>
+            <option value="firewall">Filter: Firewall</option>
+            <option value="user">Filter: Users</option>
+            <option value="service">Filter: Services</option>
+          </select>
         </div>
         <div id="skeletons" class="d-none"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
         <div class="findings-list" id="findingsList"></div>
@@ -256,6 +260,144 @@
     </div>
   </div>
 
+  <div id="llm-page" style="display:none;padding:24px;">
+    <h2 style="color:#e8eaf6;margin-bottom:24px;">LLM & Chatbot Security</h2>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:20px;">Add Client LLM / Chatbot Model</h3>
+      <form id="llm-model-form" onsubmit="return submitLLMModel(event);" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <input id="llm-model-name" class="form-control" placeholder="Model Name" required>
+        <select id="llm-model-type" class="form-control">
+          <option value="custom_api">Custom API Model</option>
+          <option value="on_prem_llm">On-Prem LLM</option>
+          <option value="private_finetune">Private Fine-tuned Model</option>
+          <option value="azure_openai">Azure OpenAI</option>
+          <option value="gpt-4">GPT</option>
+          <option value="claude">Claude</option>
+          <option value="gemini">Gemini</option>
+        </select>
+        <input id="llm-api-endpoint" class="form-control" placeholder="API Endpoint (https://...)" required>
+        <input id="llm-api-key" type="password" class="form-control" placeholder="API Key">
+        <textarea id="llm-model-params" class="form-control" style="grid-column:1/-1;min-height:90px;" placeholder='Model Params JSON (optional) {"input_key":"prompt","response_key":"output","http_method":"POST"}'></textarea>
+        <button type="submit" class="btn btn-primary-enterprise" style="grid-column:1/-1;">Add Model</button>
+        <div id="llm-form-msg" style="grid-column:1/-1;color:#8892a4;font-size:12px;"></div>
+      </form>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:10px;">Live Scan Progress</h3>
+      <div id="llm-live-message" style="color:#8892a4;margin-bottom:10px;">No active scan.</div>
+      <div style="height:10px;background:#111a2c;border-radius:999px;overflow:hidden;">
+        <div id="llm-live-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#00d4ff,#00ff88);transition:width .35s;"></div>
+      </div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:12px;">Registered LLM Models</h3>
+      <div id="llm-models-list" style="display:grid;gap:10px;"></div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
+      <h3 style="color:#00d4ff;margin-bottom:12px;">LLM Security Dashboard</h3>
+      <div id="llm-kpi-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">
+        <div style="background:#0a0e1a;border:1px solid #1e2d4a;border-radius:10px;padding:10px;"><div style="font-size:11px;color:#8892a4;">Avg Score</div><div id="kpi-avg" style="font-size:22px;color:#00d4ff;font-weight:700;">0</div></div>
+        <div style="background:#0a0e1a;border:1px solid #1e2d4a;border-radius:10px;padding:10px;"><div style="font-size:11px;color:#8892a4;">Critical Open</div><div id="kpi-critical" style="font-size:22px;color:#ff7f8b;font-weight:700;">0</div></div>
+        <div style="background:#0a0e1a;border:1px solid #1e2d4a;border-radius:10px;padding:10px;"><div style="font-size:11px;color:#8892a4;">Open Items</div><div id="kpi-open" style="font-size:22px;color:#ffc14d;font-weight:700;">0</div></div>
+        <div style="background:#0a0e1a;border:1px solid #1e2d4a;border-radius:10px;padding:10px;"><div style="font-size:11px;color:#8892a4;">Remediation Rate</div><div id="kpi-remediation" style="font-size:22px;color:#76ffc5;font-weight:700;">0%</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="background:#0a0e1a;border:1px solid #1e2d4a;border-radius:10px;padding:10px;">
+          <canvas id="llmScoreChart" height="120"></canvas>
+        </div>
+        <div style="background:#0a0e1a;border:1px solid #1e2d4a;border-radius:10px;padding:10px;">
+          <canvas id="llmVulnChart" height="120"></canvas>
+        </div>
+      </div>
+      <div id="llm-dashboard-summary" style="margin-top:10px;color:#8892a4;"></div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;">
+      <h3 style="color:#00d4ff;margin-bottom:12px;">Latest Scan Result</h3>
+      <div id="llm-scan-result" style="color:#8892a4;">No scans yet.</div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;">
+      <h3 style="color:#00d4ff;margin-bottom:12px;">Remediation Tracker</h3>
+      <div id="llm-remediation-list" style="overflow:auto;"></div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-top:16px;">
+      <h3 style="color:#00d4ff;margin-bottom:12px;">Integrations</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="border:1px solid #1e2d4a;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;color:#e8eaf6;margin-bottom:6px;">Slack Alert</div>
+          <input id="slack-summary" class="form-control" placeholder="Alert summary">
+          <button class="btn btn-sm btn-outline-info mt-2" onclick="sendSlackAlert()">Send Slack Alert</button>
+          <div id="slack-msg" style="color:#8892a4;font-size:12px;margin-top:6px;"></div>
+        </div>
+        <div style="border:1px solid #1e2d4a;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;color:#e8eaf6;margin-bottom:6px;">Email Report</div>
+          <input id="email-recipients" class="form-control" placeholder="recipient1@example.com,recipient2@example.com">
+          <button class="btn btn-sm btn-outline-info mt-2" onclick="sendLatestReportEmail()">Send Latest Report Email</button>
+          <div id="email-msg" style="color:#8892a4;font-size:12px;margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-top:16px;">
+      <h3 style="color:#00d4ff;margin-bottom:12px;">Activity Feed</h3>
+      <div id="llm-activity-feed" style="max-height:240px;overflow:auto;color:#8892a4;"></div>
+    </div>
+  </div>
+
+  <div id="users-page" style="display:none;padding:24px;">
+    <h2 style="color:#e8eaf6;margin-bottom:20px;">User Management</h2>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;margin-bottom:16px;">
+      <h3 style="color:#00d4ff;">Create User</h3>
+      <form id="user-create-form" onsubmit="return createAdminUser(event);" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <input id="u-name" class="form-control" placeholder="Username" required>
+        <input id="u-pass" class="form-control" placeholder="Password" required>
+        <select id="u-role" class="form-control"><option value="viewer">viewer</option><option value="normal">normal</option><option value="admin">admin</option><option value="org_admin">org_admin</option></select>
+        <input id="u-org-id" class="form-control" placeholder="Org ID (optional)">
+        <button class="btn btn-primary-enterprise" style="grid-column:1/-1;" type="submit">Create User</button>
+      </form>
+      <div id="user-msg" style="color:#8892a4;font-size:12px;margin-top:8px;"></div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;">
+      <h3 style="color:#00d4ff;">Users List</h3>
+      <div id="users-list"></div>
+    </div>
+  </div>
+
+  <div id="licenses-page" style="display:none;padding:24px;">
+    <h2 style="color:#e8eaf6;margin-bottom:20px;">License Management</h2>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;margin-bottom:16px;">
+      <h3 style="color:#00d4ff;">Create License</h3>
+      <form id="license-form" onsubmit="return createLicense(event);" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <input id="lic-tier" class="form-control" placeholder="Tier (standard/enterprise)" required>
+        <input id="lic-users" class="form-control" type="number" value="5" placeholder="Max users">
+        <input id="lic-exp" class="form-control" placeholder="Expires at (YYYY-MM-DD)">
+        <input id="lic-org" class="form-control" placeholder="Organization ID (optional)">
+        <button class="btn btn-primary-enterprise" style="grid-column:1/-1;" type="submit">Create License</button>
+      </form>
+      <div id="license-msg" style="color:#8892a4;font-size:12px;margin-top:8px;"></div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;">
+      <h3 style="color:#00d4ff;">Licenses</h3>
+      <div id="licenses-list"></div>
+    </div>
+  </div>
+
+  <div id="organizations-page" style="display:none;padding:24px;">
+    <h2 style="color:#e8eaf6;margin-bottom:20px;">Organization Management</h2>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;margin-bottom:16px;">
+      <h3 style="color:#00d4ff;">Create Organization + Admin</h3>
+      <form id="org-form" onsubmit="return createOrganization(event);" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <input id="org-name" class="form-control" placeholder="Organization Name" required>
+        <input id="org-admin-user" class="form-control" placeholder="Org Admin Username" required>
+        <input id="org-admin-pass" class="form-control" placeholder="Org Admin Password" required>
+        <button class="btn btn-primary-enterprise" style="grid-column:1/-1;" type="submit">Create Organization</button>
+      </form>
+      <div id="org-msg" style="color:#8892a4;font-size:12px;margin-top:8px;"></div>
+    </div>
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;">
+      <h3 style="color:#00d4ff;">Organizations</h3>
+      <div id="org-list"></div>
+    </div>
+  </div>
+
   <div id="settings-page" style="display:none;padding:24px;">
     <h2 style="color:#e8eaf6;margin-bottom:24px;">⚙️ Settings</h2>
     <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
@@ -314,8 +456,12 @@
     let currentTarget = "localhost";
     let activeFilter = "all";
     let chart = null;
+    let llmScoreChart = null;
+    let llmVulnChart = null;
     let currentChecks = [];
     let lastScanTime = null;
+    let llmActiveScanId = null;
+    let llmLastScanId = null;
     // Track removed targets
     window.removedTargets = window.removedTargets || new Set();
     const SCAN_CACHE_MINUTES = 5;
@@ -338,8 +484,8 @@
       const input = document.getElementById("searchInput");
       if(input) input.value = "";
       activeFilter = "all";
-      document.querySelectorAll(".filter-pill").forEach(x=>x.classList.remove("active"));
-      document.querySelector(".filter-pill[data-filter='all']")?.classList.add("active");
+      const filter = document.getElementById("categoryFilter");
+      if(filter) filter.value = "all";
       renderFindings(currentChecks);
     }
     function renderTargetCards() {
@@ -526,7 +672,7 @@
     }
     function showTab(tabName) {
       // Hide ALL possible content containers first
-      const allPages = ['targets-page', 'reports-page', 'settings-page'];
+      const allPages = ['targets-page', 'reports-page', 'llm-page', 'users-page', 'licenses-page', 'organizations-page', 'settings-page'];
       allPages.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -572,6 +718,10 @@
           // Call render functions for specific tabs
           if (tabName === 'targets') renderTargetsPage();
           if (tabName === 'reports') updateReportTargets();
+          if (tabName === 'llm') { loadLLMModels(); loadLLMDashboard(); loadLLMRemediationList(); loadLLMActivity(); }
+          if (tabName === 'users') loadUsers();
+          if (tabName === 'licenses') loadLicenses();
+          if (tabName === 'organizations') loadOrganizations();
           if (tabName === 'settings') console.log('Settings tab opened');
         }
       }
@@ -676,8 +826,354 @@
         setTimeout(() => msg.style.display='none', 3000);
       });
     }
+    async function loadLLMModels() {
+      const wrap = document.getElementById("llm-models-list");
+      if (!wrap) return;
+      const r = await fetch("/api/llm/models");
+      const models = await r.json();
+      if (!Array.isArray(models) || models.length === 0) {
+        wrap.innerHTML = "<div style='color:#8892a4'>No LLM models configured.</div>";
+        return;
+      }
+      wrap.innerHTML = models.map(m => `
+        <div style="border:1px solid #1e2d4a;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div>
+            <div style="font-weight:700;color:#e8eaf6">${m.model_name}</div>
+            <div style="font-size:12px;color:#8892a4">${m.model_type} | Score: ${m.security_score || 0}</div>
+          </div>
+          <button class="btn btn-sm btn-outline-info" onclick="runLLMScan('${m.model_id}')">Scan</button>
+        </div>
+      `).join("");
+    }
+    async function loadLLMDashboard() {
+      const summary = document.getElementById("llm-dashboard-summary");
+      const r = await fetch("/api/llm/dashboard");
+      const data = await r.json();
+      if (data.error) {
+        summary.textContent = data.error;
+        return;
+      }
+      const scans = Array.isArray(data.recent_scans) ? data.recent_scans.slice().reverse() : [];
+      const labels = scans.map(s => (s.scan_date || "").split("T")[0] || "scan");
+      const scoreData = scans.map(s => Number(s.security_score || 0));
+      const vulnData = scans.map(s => Number(s.vulnerabilities_count || 0));
+      const scoreCtx = document.getElementById("llmScoreChart");
+      const vulnCtx = document.getElementById("llmVulnChart");
+      if (llmScoreChart) llmScoreChart.destroy();
+      if (llmVulnChart) llmVulnChart.destroy();
+      llmScoreChart = new Chart(scoreCtx, {
+        type: "line",
+        data: { labels, datasets: [{ label: "Security Score", data: scoreData, borderColor: "#00d4ff", tension: 0.3 }] },
+        options: { plugins: { legend: { display: true } }, scales: { y: { min: 0, max: 100 } } }
+      });
+      llmVulnChart = new Chart(vulnCtx, {
+        type: "bar",
+        data: { labels, datasets: [{ label: "Vulnerabilities", data: vulnData, backgroundColor: "#ff4757" }] },
+        options: { plugins: { legend: { display: true } } }
+      });
+      document.getElementById("kpi-avg").textContent = String(data.avg_security_score || 0);
+      document.getElementById("kpi-critical").textContent = String(data.critical_open || 0);
+      document.getElementById("kpi-open").textContent = String(data.open_items || 0);
+      document.getElementById("kpi-remediation").textContent = `${Number(data.remediation_rate || 0)}%`;
+      summary.textContent = `Models: ${data.models_count} | Total scans: ${data.total_scans} | Avg score: ${data.avg_security_score}/100`;
+    }
+    async function loadLLMRemediationList() {
+      const wrap = document.getElementById("llm-remediation-list");
+      const r = await fetch("/api/llm/vulnerabilities");
+      const rows = await r.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        wrap.innerHTML = "<div style='color:#8892a4'>No vulnerabilities to remediate.</div>";
+        return;
+      }
+      wrap.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="color:#8892a4;"><th style="text-align:left;padding:6px;">Vulnerability</th><th>Severity</th><th>Status</th><th>Assigned To</th><th>Due</th><th>Action</th></tr></thead>
+          <tbody>
+            ${rows.slice(0, 100).map(v => `
+              <tr>
+                <td style="padding:6px;color:#e8eaf6;">${v.vulnerability_type}<br><span style="color:#8892a4">${(v.description || "").slice(0,80)}</span></td>
+                <td style="padding:6px;">${v.severity}</td>
+                <td style="padding:6px;">${v.status || "open"}</td>
+                <td style="padding:6px;">${v.assigned_to || "-"}</td>
+                <td style="padding:6px;">${v.due_date || "-"}</td>
+                <td style="padding:6px;">
+                  <select id="status-${v.id}" class="form-control" style="min-width:130px;">
+                    <option value="open" ${(v.status==="open")?"selected":""}>open</option>
+                    <option value="in_progress" ${(v.status==="in_progress")?"selected":""}>in_progress</option>
+                    <option value="resolved" ${(v.status==="resolved")?"selected":""}>resolved</option>
+                    <option value="verified" ${(v.status==="verified")?"selected":""}>verified</option>
+                  </select>
+                  <button class="btn btn-sm btn-outline-info mt-1" onclick="updateLLMVuln('${v.id}')">Update</button>
+                  <textarea id="comment-${v.id}" class="form-control mt-1" placeholder="Add comment"></textarea>
+                  <button class="btn btn-sm btn-outline-secondary mt-1" onclick="addLLMComment('${v.id}')">Comment</button>
+                  <div id="comments-${v.id}" style="font-size:11px;color:#8892a4;margin-top:4px;"></div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+      rows.slice(0, 20).forEach(v => loadLLMComments(v.id));
+    }
+    async function updateLLMVuln(vulnId) {
+      const status = document.getElementById(`status-${vulnId}`).value;
+      const r = await fetch(`/api/llm/vulnerabilities/${vulnId}`, {
+        method: "PATCH",
+        headers: apiHeaders(),
+        body: JSON.stringify({status})
+      });
+      const data = await r.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      loadLLMRemediationList();
+      loadLLMDashboard();
+    }
+    async function addLLMComment(vulnId) {
+      const text = (document.getElementById(`comment-${vulnId}`).value || "").trim();
+      if (!text) return;
+      await fetch(`/api/llm/vulnerabilities/${vulnId}/comments`, {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({comment: text})
+      });
+      document.getElementById(`comment-${vulnId}`).value = "";
+      loadLLMComments(vulnId);
+      loadLLMActivity();
+    }
+    async function loadLLMComments(vulnId) {
+      const box = document.getElementById(`comments-${vulnId}`);
+      if (!box) return;
+      const r = await fetch(`/api/llm/vulnerabilities/${vulnId}/comments`);
+      const rows = await r.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        box.textContent = "No comments.";
+        return;
+      }
+      box.innerHTML = rows.slice(0,3).map(c => `<div>• ${c.author}: ${c.comment}</div>`).join("");
+    }
+    async function loadLLMActivity() {
+      const box = document.getElementById("llm-activity-feed");
+      if (!box) return;
+      const r = await fetch("/api/llm/activity");
+      const rows = await r.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        box.innerHTML = "<div>No recent activity.</div>";
+        return;
+      }
+      box.innerHTML = rows.slice(0,20).map(a => `<div style="padding:6px;border-bottom:1px solid #1e2d4a;">[${(a.created_at||"").replace("T"," ").slice(0,19)}] <b>${a.action}</b> - ${a.target_type}:${a.target_id}</div>`).join("");
+    }
+    async function sendSlackAlert() {
+      const summary = (document.getElementById("slack-summary").value || "").trim();
+      const msg = document.getElementById("slack-msg");
+      const r = await fetch("/api/integrations/slack/alert", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({summary, severity: "critical", model_name: "LLM Module", security_score: 0})
+      });
+      const d = await r.json();
+      msg.textContent = d.error || d.result || "sent";
+      loadLLMActivity();
+    }
+    async function sendLatestReportEmail() {
+      const out = document.getElementById("email-msg");
+      if (!llmLastScanId) { out.textContent = "No scan report available yet."; return; }
+      const scanId = llmLastScanId;
+      const recipients = (document.getElementById("email-recipients").value || "").split(",").map(x => x.trim()).filter(Boolean);
+      const r = await fetch(`/api/llm/report/${scanId}/email`, {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({recipients})
+      });
+      const d = await r.json();
+      out.textContent = d.error || d.result || "sent";
+      loadLLMActivity();
+    }
+    async function loadUsers() {
+      const el = document.getElementById("users-list");
+      const r = await fetch("/api/admin/users");
+      const rows = await r.json();
+      if (!Array.isArray(rows)) { el.textContent = rows.error || "No access"; return; }
+      el.innerHTML = rows.map(u => `<div>${u.username} | ${u.role} | ${u.organization_name || "-"}</div>`).join("") || "<div>No users.</div>";
+    }
+    async function createAdminUser(e) {
+      e.preventDefault();
+      const payload = {
+        username: document.getElementById("u-name").value,
+        password: document.getElementById("u-pass").value,
+        role: document.getElementById("u-role").value,
+        org_id: (document.getElementById("u-org-id").value || "").trim() || null
+      };
+      const r = await fetch("/api/admin/users", {method:"POST", headers: apiHeaders(), body: JSON.stringify(payload)});
+      const d = await r.json();
+      document.getElementById("user-msg").textContent = d.error || d.status || "done";
+      loadUsers();
+      return false;
+    }
+    async function loadLicenses() {
+      const el = document.getElementById("licenses-list");
+      const r = await fetch("/api/admin/licenses");
+      const rows = await r.json();
+      if (!Array.isArray(rows)) { el.textContent = rows.error || "No access"; return; }
+      el.innerHTML = rows.map(l => `<div>${l.license_key} | ${l.tier} | ${l.status} | org: ${l.organization_name || "-"}</div>`).join("") || "<div>No licenses.</div>";
+    }
+    async function createLicense(e) {
+      e.preventDefault();
+      const payload = {
+        tier: document.getElementById("lic-tier").value,
+        max_users: Number(document.getElementById("lic-users").value || 5),
+        expires_at: (document.getElementById("lic-exp").value || "").trim() || null,
+        organization_id: (document.getElementById("lic-org").value || "").trim() || null
+      };
+      const r = await fetch("/api/admin/licenses", {method:"POST", headers: apiHeaders(), body: JSON.stringify(payload)});
+      const d = await r.json();
+      document.getElementById("license-msg").textContent = d.error || d.license_key || d.status || "done";
+      loadLicenses();
+      return false;
+    }
+    async function loadOrganizations() {
+      const el = document.getElementById("org-list");
+      const r = await fetch("/api/admin/organizations");
+      const rows = await r.json();
+      if (!Array.isArray(rows)) { el.textContent = rows.error || "No access"; return; }
+      el.innerHTML = rows.map(o => `<div>${o.name} | id: ${o.id} | license: ${o.license_id || "-"}</div>`).join("") || "<div>No organizations.</div>";
+    }
+    async function createOrganization(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById("org-name").value,
+        admin_username: document.getElementById("org-admin-user").value,
+        admin_password: document.getElementById("org-admin-pass").value
+      };
+      const r = await fetch("/api/admin/organizations", {method:"POST", headers: apiHeaders(), body: JSON.stringify(payload)});
+      const d = await r.json();
+      document.getElementById("org-msg").textContent = d.error || d.organization_id || d.status || "done";
+      loadOrganizations();
+      return false;
+    }
+    async function pollLLMScan(scanId) {
+      const bar = document.getElementById("llm-live-bar");
+      const msg = document.getElementById("llm-live-message");
+      const out = document.getElementById("llm-scan-result");
+      let attempts = 0;
+      const maxAttempts = 120; // ~2.4 minutes at 1.2s interval
+      while (true) {
+        attempts += 1;
+        const r = await fetch(`/api/llm/scan/${scanId}`);
+        const d = await r.json();
+        if (d.error) {
+          msg.textContent = "Scan failed: " + d.error;
+          break;
+        }
+        const p = Number(d.progress || 0);
+        bar.style.width = `${p}%`;
+        msg.textContent = d.message || `Scanning... ${p}%`;
+        if (d.status === "completed") {
+          llmLastScanId = scanId;
+          const reportLink = `/api/llm/report/${scanId}?format=html`;
+          const pdfLink = `/api/llm/report/${scanId}?format=pdf`;
+          out.innerHTML = `Score: <b>${d.security_score}/100</b> | Vulnerabilities: ${d.vulnerabilities_count} | <a href="${reportLink}" target="_blank">Open HTML Report</a> | <a href="${pdfLink}" target="_blank">Download PDF</a>`;
+          msg.textContent = "Scan completed.";
+          loadLLMModels();
+          loadLLMDashboard();
+          loadLLMRemediationList();
+          break;
+        }
+        if (d.status === "failed") {
+          msg.textContent = "Scan failed.";
+          break;
+        }
+        if (attempts >= maxAttempts) {
+          msg.textContent = "Scan is taking longer than expected. Please refresh or check server logs.";
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
+    }
+    async function runLLMScan(modelId) {
+      const res = document.getElementById("llm-scan-result");
+      res.textContent = "Starting scan...";
+      document.getElementById("llm-live-bar").style.width = "0%";
+      document.getElementById("llm-live-message").textContent = "Initializing scan...";
+      const r = await fetch("/api/llm/scan", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({model_id: modelId})
+      });
+      const data = await r.json();
+      if (data.error) {
+        res.textContent = "Scan failed: " + data.error;
+        return;
+      }
+      llmActiveScanId = data.scan_id;
+      pollLLMScan(llmActiveScanId);
+    }
+    async function submitLLMModel(e) {
+      e.preventDefault();
+      const formMsg = document.getElementById("llm-form-msg");
+      const modelName = (document.getElementById("llm-model-name").value || "").trim();
+      const modelType = document.getElementById("llm-model-type").value;
+      const apiEndpoint = (document.getElementById("llm-api-endpoint").value || "").trim();
+      const apiKey = (document.getElementById("llm-api-key").value || "").trim();
+      if (!modelName || !apiEndpoint) {
+        if (formMsg) {
+          formMsg.style.color = "#ff7f8b";
+          formMsg.textContent = "Model Name and API Endpoint are required.";
+        }
+        return false;
+      }
+      let params = {};
+      const rawParams = document.getElementById("llm-model-params").value.trim();
+      if (rawParams) {
+        try {
+          params = JSON.parse(rawParams);
+        } catch (_) {
+          if (formMsg) {
+            formMsg.style.color = "#ff7f8b";
+            formMsg.textContent = "Model Params JSON is invalid.";
+          }
+          return false;
+        }
+      }
+      const payload = {
+        model_name: modelName,
+        model_type: modelType,
+        api_endpoint: apiEndpoint,
+        api_key: apiKey,
+        model_parameters: params,
+      };
+      const r = await fetch("/api/llm/models", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (data.error) {
+        if (formMsg) {
+          formMsg.style.color = "#ff7f8b";
+          formMsg.textContent = "Could not add model: " + data.error;
+        }
+        return false;
+      }
+      document.getElementById("llm-model-form").reset();
+      if (formMsg) {
+        formMsg.style.color = "#76ffc5";
+        formMsg.textContent = "Model added successfully.";
+      }
+      loadLLMModels();
+      loadLLMDashboard();
+      loadLLMRemediationList();
+      return false;
+    }
     function openRemoteModal(){openModal();}
-    document.querySelectorAll(".filter-pill").forEach(p=>p.addEventListener("click",()=>{document.querySelectorAll(".filter-pill").forEach(x=>x.classList.remove("active")); p.classList.add("active"); activeFilter=p.dataset.filter; renderFindings(currentChecks);}));
+    const categoryFilterEl = document.getElementById("categoryFilter");
+    if (categoryFilterEl) {
+      categoryFilterEl.addEventListener("change", (e) => {
+        activeFilter = e.target.value || "all";
+        renderFindings(currentChecks);
+      });
+    }
     document.getElementById("searchInput").addEventListener("input",()=>renderFindings(currentChecks));
     document.getElementById("sortBy").addEventListener("change",()=>renderFindings(currentChecks));
     document.getElementById("btnScan").addEventListener("click",runLocalScan);
@@ -703,6 +1199,9 @@
       }
       if(DEMO_MODE){ runDemoSequence(); }
       else { setTimeout(()=>runLocalScan(), 500); }
+      loadLLMModels();
+      loadLLMDashboard();
+      loadLLMRemediationList();
       refreshFeed();
       setInterval(refreshFeed,4000);
     });

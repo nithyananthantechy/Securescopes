@@ -7,7 +7,7 @@ import yaml
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from securescope.core.reporter import SecureReporter
+from securescope.core.reporter import Reporter
 from securescope.offsec.audit import AuditLogger
 from securescope.offsec.engine import OffsecEngine
 from securescope.offsec.scope import Scope
@@ -75,7 +75,7 @@ def offsec_scan(req: ScanRequest) -> dict[str, Any]:
 def offsec_report_html(req: ScanRequest) -> dict[str, Any]:
     """
     Generates an HTML report from the scan output.
-    MVP uses your existing `SecureReporter` format (checks table + score).
+    MVP uses your existing `Reporter` format (checks table + score).
     """
     data = offsec_scan(req)
     payload = data["data"]
@@ -86,6 +86,6 @@ def offsec_report_html(req: ScanRequest) -> dict[str, Any]:
     score = int((passed / max(1, len(checks))) * 100)
     report_input = {"checks": checks, "score": score}
 
-    html = SecureReporter().generate(report_input, org=req.scope.project or "SecureScope")
+    html = Reporter().generate(report_input, org=req.scope.project or "SecureScope")
     return {"ok": True, "html": html, "score": score, "run_id": payload.get("run_id")}
 

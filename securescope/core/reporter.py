@@ -1,4 +1,5 @@
 import platform
+import socket
 from datetime import datetime
 
 def get_report_os():
@@ -11,15 +12,31 @@ def get_report_os():
             return 'Windows'
     return platform.platform()
 
-class SecureReporter:
+class Reporter:
     def __init__(self, org_name="NiTechSpark"):
         self.org_name = org_name
 
-    def generate(self, results, org="NiTechSpark"):
-        """Generates a multi-section enterprise HTML report."""
+    def generate_html(self, results, org="NiTechSpark"):
+        """Generates a proper 4-page enterprise HTML report."""
         checks = results.get('checks', [])
         score = results.get('score', 0)
-        os_name = get_report_os()
+        
+        # Enhanced defaults for local scans if missing from results
+        hostname = results.get('hostname')
+        if not hostname:
+            hostname = socket.gethostname()
+            
+        os_name = results.get('os', get_report_os())
+        is_windows = "Windows" in os_name
+        
+        ip_address = results.get('ip_address')
+        if not ip_address:
+            try:
+                ip_address = socket.gethostbyname(hostname)
+            except Exception:
+                ip_address = '127.0.0.1'
+                
+        kernel = results.get('kernel', platform.version())
         timestamp = datetime.now().strftime('%d %b %Y, %H:%M:%S')
         
         # Determine score color
@@ -32,158 +49,286 @@ class SecureReporter:
         failed = sum(1 for c in checks if c['status'] == 'FAIL')
         warnings = sum(1 for c in checks if c['status'] == 'WARNING')
 
-        critical_items = [c for c in checks if c.get("status") == "FAIL"][:3]
-        top_issues = "".join(
+        # Page 2: Executive Summary - Top critical issues (FAIL)
+        critical_items = [c for c in checks if c.get("status") == "FAIL" and c.get("severity") in ["Critical", "High"]][:5]
+        top_issues_html = "".join(
             f"<li><b>{c.get('check')}</b>: {c.get('details')}</li>" for c in critical_items
-        ) or "<li>No critical issues detected.</li>"
+        ) or "<li>No critical security issues detected.</li>"
 
-        rec_rows = []
+        # Page 3: Technical Findings - Grouped by Category
+        categories = {}
         for c in checks:
-            if c.get("status") == "FAIL":
-                priority = "P1" if c.get("severity") == "Critical" else ("P2" if c.get("severity") == "High" else "P3")
-                rec_rows.append(
-                    f"<tr><td><b>{c.get('check')}</b></td><td>{c.get('details')}</td><td>Potential service compromise and compliance impact.</td><td>Review config, apply patch, validate controls.</td><td>{priority}</td></tr>"
-                )
-        if not rec_rows:
-            rec_rows.append("<tr><td colspan='5'>No mandatory remediation items.</td></tr>")
+            cat = c.get('category', 'General')
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append(c)
+
+        findings_html = ""
+        for cat, cat_checks in categories.items():
+            findings_html += f"<h3 style='color: #1a237e; margin-top: 25px;'>{cat}</h3>"
+            findings_html += """
+            <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>
+                <thead>
+                    <tr style='background: #f8fafc; color: #64748b; text-transform: uppercase; font-size: 12px;'>
+                        <th style='padding: 12px; border-bottom: 2px solid #eee; text-align: left;'>Check</th>
+                        <th style='padding: 12px; border-bottom: 2px solid #eee; text-align: left;'>Status</th>
+                        <th style='padding: 12px; border-bottom: 2px solid #eee; text-align: left;'>Severity</th>
+                        <th style='padding: 12px; border-bottom: 2px solid #eee; text-align: left;'>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+            for c in cat_checks:
+                status = c.get('status', 'UNKNOWN')
+                bg_color = "#ffffff"
+                if status == 'PASS': bg_color = "#dcfce7"
+                elif status == 'FAIL': bg_color = "#fee2e2"
+                elif status == 'WARNING': bg_color = "#fef3c7"
+                
+                findings_html += f"""
+                    <tr style='background-color: {bg_color};'>
+                        <td style='padding: 10px; border-bottom: 1px solid #eee; font-size: 13px; font-weight: 600;'>{c.get('check')}</td>
+                        <td style='padding: 10px; border-bottom: 1px solid #eee; font-size: 12px;'>
+                            <span style='padding: 3px 8px; border-radius: 4px; font-weight: bold;'>{status}</span>
+                        </td>
+                        <td style='padding: 10px; border-bottom: 1px solid #eee; font-size: 12px;'>{c.get('severity')}</td>
+                        <td style='padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; color: #444;'>{c.get('details')}</td>
+                    </tr>
+                """
+            findings_html += "</tbody></table>"
+
+        # Page 4: Remediation Plan
+        remediation_html = ""
+        fail_checks = [c for c in checks if c.get('status') == 'FAIL']
+        if not fail_checks:
+            remediation_html = "<p>No remediation items required. All checks passed.</p>"
+        else:
+            for c in fail_checks:
+                severity = c.get('severity', 'Medium')
+                priority = "P1" if severity == "Critical" else ("P2" if severity == "High" else "P3")
+                badge_color = "#ef4444" if priority == "P1" else ("#f97316" if priority == "P2" else "#3b82f6")
+                
+                check_name = c.get('check', '')
+                fix_steps = [
+                    "1. Access the system configuration settings.",
+                    "2. Identify the specific security control mentioned above.",
+                    "3. Apply the recommended security hardening parameters.",
+                    "4. Restart the relevant services to apply changes.",
+                    "5. Re-run the security scan to verify the fix."
+                ]
+                
+                if "Firewall" in check_name:
+                    if is_windows:
+                        fix_steps = [
+                            "1. Open PowerShell as Administrator.",
+                            "2. Run: Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True",
+                            "3. Verify status: Get-NetFirewallProfile | Select Name, Enabled",
+                            "4. Ensure no unauthorized rules exist: Get-NetFirewallRule -Enabled True"
+                        ]
+                    else:
+                        fix_steps = [
+                            "1. Install UFW: sudo apt install ufw.",
+                            "2. Allow necessary ports (e.g., sudo ufw allow 22/tcp).",
+                            "3. Enable the firewall: sudo ufw enable.",
+                            "4. Check status: sudo ufw status verbose."
+                        ]
+                elif "SSH" in check_name or "Root login" in check_name:
+                    fix_steps = [
+                        "1. Open /etc/ssh/sshd_config with a text editor (e.g., sudo nano).",
+                        "2. Set PermitRootLogin to 'no' and PasswordAuthentication to 'no'.",
+                        "3. Save the file and exit.",
+                        "4. Restart SSH service: sudo systemctl restart ssh.",
+                        "5. Verify connection with an SSH key."
+                    ]
+                elif "SMBv1" in check_name:
+                    if is_windows:
+                        fix_steps = [
+                            "1. Open PowerShell as Administrator.",
+                            "2. Run: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol",
+                            "3. Restart the computer when prompted.",
+                            "4. Verify: Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol"
+                        ]
+                elif "Guest account" in check_name:
+                    if is_windows:
+                        fix_steps = [
+                            "1. Open Command Prompt as Administrator.",
+                            "2. Run: net user guest /active:no",
+                            "3. Verify in Computer Management -> Local Users and Groups."
+                        ]
+                
+                remediation_html += f"""
+                <div style='margin-bottom: 25px; padding: 15px; border: 1px solid #eee; border-radius: 8px; break-inside: avoid;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;'>
+                        <h4 style='margin: 0; color: #1a237e;'>{check_name}</h4>
+                        <span style='background: {badge_color}; color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;'>{priority}</span>
+                    </div>
+                    <p style='font-size: 13px; color: #666; margin: 5px 0;'><b>Issue:</b> {c.get('details')}</p>
+                    <div style='background: #f8fafc; padding: 10px; border-radius: 4px;'>
+                        <p style='font-size: 13px; margin: 0 0 5px 0; font-weight: bold;'>Fix Instructions:</p>
+                        <ul style='font-size: 12px; margin: 0; padding-left: 20px; line-height: 1.6;'>
+                            {"".join(f"<li>{step}</li>" for step in fix_steps)}
+                        </ul>
+                    </div>
+                </div>
+                """
 
         html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>SecureScope Report - {org}</title>
-            <style>
-                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; margin: 0; background: #f4f7f9; }}
-                .page {{ max-width: 900px; margin: 0 auto 24px; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-top: 8px solid #00d4ff; }}
-                .header-flex {{ display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }}
-                .logo-text {{ font-weight: bold; font-size: 24px; color: #00d4ff; letter-spacing: 1px; }}
-                h1 {{ color: #00d4ff; margin: 0 0 10px 0; font-size: 28px; }}
-                .meta-info {{ color: #666; font-size: 14px; line-height: 1.6; }}
-                .score-box {{ text-align: center; margin: 40px 0; padding: 30px; background: #fafafa; border-radius: 12px; border: 1px solid #eee; }}
-                .score-circle {{ width: 120px; height: 120px; line-height: 120px; border-radius: 50%; border: 8px solid {score_color}; margin: auto; font-size: 48px; font-weight: bold; color: {score_color}; }}
-                .stats-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }}
-                .stat-item {{ padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; }}
-                .stat-fail {{ background: #fee2e2; color: #ef4444; }}
-                .stat-pass {{ background: #dcfce7; color: #22c55e; }}
-                .stat-warn {{ background: #fef3c7; color: #f97316; }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                th {{ background: #f8fafc; color: #64748b; text-align: left; padding: 12px; font-size: 13px; text-transform: uppercase; border-bottom: 2px solid #eee; }}
-                td {{ padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }}
-                .status-badge {{ padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }}
-                .status-PASS {{ background: #22c55e; color: white; }}
-                .status-FAIL {{ background: #ef4444; color: white; }}
-                .status-WARNING {{ background: #f97316; color: white; }}
-                .severity-Critical {{ color: #ef4444; font-weight: bold; }}
-                .footer {{ text-align: center; margin-top: 50px; color: #999; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }}
-                .cover {{ background: #0a0e1a; color: #e8eaf6; text-align: center; min-height: 420px; }}
-                .cover h1 {{ color: #00d4ff; font-size: 40px; }}
-                .pagebreak {{ page-break-before: always; }}
-                @media print {{ .page {{ box-shadow: none; margin: 0; border-radius: 0; }} .pagebreak {{ page-break-before: always; }} }}
-            </style>
-        </head>
-        <body>
-            <div class="page cover">
-                <div class="logo-text">NITECHSPARK</div>
-                <h1>Security Assessment Report</h1>
-                <p><b>Client:</b> {org}</p>
-                <p><b>Date:</b> {timestamp}</p>
-                <p><b>Assessor:</b> SecureScope Engine v1.0</p>
-                <p>Confidential. For authorized recipients only.</p>
-                <p>Contact: nitechspark@gmail.com | nitechspark.vercel.app</p>
-            </div>
-
-            <div class="page pagebreak">
-                <div class="header-flex">
-                    <div>
-                        <div class="logo-text">NITECHSPARK</div>
-                        <h1>Executive Summary</h1>
-                        <div class="meta-info">
-                            Prepared by: NiTechSpark Security Team<br>
-                            Website: <a href="https://nitechspark.vercel.app/" style="color:#00d4ff">nitechspark.vercel.app</a><br>
-                            Contact: nitechspark@gmail.com
-                        </div>
-                    </div>
-                    <div style="text-align: right;" class="meta-info">
-                        <strong>Target:</strong> {os_name}<br>
-                        <strong>Date:</strong> {timestamp}<br>
-                        <strong>Assessor:</strong> SecureScope Engine v1.0
-                    </div>
-                </div>
-
-                <div class="score-box">
-                    <div class="score-circle">{score}</div>
-                    <div style="margin-top: 15px; font-weight: 600; color: #64748b;">Overall Security Compliance Score</div>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-item stat-fail">❌ {failed} Failed</div>
-                    <div class="stat-item stat-pass">✅ {passed} Passed</div>
-                    <div class="stat-item stat-warn">⚠️ {warnings} Warning</div>
-                </div>
-                <h3 style="color: #00d4ff;">Top Critical Findings</h3>
-                <ul>{top_issues}</ul>
-                <p><b>Scope:</b> Host and service configuration checks executed by SecureScope scanner modules.</p>
-            </div>
-
-            <div class="page pagebreak">
-                <h3 style="color: #00d4ff; border-left: 4px solid #00d4ff; padding-left: 10px;">Technical Findings</h3>
-                <h3 style="color: #00d4ff; border-left: 4px solid #00d4ff; padding-left: 10px;">Detailed Audit Findings</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Check</th>
-                            <th>Status</th>
-                            <th>Severity</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SecureScope Security Report - {org}</title>
+    <style>
+        @page {{
+            size: A4;
+            margin: 0;
+        }}
+        @media print {{
+            body {{ background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+            .page {{ 
+                margin: 0 !important; 
+                box-shadow: none !important; 
+                border: none !important; 
+                width: 100% !important;
+                height: 100vh !important;
+                page-break-after: always !important;
+                overflow: hidden;
+            }}
+            .no-print {{ display: none !important; }}
+        }}
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f0f2f5; color: #333; }}
+        .page {{ 
+            width: 210mm; 
+            height: 297mm; 
+            padding: 20mm; 
+            margin: 10mm auto; 
+            background: white; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            page-break-after: always;
+        }}
+        .cover {{ 
+            background: #0d1b2a !important; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+            text-align: center;
+        }}
+        .logo {{ font-size: 48px; font-weight: bold; color: #00d4ff; letter-spacing: 5px; margin-bottom: 10px; }}
+        .subtitle {{ font-size: 24px; color: #e0e0e0; margin-bottom: 50px; border-top: 1px solid #00d4ff; padding-top: 10px; }}
+        .cover-table {{ width: 80%; border-collapse: collapse; margin-top: 40px; color: white; }}
+        .cover-table td {{ padding: 10px; border-bottom: 1px solid #1a2e44; text-align: left; font-size: 14px; }}
+        .confidential {{ position: absolute; bottom: 20mm; font-weight: bold; color: #ff4d4d; letter-spacing: 2px; }}
         
-        for c in checks:
-            html += f"""
-                        <tr>
-                            <td style="color: #64748b;">{c['category']}</td>
-                            <td style="font-weight: 600;">{c['check']}</td>
-                            <td><span class="status-badge status-{c['status']}">{c['status']}</span></td>
-                            <td class="severity-{c['severity']}">{c['severity']}</td>
-                            <td style="color: #666; font-size: 12px;">{c['details']}</td>
-                        </tr>
-            """
+        h2 {{ color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px; margin-top: 0; }}
+        .score-container {{ text-align: center; margin: 20px 0; }}
+        .score-circle {{ 
+            width: 100px; height: 100px; border-radius: 50%; border: 10px solid {score_color};
+            line-height: 100px; font-size: 36px; font-weight: bold; color: {score_color};
+            margin: 0 auto;
+        }}
+        .stats-boxes {{ display: flex; justify-content: space-around; margin: 20px 0; }}
+        .stat-box {{ padding: 10px 20px; border-radius: 8px; text-align: center; font-weight: bold; width: 25%; }}
+        .stat-fail {{ background: #fee2e2 !important; color: #ef4444; border: 1px solid #fecaca; }}
+        .stat-pass {{ background: #dcfce7 !important; color: #22c55e; border: 1px solid #bbf7d0; }}
+        .stat-warn {{ background: #fef3c7 !important; color: #f97316; border: 1px solid #fde68a; }}
+        
+        .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+        .info-table td {{ padding: 8px; border: 1px solid #eee; font-size: 14px; }}
+        .info-label {{ background: #f8fafc !important; font-weight: bold; width: 30%; }}
+        
+        .footer-box {{ background: #0d1b2a !important; color: white; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center; position: absolute; bottom: 20mm; width: calc(100% - 40mm); }}
+        .footer-box a {{ color: #00d4ff; text-decoration: none; }}
+        .print-btn {{ position: fixed; top: 20px; right: 20px; background: #00d4ff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }}
+    </style>
+</head>
+<body>
+    <button class="print-btn no-print" onclick="window.print()">Print / Download PDF</button>
 
-        html += f"""
-                    </tbody>
-                </table>
-            </div>
+    <!-- PAGE 1: COVER -->
+    <div class="page cover">
+        <div class="logo">NITECHSPARK</div>
+        <div class="subtitle">SecureScope Security Assessment Report</div>
+        <table class="cover-table">
+            <tr><td><b>Target</b></td><td>{hostname}</td></tr>
+            <tr><td><b>Operating System</b></td><td>{os_name}</td></tr>
+            <tr><td><b>IP Address</b></td><td>{ip_address}</td></tr>
+            <tr><td><b>Date Generated</b></td><td>{timestamp}</td></tr>
+            <tr><td><b>Prepared By</b></td><td>{org} Security Engine</td></tr>
+        </table>
+        <div class="confidential">CONFIDENTIAL</div>
+    </div>
 
-            <div class="page pagebreak">
-                <h3 style="color: #00d4ff;">Recommendations</h3>
-                <table>
-                    <thead><tr><th>Issue</th><th>Description</th><th>Business Risk</th><th>Remediation</th><th>Priority</th></tr></thead>
-                    <tbody>
-                        {"".join(rec_rows)}
-                    </tbody>
-                </table>
-            </div>
+    <!-- PAGE 2: EXECUTIVE SUMMARY -->
+    <div class="page">
+        <h2>Executive Summary</h2>
+        <div class="score-container">
+            <div class="score-circle">{score}</div>
+            <p style="font-weight: bold; margin-top: 10px; color: #666;">Security Compliance Score</p>
+        </div>
+        
+        <div class="stats-boxes">
+            <div class="stat-box stat-fail">{failed}<br>FAILED</div>
+            <div class="stat-box stat-pass">{passed}<br>PASSED</div>
+            <div class="stat-box stat-warn">{warnings}<br>WARNINGS</div>
+        </div>
 
-            <div class="page pagebreak">
-                <h3 style="color: #00d4ff;">About NiTechSpark</h3>
-                <p>{org} delivers cybersecurity assessments, hardening, and compliance-focused remediation for startups and enterprises.</p>
-                <ul>
-                    <li>Security Assessments and Hardening</li>
-                    <li>Compliance Readiness (ISO 27001 / SOC 2 / NIST)</li>
-                    <li>Continuous Security Monitoring</li>
-                </ul>
-                <div class="footer">Generated by SecureScope | NiTechSpark Security Systems | &copy; 2026</div>
-            </div>
-        </body>
-        </html>
+        <h3 style="color: #1a237e;">System Information</h3>
+        <table class="info-table">
+            <tr><td class="info-label">Hostname</td><td>{hostname}</td></tr>
+            <tr><td class="info-label">Operating System</td><td>{os_name}</td></tr>
+            <tr><td class="info-label">IP Address</td><td>{ip_address}</td></tr>
+            <tr><td class="info-label">Kernel Version</td><td>{kernel}</td></tr>
+        </table>
+
+        <h3 style="color: #1a237e;">Top Critical Issues</h3>
+        <ul style="line-height: 1.8; color: #444; font-size: 14px;">
+            {top_issues_html}
+        </ul>
+    </div>
+
+    <!-- PAGE 3: TECHNICAL FINDINGS -->
+    <div class="page">
+        <h2>Technical Findings</h2>
+        <div style="overflow-y: auto; max-height: 230mm;">
+            {findings_html}
+        </div>
+    </div>
+
+    <!-- PAGE 4: REMEDIATION AND ABOUT -->
+    <div class="page">
+        <h2>Remediation Plan</h2>
+        <div style="overflow-y: auto; max-height: 180mm;">
+            {remediation_html}
+        </div>
+
+        <div class="footer-box">
+            <p style="font-weight: bold; color: #00d4ff; margin-bottom: 5px;">About NiTechSpark Security Systems</p>
+            <p style="font-size: 12px; margin-bottom: 10px;">
+                NiTechSpark provides advanced security automation and hardening solutions for enterprise infrastructure.
+            </p>
+            <p style="font-size: 12px;">
+                Email: <a href="mailto:nitechspark@gmail.com">nitechspark@gmail.com</a> | 
+                Phone: +91 6385576354 | 
+                Web: <a href="https://nitechspark.vercel.app" target="_blank">nitechspark.vercel.app</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
         """
         return html
 
+    def generate(self, results, org="NiTechSpark"):
+        """Main entry point to build the 4-page HTML report."""
+        return self.generate_html(results, org=org)
+
     def generate_pdf(self, scan_results, score, target_info, output_path="report.pdf"):
-        # Keep existing PDF method for CLI use if needed
+        # Keep reportlab for CLI if needed
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib import colors
@@ -209,3 +354,6 @@ class SecureReporter:
         table.setStyle(style); elements.append(table)
         doc.build(elements)
         return output_path
+
+# Alias for backward compatibility
+SecureReporter = Reporter

@@ -1,5 +1,6 @@
 import os
 from securescope.core.utils import run_command, logger
+from concurrent.futures import ThreadPoolExecutor
 
 class LinuxScanner:
     def __init__(self, target_host="local", ssh_client=None):
@@ -25,14 +26,21 @@ class LinuxScanner:
 
     def run_all_checks(self):
         """Main entry point for local scans."""
+        checks = [
+            self.check_ssh,
+            self.check_firewall,
+            self.check_users,
+            self.check_filesystem,
+            self.check_services,
+            self.check_updates,
+            self.check_logging,
+        ]
         results = []
-        results.extend(self.check_ssh())
-        results.extend(self.check_firewall())
-        results.extend(self.check_users())
-        results.extend(self.check_filesystem())
-        results.extend(self.check_services())
-        results.extend(self.check_updates())
-        results.extend(self.check_logging())
+        # Run independent checks concurrently to reduce scan latency.
+        with ThreadPoolExecutor(max_workers=min(7, len(checks))) as ex:
+            futures = [ex.submit(fn) for fn in checks]
+            for f in futures:
+                results.extend(f.result())
         return results
 
     def scan_remote(self, ssh_client):

@@ -1,5 +1,4 @@
 import paramiko
-import time
 from securescope.core.utils import logger
 
 class NetworkScanner:
@@ -22,9 +21,10 @@ class NetworkScanner:
 
     def execute(self, cmd):
         if not self.client: return ""
-        stdin, stdout, stderr = self.client.exec_command(cmd)
-        time.sleep(1)
-        return stdout.read().decode().strip()
+        stdin, stdout, stderr = self.client.exec_command(cmd, timeout=12)
+        # Wait for remote command completion without fixed sleep delay.
+        stdout.channel.recv_exit_status()
+        return stdout.read().decode(errors="ignore").strip()
 
     def run_all_checks(self):
         if not self.connect():
