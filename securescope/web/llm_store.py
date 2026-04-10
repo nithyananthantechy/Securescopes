@@ -533,6 +533,27 @@ class LLMStore:
             rows = conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
 
+    def get_user_by_id(self, user_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                """
+                SELECT u.id, u.username, u.role, u.org_id, u.active, o.name AS organization_name
+                FROM app_users u
+                LEFT JOIN organizations o ON o.id = u.org_id
+                WHERE u.id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def update_user_password(self, user_id: str, password: str) -> bool:
+        with self._conn() as conn:
+            cur = conn.execute(
+                "UPDATE app_users SET password = ? WHERE id = ?",
+                (password, user_id),
+            )
+        return cur.rowcount > 0
+
     def create_organization(self, name: str, admin_username: str, admin_password: str, license_id: str | None = None) -> str:
         oid = str(uuid.uuid4())
         with self._conn() as conn:
@@ -574,6 +595,49 @@ class LLMStore:
                     (lid, organization_id),
                 )
         return {"id": lid, "license_key": key}
+
+    def link_license_organization(self, license_id: str, organization_id: str) -> None:
+        with self._conn() as conn:
+            # Ensure one-to-one mapping by clearing any old links first.
+            conn.execute(
+                "UPDATE organizations SET license_id = NULL WHERE license_id = ?",
+                (license_id,),
+            )
+            conn.execute(
+                "UPDATE licenses SET organization_id = NULL WHERE organization_id = ?",
+                (organization_id,),
+            )
+            conn.execute(
+                "UPDATE licenses SET organization_id = ? WHERE id = ?",
+                (organization_id, license_id),
+            )
+            conn.execute(
+                "UPDATE organizations SET license_id = ? WHERE id = ?",
+                (license_id, organization_id),
+            )
+
+    def unlink_license_organization(self, organization_id: str | None = None, license_id: str | None = None) -> None:
+        if not organization_id and not license_id:
+            return
+        with self._conn() as conn:
+            if organization_id:
+                conn.execute(
+                    "UPDATE licenses SET organization_id = NULL WHERE organization_id = ?",
+                    (organization_id,),
+                )
+                conn.execute(
+                    "UPDATE organizations SET license_id = NULL WHERE id = ?",
+                    (organization_id,),
+                )
+            if license_id:
+                conn.execute(
+                    "UPDATE organizations SET license_id = NULL WHERE license_id = ?",
+                    (license_id,),
+                )
+                conn.execute(
+                    "UPDATE licenses SET organization_id = NULL WHERE id = ?",
+                    (license_id,),
+                )
 
     def list_licenses(self) -> list[dict[str, Any]]:
         with self._conn() as conn:

@@ -346,6 +346,7 @@ def index():
         csrf_token=_csrf_token(),
         username=session.get("username", "operator"),
         role=session.get("role", "viewer"),
+        is_super_admin=_is_super_admin(),
         org_name=config.get("branding", {}).get("organization_name", "NiTechSpark"),
         client_name=config.get("branding", {}).get("client_name", "Default Client"),
         demo_mode=demo_mode,
@@ -968,8 +969,11 @@ def email_llm_report(scan_id):
 def list_admin_users():
     if _is_super_admin():
         return jsonify(llm_store.list_users())
-    if session.get("role") == "org_admin":
-        return jsonify(llm_store.list_users(org_id=session.get("org_id")))
+    if session.get("role") in ("org_admin", "admin"):
+        org_id = session.get("org_id")
+        if not org_id:
+            return jsonify([])
+        return jsonify(llm_store.list_users(org_id=org_id))
     return jsonify({"error": "Forbidden"}), 403
 
 
@@ -996,6 +1000,43 @@ def create_admin_user():
     return jsonify({"user_id": uid, "status": "created"}), 201
 
 
+@app.route('/api/admin/users/<user_id>/password', methods=['POST'])
+@login_required
+@secure_post
+def update_admin_user_password(user_id):
+    payload = request.json or {}
+    new_password = (payload.get("password") or "").strip()
+    if len(new_password) < 6:
+        return jsonify({"error": "password must be at least 6 characters"}), 400
+
+    target = llm_store.get_user_by_id(user_id)
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+
+    actor_role = session.get("role")
+    actor_org = session.get("org_id")
+    actor_name = (session.get("username") or "").strip()
+    target_name = (target.get("username") or "").strip()
+
+    if _is_super_admin():
+        pass
+    elif actor_role in ("org_admin", "admin"):
+        if not actor_org or target.get("org_id") != actor_org:
+            return jsonify({"error": "Forbidden for selected user"}), 403
+        if target_name in SUPER_ADMINS:
+            return jsonify({"error": "Cannot modify super admin account"}), 403
+        if actor_role == "admin" and target.get("role") in ("org_admin", "admin") and actor_name != target_name:
+            return jsonify({"error": "admin can update only own/admin-level restricted passwords"}), 403
+    else:
+        return jsonify({"error": "Forbidden"}), 403
+
+    ok = llm_store.update_user_password(user_id, new_password)
+    if not ok:
+        return jsonify({"error": "password update failed"}), 400
+    llm_store.log_activity(_llm_user_id(), "update_user_password", "user", user_id, {"username": target.get("username")})
+    return jsonify({"ok": True, "status": "password_updated"})
+
+
 @app.route('/api/admin/licenses', methods=['GET'])
 @login_required
 @super_admin_required
@@ -1009,13 +1050,52 @@ def list_admin_licenses():
 @super_admin_required
 def create_admin_license():
     payload = request.json or {}
-    tier = payload.get("tier", "standard")
+    tier = (payload.get("tier", "standard") or "standard").strip()
     max_users = int(payload.get("max_users", 5))
     expires_at = payload.get("expires_at")
-    organization_id = payload.get("organization_id")
-    lic = llm_store.create_license(tier=tier, expires_at=expires_at, max_users=max_users, organization_id=organization_id)
-    llm_store.log_activity(_llm_user_id(), "create_license", "license", lic["id"], {"tier": tier})
-    return jsonify({"status": "created", **lic}), 201
+    organization_id = (payload.get("organization_id") or "").strip() or None
+    org_name = (payload.get("org_name") or "").strip()
+    admin_username = (payload.get("admin_username") or "").strip()
+    admin_password = (payload.get("admin_password") or "").strip()
+
+    if max_users < 1:
+        return jsonify({"error": "max_users must be at least 1"}), 400
+
+    # Flow:
+    # 1) existing org id provided -> assign license to that org
+    # 2) org fields provided -> create license, create org+org_admin, and link both
+    # 3) only license fields -> normal license creation
+    try:
+        if organization_id:
+            lic = llm_store.create_license(
+                tier=tier,
+                expires_at=expires_at,
+                max_users=max_users,
+                organization_id=organization_id,
+            )
+            llm_store.log_activity(_llm_user_id(), "create_license", "license", lic["id"], {"tier": tier, "organization_id": organization_id})
+            return jsonify({"status": "created", **lic, "organization_id": organization_id}), 201
+
+        if org_name or admin_username or admin_password:
+            if not (org_name and admin_username and admin_password):
+                return jsonify({"error": "org_name, admin_username and admin_password are required for auto organization setup"}), 400
+            lic = llm_store.create_license(tier=tier, expires_at=expires_at, max_users=max_users, organization_id=None)
+            oid = llm_store.create_organization(org_name, admin_username, admin_password, license_id=lic["id"])
+            llm_store.link_license_organization(lic["id"], oid)
+            llm_store.log_activity(
+                _llm_user_id(),
+                "create_license_with_org",
+                "license",
+                lic["id"],
+                {"tier": tier, "organization_id": oid, "org_name": org_name, "admin_username": admin_username},
+            )
+            return jsonify({"status": "created", **lic, "organization_id": oid, "organization_name": org_name, "admin_username": admin_username}), 201
+
+        lic = llm_store.create_license(tier=tier, expires_at=expires_at, max_users=max_users, organization_id=None)
+        llm_store.log_activity(_llm_user_id(), "create_license", "license", lic["id"], {"tier": tier})
+        return jsonify({"status": "created", **lic}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 @app.route('/api/admin/organizations', methods=['GET'])
@@ -1043,6 +1123,42 @@ def create_admin_org():
     oid = llm_store.create_organization(org_name, admin_username, admin_password, license_id=payload.get("license_id"))
     llm_store.log_activity(_llm_user_id(), "create_organization", "organization", oid, {"name": org_name})
     return jsonify({"organization_id": oid, "status": "created"}), 201
+
+
+@app.route('/api/admin/org-license/link', methods=['POST'])
+@login_required
+@secure_post
+@super_admin_required
+def admin_link_org_license():
+    payload = request.json or {}
+    org_id = (payload.get("organization_id") or "").strip()
+    license_id = (payload.get("license_id") or "").strip()
+    if not org_id or not license_id:
+        return jsonify({"error": "organization_id and license_id are required"}), 400
+    org_ids = {o.get("id") for o in llm_store.list_organizations()}
+    lic_ids = {l.get("id") for l in llm_store.list_licenses()}
+    if org_id not in org_ids:
+        return jsonify({"error": "organization not found"}), 404
+    if license_id not in lic_ids:
+        return jsonify({"error": "license not found"}), 404
+    llm_store.link_license_organization(license_id=license_id, organization_id=org_id)
+    llm_store.log_activity(_llm_user_id(), "link_org_license", "organization", org_id, {"license_id": license_id})
+    return jsonify({"ok": True, "organization_id": org_id, "license_id": license_id})
+
+
+@app.route('/api/admin/org-license/unlink', methods=['POST'])
+@login_required
+@secure_post
+@super_admin_required
+def admin_unlink_org_license():
+    payload = request.json or {}
+    org_id = (payload.get("organization_id") or "").strip() or None
+    license_id = (payload.get("license_id") or "").strip() or None
+    if not org_id and not license_id:
+        return jsonify({"error": "organization_id or license_id is required"}), 400
+    llm_store.unlink_license_organization(organization_id=org_id, license_id=license_id)
+    llm_store.log_activity(_llm_user_id(), "unlink_org_license", "organization", org_id or "-", {"license_id": license_id})
+    return jsonify({"ok": True})
 
 
 @app.route('/api/llm/remediate', methods=['POST'])
