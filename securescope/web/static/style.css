@@ -32,6 +32,16 @@ body { margin: 0; font-family: Inter, sans-serif; background: radial-gradient(ci
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px;
+  min-height: calc(100vh - 84px);
+  overflow-y: auto;
+  justify-content: stretch;
+}
+
+.nav-tabs-enterprise .tab-btn {
+  flex: 1 1 auto;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
 }
 .tab-btn { background: transparent; border: 1px solid var(--border); color: var(--text2); padding: 10px 14px; border-radius: 10px; font-size: 15px; text-align:left; }
 .tab-btn.active { color: var(--text); border-color: var(--accent); box-shadow: 0 0 20px rgba(0,212,255,.2); }
@@ -116,9 +126,11 @@ body { margin: 0; font-family: Inter, sans-serif; background: radial-gradient(ci
     background: transparent;
     padding: 0;
     overflow-x: auto;
+    overflow-y: hidden;
     white-space: nowrap;
+    min-height: 0;
   }
-  .tab-btn { flex: 0 0 auto; }
+  .tab-btn { flex: 0 0 auto; min-height: 40px; display: block; }
   .main-grid { padding-left: 14px; }
   #targets-page, #reports-page, #llm-page, #users-page, #licenses-page, #organizations-page, #settings-page {
     padding-left: 24px !important;
@@ -257,4 +269,358 @@ select.form-control option {
   background: #0f1629;
   color: #e8eaf6;
   padding: 8px;
+}
+
+/* -------- UI polish overrides (layout/spacing only) -------- */
+:root {
+  --border-soft: #263857;
+  --accent-soft: rgba(0, 212, 255, 0.14);
+}
+
+body {
+  line-height: 1.4;
+}
+
+.header-inner {
+  padding: 0 16px;
+  gap: 12px;
+}
+
+.nav-tabs-enterprise {
+  width: 260px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.tab-btn {
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  border-color: var(--border-soft);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tab-btn.active {
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.main-grid {
+  padding: 16px;
+  padding-left: 286px;
+  gap: 16px;
+  align-items: start;
+}
+
+#targets-page, #reports-page, #llm-page, #users-page, #licenses-page, #organizations-page, #settings-page {
+  padding-left: 286px !important;
+  padding-top: 20px !important;
+  padding-right: 20px !important;
+}
+
+.card-scope {
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.01), 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.stats-grid {
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.quick-actions .btn {
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+
+.target-card {
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+
+.target-card:hover {
+  border-color: var(--border-soft);
+  transform: translateY(-1px);
+}
+
+.findings-toolbar {
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.findings-list {
+  padding-right: 2px;
+}
+
+.finding-row {
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.threat-feed {
+  padding: 10px;
+}
+
+#targets-page > div,
+#reports-page > div,
+#llm-page > div,
+#users-page > div,
+#licenses-page > div,
+#organizations-page > div,
+#settings-page > div {
+  margin-bottom: 16px !important;
+}
+
+#targets-page h3, #reports-page h3, #llm-page h3, #users-page h3, #licenses-page h3, #organizations-page h3, #settings-page h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.btn-primary-enterprise:hover,
+.btn-primary:hover,
+.btn-secondary:hover {
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+input.form-control, select.form-control, textarea.form-control, .form-select {
+  border-radius: 8px;
+}
+
+.findings-list::-webkit-scrollbar,
+.threat-feed::-webkit-scrollbar {
+  width: 10px;
+}
+
+.findings-list::-webkit-scrollbar-thumb,
+.threat-feed::-webkit-scrollbar-thumb {
+  background: #233657;
+  border-radius: 999px;
+}
+
+.findings-list::-webkit-scrollbar-track,
+.threat-feed::-webkit-scrollbar-track {
+  background: #0b1222;
+}
+
+@media (max-width: 1200px) {
+  .main-grid {
+    padding-left: 14px;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 900px) {
+  .header-inner {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 64px;
+    padding: 10px 12px;
+  }
+  .app-header {
+    height: auto;
+  }
+  .header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .main-grid {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .header-right {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .pill {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+}
+
+/* -------- Premium pass (still style-only) -------- */
+:root {
+  --premium-card-bg: linear-gradient(180deg, #111a31 0%, #0f1629 100%);
+  --premium-ring: 0 0 0 1px rgba(54, 87, 130, 0.35);
+}
+
+body {
+  letter-spacing: 0.1px;
+}
+
+.section-title {
+  font-size: 11px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.brand-title {
+  font-size: 23px;
+  letter-spacing: 0.25px;
+}
+
+.pill {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.card-scope {
+  background: var(--premium-card-bg);
+  border-color: #223557;
+  box-shadow: inset 0 0 32px rgba(255, 255, 255, 0.012), 0 10px 22px rgba(0, 0, 0, 0.2);
+}
+
+.card-scope:hover {
+  border-color: #2c436a;
+  transition: border-color 0.2s ease;
+}
+
+.score-num {
+  font-size: 46px;
+  text-shadow: 0 0 24px rgba(0, 212, 255, 0.2);
+}
+
+.score-label {
+  letter-spacing: 0.2px;
+}
+
+.risk-chip {
+  margin-top: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.stat {
+  background: rgba(7, 14, 30, 0.45);
+  border-color: #24375a;
+  box-shadow: var(--premium-ring);
+}
+
+.stat b {
+  margin-bottom: 2px;
+}
+
+.btn-primary-enterprise {
+  background: linear-gradient(180deg, #1de0ff 0%, #00c9ef 100%);
+}
+
+.btn-primary-enterprise:hover {
+  background: linear-gradient(180deg, #4ce8ff 0%, #13d6fb 100%);
+  box-shadow: 0 6px 18px rgba(0, 212, 255, 0.28);
+}
+
+.btn-outline-info,
+.btn-outline-light,
+.btn-outline-secondary,
+.btn-warning {
+  border-radius: 8px;
+}
+
+.target-card {
+  background: rgba(8, 15, 31, 0.4);
+}
+
+.target-card > div:nth-child(1) b {
+  font-size: 14px;
+}
+
+.findings-toolbar .form-control,
+.findings-toolbar .form-select {
+  min-height: 38px;
+  box-shadow: var(--premium-ring);
+}
+
+.finding-row {
+  background: rgba(9, 16, 34, 0.52);
+}
+
+.finding-main {
+  gap: 10px;
+}
+
+.finding-details {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(136, 146, 164, 0.26);
+}
+
+.status-chip {
+  letter-spacing: 0.25px;
+}
+
+.fw-badges span {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.threat-feed {
+  background: linear-gradient(180deg, #03060f 0%, #050915 100%);
+  border-color: #1f3355;
+}
+
+.modal-dialog {
+  border-color: #29436e;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.modal-header h3 {
+  letter-spacing: 0.2px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #22ddff;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.14);
+}
+
+#targets-page h2,
+#reports-page h2,
+#llm-page h2,
+#users-page h2,
+#licenses-page h2,
+#organizations-page h2,
+#settings-page h2 {
+  font-size: 27px;
+  font-weight: 700;
+}
+
+#targets-page [style*="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"] {
+  gap: 18px !important;
+}
+
+#llm-kpi-cards > div {
+  background: linear-gradient(180deg, #0f182f 0%, #0b1326 100%) !important;
+  border-color: #243b60 !important;
+  box-shadow: var(--premium-ring);
+}
+
+#llm-dashboard-summary,
+#llm-live-message,
+#llm-scan-result,
+#llm-activity-feed,
+#report-history,
+#users-list,
+#licenses-list,
+#org-list {
+  line-height: 1.5;
+}
+
+/* Executive view spacing fix */
+#executiveTab {
+  align-content: start;
+  padding-top: 12px;
+  padding-bottom: 8px;
+  min-height: calc(100vh - 84px);
+}
+
+#executiveTab > section.card-scope {
+  margin-bottom: 0;
+  padding-bottom: 14px;
+}
+
+#executiveTab .row.g-3 {
+  margin-bottom: 10px;
 }
