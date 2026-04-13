@@ -713,7 +713,9 @@ def _llm_user_id() -> str:
 
 
 def _is_super_admin() -> bool:
-    return (session.get("username") or "").strip() in SUPER_ADMINS
+    is_in_set = (session.get("username") or "").strip() in SUPER_ADMINS
+    is_role = session.get("role") == "super_admin"
+    return is_in_set or is_role
 
 
 def _build_llm_html_report(scan: dict):
@@ -1252,34 +1254,6 @@ def api_targets():
             continue
         if org_filter_val and target_data.get('org_id') != org_filter_val:
             continue
-        compliance_score = get_target_compliance_score(target_key)
-        last_scan_time = get_target_last_scan_time(target_key)
-        target_status = determine_target_status(target_key, last_scan_time)
-        if status_filter and target_status != status_filter:
-            continue
-        os_type = _normalize_os_family(target_data.get("os"))
-        if os_filter and os_type != os_filter:
-            continue
-        name = (target_data.get("hostname") or target_key) or ""
-        ip = target_data.get("ip_address") or target_data.get("target") or ""
-        if q and q not in name.lower() and q not in (ip or "").lower() and q not in target_key.lower():
-            continue
-        all_targets.append(
-            {
-                "id": target_key,
-                "name": name or target_key,
-                "ip": ip,
-                "os": target_data.get("os", "Unknown"),
-                "status": target_status,
-                "compliance_score": compliance_score,
-                "last_scan": last_scan_time,
-                "findings_count": count_findings_by_target(target_key),
-                "critical_count": count_findings_by_target(target_key, "critical"),
-                "high_count": count_findings_by_target(target_key, "high"),
-                "platform": target_data.get("platform"),
-                "removable": True,
-            }
-        )
         compliance_score = get_target_compliance_score(target_key)
         last_scan_time = get_target_last_scan_time(target_key)
         target_status = determine_target_status(target_key, last_scan_time)
@@ -2533,6 +2507,58 @@ def create_admin_org():
     oid = llm_store.create_organization(org_name, admin_username, admin_password, license_id=payload.get("license_id"))
     llm_store.log_activity(_llm_user_id(), "create_organization", "organization", oid, {"name": org_name})
     return jsonify({"organization_id": oid, "status": "created"}), 201
+
+
+@app.route('/api/admin/users/<user_id>', methods=['DELETE'])
+@login_required
+@secure_post
+@super_admin_required
+def delete_admin_user(user_id):
+    """Permanently remove a user. Super admin only."""
+    target = llm_store.get_user_by_id(user_id)
+    if not target:
+        return jsonify({'error': 'User not found'}), 404
+    if (target.get('username') or '').strip() in SUPER_ADMINS:
+        return jsonify({'error': 'Cannot delete super admin account'}), 403
+    ok = llm_store.delete_user(user_id)
+    if not ok:
+        return jsonify({'error': 'Delete failed'}), 400
+    llm_store.log_activity(_llm_user_id(), 'delete_user', 'user', user_id, {'username': target.get('username')})
+    return jsonify({'success': True, 'status': 'deleted'})
+
+
+@app.route('/api/admin/licenses/<license_id>', methods=['DELETE'])
+@login_required
+@secure_post
+@super_admin_required
+def delete_admin_license(license_id):
+    """Revoke and remove a license. Super admin only."""
+    licenses = llm_store.list_licenses()
+    found = next((l for l in licenses if l['id'] == license_id), None)
+    if not found:
+        return jsonify({'error': 'License not found'}), 404
+    ok = llm_store.delete_license(license_id)
+    if not ok:
+        return jsonify({'error': 'Delete failed'}), 400
+    llm_store.log_activity(_llm_user_id(), 'delete_license', 'license', license_id, {'license_key': found.get('license_key')})
+    return jsonify({'success': True, 'status': 'deleted'})
+
+
+@app.route('/api/admin/organizations/<org_id>', methods=['DELETE'])
+@login_required
+@secure_post
+@super_admin_required
+def delete_admin_org(org_id):
+    """Remove an organization. Super admin only. Users in org will have org_id set to None."""
+    orgs = llm_store.list_organizations()
+    found = next((o for o in orgs if o['id'] == org_id), None)
+    if not found:
+        return jsonify({'error': 'Organization not found'}), 404
+    ok = llm_store.delete_organization(org_id)
+    if not ok:
+        return jsonify({'error': 'Delete failed'}), 400
+    llm_store.log_activity(_llm_user_id(), 'delete_organization', 'organization', org_id, {'name': found.get('name')})
+    return jsonify({'success': True, 'status': 'deleted'})
 
 
 @app.route('/api/admin/org-license/link', methods=['POST'])

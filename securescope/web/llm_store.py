@@ -739,6 +739,35 @@ class LLMStore:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    def delete_user(self, user_id: str) -> bool:
+        with self._conn() as conn:
+            cur = conn.execute("DELETE FROM app_users WHERE id = ?", (user_id,))
+        return cur.rowcount > 0
+
+    def delete_license(self, license_id: str) -> bool:
+        with self._conn() as conn:
+            # Clear org link before deleting
+            conn.execute(
+                "UPDATE organizations SET license_id = NULL WHERE license_id = ?",
+                (license_id,),
+            )
+            cur = conn.execute("DELETE FROM licenses WHERE id = ?", (license_id,))
+        return cur.rowcount > 0
+
+    def delete_organization(self, org_id: str) -> bool:
+        with self._conn() as conn:
+            # Null out license link and user org references before deleting
+            conn.execute(
+                "UPDATE licenses SET organization_id = NULL WHERE organization_id = ?",
+                (org_id,),
+            )
+            conn.execute(
+                "UPDATE app_users SET org_id = NULL WHERE org_id = ?",
+                (org_id,),
+            )
+            cur = conn.execute("DELETE FROM organizations WHERE id = ?", (org_id,))
+        return cur.rowcount > 0
+
     def fail_scan(self, scan_id: str, reason: str) -> None:
         with self._conn() as conn:
             conn.execute(

@@ -1897,6 +1897,7 @@
                 <th style="text-align:left;padding:8px;">Organization</th>
                 <th style="text-align:left;padding:8px;">Org ID</th>
                 ${CAN_MANAGE_PASSWORDS ? '<th style="text-align:left;padding:8px;">Password</th>' : ""}
+                ${IS_SUPER_ADMIN ? '<th style="text-align:left;padding:8px;">Actions</th>' : ""}
               </tr>
             </thead>
             <tbody>
@@ -1912,6 +1913,11 @@
                         <input id="pwd-${u.id}" type="password" class="form-control form-control-sm" placeholder="New password" style="max-width:170px;">
                         <button class="btn btn-sm btn-outline-info" onclick="changeUserPassword('${u.id}', '${(u.username || "").replace(/'/g, "\\'")}')">Update</button>
                       </div>
+                    </td>
+                  ` : ""}
+                  ${IS_SUPER_ADMIN ? `
+                    <td style="padding:8px;">
+                      <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('${u.id}', '${(u.username || "").replace(/'/g, "\\'")}')">Remove</button>
                     </td>
                   ` : ""}
                 </tr>
@@ -1975,6 +1981,7 @@
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                   <span style="border:1px solid #1e2d4a;border-radius:999px;padding:2px 8px;color:#8fd4ff;font-size:12px;">${l.tier || "-"}</span>
                   <span style="border:1px solid #1e2d4a;border-radius:999px;padding:2px 8px;color:${l.status === "active" ? "#76ffc5" : "#ffce6b"};font-size:12px;">${l.status || "-"}</span>
+                  ${IS_SUPER_ADMIN ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteLicense('${l.id}', '${(l.license_key||'').replace(/'/g,"\\'")}')">Remove</button>` : ""}
                 </div>
               </div>
               <div style="margin-top:6px;color:#cfd6e6;font-size:13px;">Organization: <b>${l.organization_name || "Unassigned"}</b></div>
@@ -2057,7 +2064,10 @@
               <div style="border:1px solid #1e2d4a;border-radius:10px;padding:10px;background:#0b1326;">
                 <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
                   <div style="font-weight:700;color:#e8eaf6;">${o.name || "-"}</div>
-                  <div style="color:#8892a4;font-size:12px;">Org ID: ${o.id || "-"}</div>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <div style="color:#8892a4;font-size:12px;">Org ID: ${o.id || "-"}</div>
+                    ${IS_SUPER_ADMIN ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteOrganization('${o.id}', '${(o.name||'').replace(/'/g,"\\'")}')">Remove Org</button>` : ""}
+                  </div>
                 </div>
                 <div style="margin-top:6px;color:#cfd6e6;font-size:13px;">License: <b>${lic ? lic.license_key : "Not linked"}</b></div>
                 <div style="margin-top:2px;color:#8892a4;font-size:12px;">Tier: ${lic ? lic.tier : "-"} | Expires: ${lic && lic.expires_at ? lic.expires_at : "N/A"}</div>
@@ -2111,6 +2121,45 @@
       document.getElementById("org-msg").textContent = d.error || d.organization_id || d.status || "done";
       loadOrganizations();
       return false;
+    }
+
+    async function deleteUser(userId, username) {
+      if (!IS_SUPER_ADMIN) return;
+      if (!confirm(`Remove user "${username}"? This action is permanent.`)) return;
+      const r = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+        headers: apiHeaders()
+      });
+      const d = await r.json();
+      if (d.error) { alert('Error: ' + d.error); return; }
+      await loadUsers();
+    }
+
+    async function deleteLicense(licenseId, licenseKey) {
+      if (!IS_SUPER_ADMIN) return;
+      if (!confirm(`Remove license "${licenseKey}"? This will revoke the license and unlink it from any organization.`)) return;
+      const r = await fetch(`/api/admin/licenses/${encodeURIComponent(licenseId)}`, {
+        method: 'DELETE',
+        headers: apiHeaders()
+      });
+      const d = await r.json();
+      if (d.error) { alert('Error: ' + d.error); return; }
+      await loadLicenses();
+      await loadOrganizations();
+    }
+
+    async function deleteOrganization(orgId, orgName) {
+      if (!IS_SUPER_ADMIN) return;
+      if (!confirm(`Remove organization "${orgName}"? Users in this org will become unassigned. This action is permanent.`)) return;
+      const r = await fetch(`/api/admin/organizations/${encodeURIComponent(orgId)}`, {
+        method: 'DELETE',
+        headers: apiHeaders()
+      });
+      const d = await r.json();
+      if (d.error) { alert('Error: ' + d.error); return; }
+      await loadOrganizations();
+      await loadUsers();
+      await loadLicenses();
     }
     async function pollLLMScan(scanId) {
       const bar = document.getElementById("llm-live-bar");

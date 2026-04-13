@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}SecureScope Enterprise{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="progress-top"><div id="progressTop" class="progress-bar-top"></div></div>
+  <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+  <header class="app-header">
+    <div class="header-inner header-top-bar">
+      <div class="header-top-left">
+        <div class="header-brand">
+          <img src="/logo.png" alt="SecureScope logo" class="brand-logo" onerror="this.style.display='none'">
+          <div class="brand-title">SecureScope</div>
+        </div>
+        <div class="header-mobile-toggle">
+          <button type="button" id="mobileMenuToggle" class="btn-hamburger" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="pill" id="liveClock"></div>
+        <div class="pill"><i class="bi bi-person-circle"></i> {{ username }} ({{ role }})</div>
+        <div class="pill user-role-badge" data-user-role="{{ role }}">{{ role.upper() }}</div>
+        <a href="/logout" class="btn btn-sm btn-outline-danger"><i class="bi bi-box-arrow-right"></i></a>
+      </div>
+    </div>
+  </header>
+
+  <aside class="nav-tabs-enterprise sidebar" id="appSidebar" aria-label="Main navigation">
+    <div class="nav-accordion">
+      <div class="nav-acc-group is-open">
+        <button type="button" class="nav-acc-trigger" aria-expanded="true">Overview</button>
+        <div class="nav-acc-panel">
+          <a href="/" class="tab-btn" data-tab="dashboard">Dashboard</a>
+          <a href="/?tab=compliance" class="tab-btn" data-tab="compliance">Compliance</a>
+          <a href="/targets" class="tab-btn active" id="tab-targets" data-tab="targets">Targets</a>
+        </div>
+      </div>
+      <div class="nav-acc-group">
+        <button type="button" class="nav-acc-trigger" aria-expanded="false">Reports &amp; AI</button>
+        <div class="nav-acc-panel">
+          <a href="/?tab=reports" class="tab-btn" data-tab="reports">Reports</a>
+          <a href="/?tab=llm" class="tab-btn" data-tab="llm">LLM</a>
+        </div>
+      </div>
+      <div class="nav-acc-group">
+        <button type="button" class="nav-acc-trigger" aria-expanded="false">Administration</button>
+        <div class="nav-acc-panel">
+          <a href="/?tab=users" class="tab-btn" data-tab="users">Users</a>
+          <a href="/?tab=licenses" class="tab-btn" data-tab="licenses">Licenses</a>
+          <a href="/?tab=organizations" class="tab-btn" data-tab="organizations">Orgs</a>
+        </div>
+      </div>
+      <div class="nav-acc-group" id="nav-group-system">
+        <button type="button" class="nav-acc-trigger" aria-expanded="false">System</button>
+        <div class="nav-acc-panel">
+          <a href="/?tab=settings" class="tab-btn" data-tab="settings">Settings</a>
+          <a href="/?tab=executive" class="tab-btn" data-tab="executive">Executive</a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  {% block content %}{% endblock %}
+
+  {% if demo_mode %}<div class="demo-watermark">LIVE DEMO</div>{% endif %}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Mobile menu toggle
+    document.getElementById("mobileMenuToggle")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const sidebar = document.getElementById("appSidebar");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      const btn = document.getElementById("mobileMenuToggle");
+      const open = sidebar.classList.toggle("open");
+      if (backdrop) backdrop.classList.toggle("open", open);
+      if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    document.getElementById("sidebarBackdrop")?.addEventListener("click", () => {
+      const sidebar = document.getElementById("appSidebar");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      const btn = document.getElementById("mobileMenuToggle");
+      if (sidebar) sidebar.classList.remove("open");
+      if (backdrop) backdrop.classList.remove("open");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+    // Nav accordion
+    document.querySelectorAll(".nav-acc-trigger").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const group = btn.closest(".nav-acc-group");
+        if (!group) return;
+        const willOpen = !group.classList.contains("is-open");
+        document.querySelectorAll(".nav-acc-group").forEach((g) => {
+          const open = willOpen && g === group;
+          g.classList.toggle("is-open", open);
+          const tr = g.querySelector(".nav-acc-trigger");
+          if (tr) tr.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+      });
+    });
+    // Live clock
+    const nowStr = () => new Date().toLocaleString("en-GB");
+    const clockEl = document.getElementById("liveClock");
+    if (clockEl) { clockEl.textContent = nowStr(); setInterval(() => clockEl.textContent = nowStr(), 1000); }
+    // Role-based tab visibility
+    const userRole = document.querySelector('[data-user-role]')?.dataset.userRole || 'viewer';
+    const TAB_ACCESS = {
+      'super_admin': ['dashboard','targets','reports','llm','compliance','users','licenses','organizations','settings','executive'],
+      'org_admin': ['dashboard','targets','reports','llm','compliance','users','settings','executive'],
+      'security_manager': ['dashboard','targets','reports','llm','compliance','settings','executive'],
+      'normal_user': ['dashboard','targets','reports','settings','executive'],
+      'viewer': ['dashboard','reports','settings','executive'],
+      'normal': ['dashboard','targets','reports','settings','executive'],
+      'admin': ['dashboard','targets','reports','llm','compliance','users','licenses','organizations','settings','executive'],
+    };
+    const allowed = TAB_ACCESS[userRole] || TAB_ACCESS['viewer'];
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(tab => {
+      const tid = tab.dataset.tab;
+      if (tid && !allowed.includes(tid)) tab.style.display = 'none';
+    });
+  </script>
+  {% block scripts_extra %}{% endblock %}
+</body>
+</html>
