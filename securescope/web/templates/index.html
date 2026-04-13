@@ -504,6 +504,21 @@
       <h3 style="color:#00d4ff;margin-bottom:12px;">Activity Feed</h3>
       <div id="llm-activity-feed" style="max-height:240px;overflow:auto;color:#8892a4;"></div>
     </div>
+    <!-- Security Assistant Chat -->
+    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-top:16px;">
+      <h3 style="color:#00d4ff;margin-bottom:12px;">Security Assistant Chat</h3>
+      <div id="chat-history" style="min-height:160px;max-height:340px;overflow:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="chat-input" class="form-control" placeholder="Ask about security findings, remediation, compliance..." onkeydown="if(event.key==='Enter')sendChatMessage()" style="flex:1;">
+        <button class="btn btn-primary-enterprise" onclick="sendChatMessage()" id="chat-send-btn">Send</button>
+        <button class="btn btn-outline-secondary" onclick="clearChat()">Clear</button>
+      </div>
+      <div style="margin-top:10px;color:#8892a4;font-size:12px;">Quick Questions:
+        <button class="btn btn-sm btn-outline-info ms-1" onclick="quickChat('What are my top 5 security risks?')">Top Risks</button>
+        <button class="btn btn-sm btn-outline-info ms-1" onclick="quickChat('What are my compliance gaps?')">Compliance</button>
+        <button class="btn btn-sm btn-outline-info ms-1" onclick="quickChat('Prioritize my open findings by severity.')">Prioritize</button>
+      </div>
+    </div>
   </div>
 
   <div id="users-page" style="display:none;padding:24px;">
@@ -2154,6 +2169,54 @@
       llmActiveScanId = data.scan_id;
       pollLLMScan(llmActiveScanId);
     }
+    // ── Security Assistant Chat ───────────────────────────────────────────────
+    async function sendChatMessage() {
+      const input = document.getElementById('chat-input');
+      const msg = (input.value || '').trim();
+      if (!msg) return;
+      input.value = '';
+      const history = document.getElementById('chat-history');
+      // Show user bubble
+      const userBubble = document.createElement('div');
+      userBubble.style.cssText = 'align-self:flex-end;background:#1e2d4a;color:#e8eaf6;padding:8px 14px;border-radius:14px 14px 2px 14px;max-width:80%;font-size:13px;';
+      userBubble.textContent = 'You: ' + msg;
+      history.appendChild(userBubble);
+      history.scrollTop = history.scrollHeight;
+      // Typing indicator
+      const typingBubble = document.createElement('div');
+      typingBubble.style.cssText = 'align-self:flex-start;background:#0a0e1a;color:#8892a4;padding:8px 14px;border-radius:14px 14px 14px 2px;max-width:80%;font-size:13px;';
+      typingBubble.textContent = 'Assistant: thinking...';
+      history.appendChild(typingBubble);
+      history.scrollTop = history.scrollHeight;
+      document.getElementById('chat-send-btn').disabled = true;
+      try {
+        const res = await fetch('/api/llm/chat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({message: msg})
+        });
+        const data = await res.json();
+        typingBubble.style.color = '#e8eaf6';
+        typingBubble.textContent = 'Assistant: ' + (data.reply || data.error || 'No response.');
+      } catch(err) {
+        typingBubble.style.color = '#ff7f8b';
+        typingBubble.textContent = 'Assistant: Error - ' + err.message;
+      } finally {
+        document.getElementById('chat-send-btn').disabled = false;
+        history.scrollTop = history.scrollHeight;
+      }
+    }
+    function quickChat(msg) {
+      const input = document.getElementById('chat-input');
+      input.value = msg;
+      sendChatMessage();
+    }
+    function clearChat() {
+      const history = document.getElementById('chat-history');
+      if (history) history.innerHTML = '';
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     async function submitLLMModel(e) {
       e.preventDefault();
       const formMsg = document.getElementById("llm-form-msg");
@@ -2292,6 +2355,43 @@
       if (k === "d") { e.preventDefault(); downloadHtmlReport(); }
     });
     function runDemoSequence(){const fake={score:90,failed:1,passed:8,warnings:1,hostname:"DEMO-HOST",ip_address:"192.168.56.1",os:"Windows 11",is_admin:true,last_scan:nowStr(),checks:[{category:"User Security",check:"Root login disabled",status:"FAIL",severity:"Critical",details:"Root login enabled",frameworks:["CIS","NIST"]},{category:"Service",check:"Print Spooler",status:"WARNING",severity:"Medium",details:"Service running",frameworks:["ISO"]},{category:"System",check:"Defender Active",status:"PASS",severity:"Low",details:"Defender active",frameworks:["CIS"]}]}; let s=0; const iv=setInterval(()=>{s+=5; fake.score=Math.min(90,s); allScanData.localhost=fake; switchToTarget("localhost"); if(s>=90) clearInterval(iv);},120);}
+
+    // ── Nav-accordion toggle ──────────────────────────────────────────────────
+    window.toggleGroupById = function(groupId, event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const group = document.getElementById(groupId);
+      if (!group) return;
+      const isOpen = !group.classList.contains("is-open");
+      group.classList.toggle("is-open");
+      const trigger = group.querySelector(".nav-acc-trigger");
+      if (trigger) {
+        trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      }
+      console.log("Toggled", groupId, "isOpen now:", isOpen);
+    };
+
+    function initNavAccordion() {
+      // Wire up any .nav-acc-trigger buttons that don't already have an onclick
+      document.querySelectorAll(".nav-acc-group").forEach(function(group) {
+        const trigger = group.querySelector(".nav-acc-trigger");
+        if (!trigger || trigger.getAttribute("onclick")) return; // already handled inline
+        trigger.addEventListener("click", function(e) {
+          const id = group.id;
+          if (id) {
+            toggleGroupById(id, e);
+          } else {
+            // groups without an id (like Overview / Administration which start open)
+            const isOpen = !group.classList.contains("is-open");
+            group.classList.toggle("is-open");
+            trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+          }
+        });
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     function initializeUIByRole() {
       const userRole = document.querySelector('[data-user-role]')?.dataset.userRole || 'viewer';

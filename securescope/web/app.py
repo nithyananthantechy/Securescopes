@@ -2287,6 +2287,55 @@ def llm_activity():
     return jsonify(llm_store.list_activity(_llm_user_id(), limit=120))
 
 
+@app.route('/api/llm/chat', methods=['POST'])
+@login_required
+def llm_chat():
+    """Security Assistant Chat — powered by local Ollama."""
+    import requests as http_requests
+    data = request.json or {}
+    user_message = (data.get('message') or '').strip()
+    if not user_message:
+        return jsonify({'error': 'message is required'}), 400
+
+    # Build a small context from recent scan data
+    context_lines = []
+    for host, scan in list(stored_scan_results.items())[:3]:
+        score = scan.get('score', 0)
+        failed = scan.get('failed', 0)
+        checks = scan.get('checks', [])
+        failed_checks = [c.get('check', '') for c in checks if c.get('status') == 'FAIL'][:5]
+        context_lines.append(
+            f"Host: {host}, Score: {score}/100, Failed checks: {failed}, "
+            f"Top issues: {', '.join(failed_checks) if failed_checks else 'none'}"
+        )
+
+    context = '\n'.join(context_lines) if context_lines else 'No scan data available yet.'
+    system_prompt = (
+        "You are a security expert assistant for SecureScope, an enterprise security assessment tool. "
+        "Answer concisely and practically. Use the scan context below to give specific, actionable advice.\n\n"
+        f"Current scan context:\n{context}"
+    )
+
+    try:
+        # Try Ollama local model first
+        ollama_url = 'http://localhost:11434/api/generate'
+        payload = {
+            'model': 'mistral',
+            'prompt': f"{system_prompt}\n\nUser: {user_message}\nAssistant:",
+            'stream': False,
+            'options': {'num_predict': 300, 'temperature': 0.7}
+        }
+        resp = http_requests.post(ollama_url, json=payload, timeout=60)
+        if resp.status_code == 200:
+            reply = resp.json().get('response', '').strip()
+            return jsonify({'reply': reply})
+        return jsonify({'error': f'Ollama error: {resp.text}'}), 502
+    except http_requests.exceptions.ConnectionError:
+        return jsonify({'error': 'Ollama error: Cannot connect to Ollama. Make sure Ollama is running on port 11434.'}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/integrations/slack/alert', methods=['POST'])
 @login_required
 @secure_post
