@@ -11,39 +11,88 @@
 </head>
 <body>
   <div class="progress-top"><div id="progressTop" class="progress-bar-top"></div></div>
+  <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
   <header class="app-header">
-    <div class="header-inner">
-      <div class="brand">
-        <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
-        <div class="brand-title">SecureScope</div>
-      </div>
-      <div class="nav-tabs-enterprise">
-        <button class="tab-btn active" onclick="showTab('dashboard')" id="tab-dashboard">Dashboard</button>
-        <button class="tab-btn" onclick="showTab('targets')" id="tab-targets">Targets</button>
-        <button class="tab-btn" onclick="showTab('reports')" id="tab-reports">Reports</button>
-        <button class="tab-btn" onclick="showTab('llm')" id="tab-llm">LLM</button>
-        <button class="tab-btn" onclick="showTab('users')" id="tab-users">Users</button>
-        <button class="tab-btn" onclick="showTab('licenses')" id="tab-licenses">Licenses</button>
-        <button class="tab-btn" onclick="showTab('organizations')" id="tab-organizations">Orgs</button>
-        <button class="tab-btn" onclick="showTab('settings')" id="tab-settings">Settings</button>
-        <button class="tab-btn" onclick="showTab('executive')" id="tab-executive">Executive View</button>
+    <div class="header-inner header-top-bar">
+      <div class="header-top-left">
+        <div class="header-brand">
+          <img src="/logo.png" alt="SecureScope logo" class="brand-logo" onerror="this.style.display='none'">
+          <div class="brand-title">SecureScope</div>
+        </div>
+        <div class="header-mobile-toggle">
+          <button type="button" id="mobileMenuToggle" class="btn-hamburger" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
       </div>
       <div class="header-right">
         <div class="pill threat-pill"><span class="blinker">●</span> Threats: <b id="threatCounter">0</b></div>
         <div class="pill" id="headerPlatform">{{ plat_info.os }}</div>
         <div class="pill" id="liveClock"></div>
         <div class="pill"><i class="bi bi-person-circle"></i> {{ username }} ({{ role }})</div>
+        <div class="pill user-role-badge" data-user-role="{{ role }}">
+          {{ role.upper() }}
+        </div>
         <a href="/logout" class="btn btn-sm btn-outline-danger"><i class="bi bi-box-arrow-right"></i></a>
       </div>
     </div>
   </header>
 
+  <aside class="nav-tabs-enterprise sidebar" id="appSidebar" aria-label="Main navigation">
+    <div class="nav-accordion">
+      <div class="nav-acc-group is-open">
+        <button type="button" class="nav-acc-trigger" aria-expanded="true">Overview</button>
+        <div class="nav-acc-panel">
+          <button type="button" class="tab-btn active" onclick="showTab('dashboard')" id="tab-dashboard" data-tab="dashboard">Dashboard</button>
+          <button type="button" class="tab-btn" onclick="showTab('compliance')" id="tab-compliance" data-tab="compliance">Compliance</button>
+          <a href="/targets" class="tab-btn" id="tab-targets" data-tab="targets">Targets</a>
+        </div>
+      </div>
+      <div class="nav-acc-group">
+        <button type="button" class="nav-acc-trigger" aria-expanded="false">Reports &amp; AI</button>
+        <div class="nav-acc-panel">
+          <button type="button" class="tab-btn" onclick="showTab('reports')" id="tab-reports" data-tab="reports">Reports</button>
+          <button type="button" class="tab-btn" onclick="showTab('llm')" id="tab-llm" data-tab="llm">LLM</button>
+        </div>
+      </div>
+      <div class="nav-acc-group">
+        <button type="button" class="nav-acc-trigger" aria-expanded="false">Administration</button>
+        <div class="nav-acc-panel">
+          <button type="button" class="tab-btn" onclick="showTab('users')" id="tab-users" data-tab="users">Users</button>
+          <button type="button" class="tab-btn" onclick="showTab('licenses')" id="tab-licenses" data-tab="licenses">Licenses</button>
+          <button type="button" class="tab-btn" onclick="showTab('organizations')" id="tab-organizations" data-tab="organizations">Orgs</button>
+        </div>
+      </div>
+      <div class="nav-acc-group" id="nav-group-system">
+        <button type="button" class="nav-acc-trigger" aria-expanded="false" onclick="toggleGroupById('nav-group-system', event)">System</button>
+        <div class="nav-acc-panel">
+          <button type="button" class="tab-btn" onclick="showTab('settings')" id="tab-settings" data-tab="settings">Settings</button>
+          <button type="button" class="tab-btn" onclick="showTab('executive')" id="tab-executive" data-tab="executive">Executive</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
   <main class="main-grid" id="dashboardTab">
+    <div style="grid-column:1/-1;display:grid;gap:12px;">
+      <nav aria-label="Breadcrumb" style="font-size:12px;color:#8892a4;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <span style="color:#e8eaf6;">Dashboard</span>
+        <span aria-hidden="true">›</span>
+        <span id="breadcrumbTarget">Local overview</span>
+      </nav>
+      <div id="kpiRow" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
+        <div class="card-scope" style="padding:12px;margin:0;"><div style="font-size:11px;color:#8892a4;text-transform:uppercase;">Targets scanned</div><div id="kpiTargets" style="font-size:22px;font-weight:700;color:#00d4ff;">0</div></div>
+        <div class="card-scope" style="padding:12px;margin:0;" title="Count of open findings whose severity is Critical (not the same as scan FAIL rows)."><div style="font-size:11px;color:#8892a4;text-transform:uppercase;">Critical findings</div><div id="kpiCritical" style="font-size:22px;font-weight:700;color:#ff7f8b;">0</div><div id="kpiCriticalTrend" style="font-size:11px;color:#8892a4;">—</div></div>
+        <div class="card-scope" style="padding:12px;margin:0;"><div style="font-size:11px;color:#8892a4;text-transform:uppercase;">Remediation rate</div><div id="kpiRemediation" style="font-size:22px;font-weight:700;color:#76ffc5;">0%</div></div>
+        <div class="card-scope" style="padding:12px;margin:0;"><div style="font-size:11px;color:#8892a4;text-transform:uppercase;">Avg compliance</div><div id="kpiAvgCompliance" style="font-size:22px;font-weight:700;color:#64e8ff;">0</div></div>
+        <div class="card-scope" style="padding:12px;margin:0;"><div style="font-size:11px;color:#8892a4;text-transform:uppercase;">LLM posture</div><div id="kpiLlmHealth" style="font-size:14px;font-weight:700;color:#ffc14d;">—</div></div>
+      </div>
+    </div>
     <section>
-      <div class="card-scope">
+      <div class="card-scope" id="gaugeCard" style="cursor:pointer;" title="Hover for PASS/FAIL/WARN mix. Click to jump to findings.">
         <div class="section-title">Compliance Score</div>
-        <div class="gauge-wrap">
-          <svg width="210" height="210" viewBox="0 0 210 210">
+        <div class="gauge-wrap" id="gaugeHoverWrap">
+          <svg width="210" height="210" viewBox="0 0 210 210" aria-hidden="true">
             <circle cx="105" cy="105" r="92" fill="none" stroke="#1e2d4a" stroke-width="12"></circle>
             <circle id="scoreArc" cx="105" cy="105" r="92" fill="none" stroke="#00ff88" stroke-width="12" stroke-linecap="round" stroke-dasharray="578" stroke-dashoffset="578" transform="rotate(-90 105 105)"></circle>
           </svg>
@@ -52,6 +101,8 @@
             <div class="score-label">Compliance Index</div>
           </div>
         </div>
+        <div id="gaugeHoverTip" class="small text-center" style="color:#8892a4;min-height:18px;margin-top:4px;">Pass / fail / warn %</div>
+        <canvas id="complianceTrendSpark" height="48" style="width:100%;max-width:210px;margin:8px auto 0;display:block;" aria-label="Recent score trend"></canvas>
         <div id="riskChip" class="risk-chip risk-critical">CRITICAL</div>
         <div class="stats-grid">
           <div class="stat"><b id="statFail">0</b>❌ FAIL</div>
@@ -79,23 +130,86 @@
     <section>
       <div class="card-scope">
         <div class="section-title">Security Audit Findings</div>
-        <div class="findings-toolbar">
-          <input id="searchInput" name="search-query" class="form-control form-control-sm" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" style="max-width:240px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
-          <select id="sortBy" class="form-select form-select-sm" style="max-width:150px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
-            <option value="category">Sort: Category</option>
-            <option value="status">Sort: Status</option>
+        <div id="findingsComplianceBanner" class="d-none mb-2 p-2 rounded" style="background:rgba(0,212,255,0.08);border:1px solid #1e2d4a;color:#8fd4ff;font-size:12px;">
+          <span id="findingsComplianceBannerText"></span>
+          <button type="button" class="btn btn-link btn-sm p-0 ms-2" style="color:#00d4ff;" onclick="clearComplianceFindingFilter()">Clear filter</button>
+        </div>
+        <input type="hidden" id="findingsComplianceFramework" value="">
+        <input type="hidden" id="findingsComplianceControl" value="">
+        <div class="findings-toolbar findings-toolbar-row1" style="grid-template-columns:1fr 1fr 1fr 120px 120px 100px;">
+          <input id="searchInput" name="search-query" class="form-control form-control-sm" placeholder="Search title, category, details…" autocomplete="off" autocorrect="off" spellcheck="false" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+          <select id="categoryFilter" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="all">Area: All</option>
+            <option value="ssh">Area: SSH</option>
+            <option value="firewall">Area: Firewall</option>
+            <option value="user">Area: Users</option>
+            <option value="service">Area: Services</option>
+          </select>
+          <select id="findingSev" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="">Severity: Any</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+            <option value="info">Info</option>
+          </select>
+          <select id="findingWfStatus" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="">Workflow: Any</option>
+            <option value="new">New</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In progress</option>
+            <option value="verification">Verification</option>
+            <option value="remediated">Remediated</option>
+            <option value="closed">Closed</option>
+          </select>
+          <select id="findingScanStatus" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="">Scan: Any</option>
+            <option value="PASS">PASS</option>
+            <option value="FAIL">FAIL</option>
+            <option value="WARNING">WARN</option>
+          </select>
+          <select id="findingTargetScope" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="current">Target: Current</option>
+            <option value="all">Target: All</option>
+          </select>
+        </div>
+        <div class="findings-toolbar" style="grid-template-columns:1fr 120px 90px 1fr;margin-top:0;">
+          <select id="sortBy" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
             <option value="severity">Sort: Severity</option>
+            <option value="category">Sort: Category</option>
+            <option value="title">Sort: Title</option>
+            <option value="status">Sort: Workflow</option>
+            <option value="target">Sort: Target</option>
+            <option value="last_scan">Sort: Last scan</option>
           </select>
-          <select id="categoryFilter" class="form-select form-select-sm" style="max-width:170px;background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
-            <option value="all">Filter: All</option>
-            <option value="ssh">Filter: SSH</option>
-            <option value="firewall">Filter: Firewall</option>
-            <option value="user">Filter: Users</option>
-            <option value="service">Filter: Services</option>
+          <select id="findingSortOrder" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="desc">Order: High → Low</option>
+            <option value="asc">Order: Low → High</option>
           </select>
+          <select id="findingPerPage" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border:1px solid #1e2d4a;">
+            <option value="10">10 / page</option>
+            <option value="25" selected>25 / page</option>
+            <option value="50">50 / page</option>
+          </select>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
+            <span id="findingsCountMeta" class="small" style="color:#8892a4;">0 findings</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="findingsResetFilters">Reset filters</button>
+          </div>
+        </div>
+        <div id="findingsBulkBar" class="d-none" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;padding:8px;border:1px solid #1e2d4a;border-radius:8px;background:#0a0f1f;">
+          <label class="small mb-0" style="color:#e8eaf6;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="findingsSelectAll"> Select page</label>
+          <button type="button" class="btn btn-sm btn-outline-info" id="bulkMarkReviewed">Mark reviewed</button>
+          <button type="button" class="btn btn-sm btn-outline-warning" id="bulkClose">Close</button>
+          <button type="button" class="btn btn-sm btn-outline-light" id="bulkAssignSelf">Assign to me</button>
         </div>
         <div id="skeletons" class="d-none"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
         <div class="findings-list" id="findingsList"></div>
+        <div id="findingsPagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px;">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="findingsPrev">Previous</button>
+          <span id="findingsPageMeta" class="small" style="color:#8892a4;">Page 1</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="findingsNext">Next</button>
+        </div>
       </div>
       <div class="card-scope mt-2">
         <div class="section-title">Real-time Threat Feed</div>
@@ -103,7 +217,7 @@
       </div>
     </section>
 
-    <section>
+    <section class="dashboard-sidebar-col">
       <div class="card-scope quick-actions">
         <div class="section-title">Quick Actions</div>
         <button class="btn btn-primary-enterprise" id="btnScan"><i class="bi bi-search"></i> Scan</button>
@@ -128,9 +242,21 @@
         <div class="section-title">Threat Timeline</div>
         <div class="timeline-wrap"><canvas id="historyChart"></canvas></div>
       </div>
-      <div class="small mt-2 text-center" style="color:#8892a4;">Shortcuts: Ctrl+S Scan | Ctrl+R Remote | Ctrl+H Harden | Ctrl+D Download</div>
+      <div class="small mt-2 text-center" style="color:#8892a4;">Shortcuts: S Scan · R Remote · G Targets · N New target · H Harden · D Report · A Alerts · <span class="d-none d-md-inline">Ctrl+</span>same with Ctrl</div>
     </section>
   </main>
+
+  <div id="fabRoot" style="position:fixed;right:18px;bottom:18px;z-index:1002;font-family:Inter,sans-serif;">
+    <button type="button" id="fabToggle" class="btn btn-primary-enterprise rounded-circle" style="width:52px;height:52px;box-shadow:0 8px 24px rgba(0,212,255,.35);" aria-expanded="false" aria-controls="fabMenu" title="Quick actions"><i class="bi bi-lightning-charge-fill"></i></button>
+    <div id="fabMenu" class="d-none" style="position:absolute;right:0;bottom:58px;z-index:1003;display:flex;flex-direction:column;gap:8px;min-width:200px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.45));">
+      <button type="button" class="btn btn-sm btn-primary-enterprise" onclick="runLocalScan(true)"><i class="bi bi-search"></i> Scan now</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.href='/targets'"><i class="bi bi-bullseye"></i> Go to Targets</button>
+      <button type="button" class="btn btn-sm btn-outline-info" onclick="openModal()"><i class="bi bi-plus-lg"></i> New target</button>
+      <button type="button" class="btn btn-sm btn-outline-info" onclick="openSchedulePrompt()"><i class="bi bi-clock"></i> Schedule scan</button>
+      <button type="button" class="btn btn-sm btn-outline-light" onclick="downloadHtmlReport()"><i class="bi bi-file-earmark-text"></i> Generate report</button>
+      <button type="button" class="btn btn-sm btn-outline-warning" onclick="document.getElementById('threatFeed')?.scrollIntoView({behavior:'smooth'})"><i class="bi bi-bell"></i> View alerts</button>
+    </div>
+  </div>
 
   <main class="main-grid d-none" id="executiveTab">
     <section class="card-scope" style="grid-column:1/-1;">
@@ -221,21 +347,63 @@
     </div>
   </div>
 
-  <div id="targets-page" style="display:none;padding:24px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-      <h2 style="color:#e8eaf6;margin:0">🎯 Assessment Targets</h2>
-      <button onclick="showTab('dashboard');openRemoteModal()" style="background:#00d4ff;color:#000;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px;">+ Add New Target</button>
+  <div id="compliance-page" style="display:none;padding:24px;">
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:8px;">
+      <div>
+        <h2 style="color:#e8eaf6;margin:0;">Compliance Framework</h2>
+        <p class="small mb-0 mt-1" style="color:#8892a4;">{{ org_name }} · {{ client_name }}</p>
+      </div>
+      <div class="compliance-selector">
+        <button type="button" class="btn-framework" id="frameworkCIS" onclick="switchFramework('cis')">CIS</button>
+        <button type="button" class="btn-framework" id="frameworkISO" onclick="switchFramework('iso27001')">ISO 27001</button>
+        <button type="button" class="btn-framework" id="frameworkPCI" onclick="switchFramework('pci-dss')">PCI DSS</button>
+      </div>
     </div>
-    <div id="targets-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
-    <div id="targets-empty" style="display:none;text-align:center;padding:80px;color:#8892a4;">
-      <div style="font-size:64px;margin-bottom:16px">🎯</div>
-      <h3 style="color:#e8eaf6">No targets yet</h3>
-      <p>Click "+ Add New Target" to scan a remote machine</p>
+    <p id="complianceOrgHint" class="small" style="color:#8892a4;margin-bottom:16px;display:none;">Organization context is required for compliance scoring. Sign in with an org-assigned account.</p>
+    <div class="compliance-score-card">
+      <div class="score-circle">
+        <svg width="120" height="120" style="transform:rotate(-90deg);">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#1e2d4a" stroke-width="4"/>
+          <circle id="complianceScoreArc" cx="60" cy="60" r="50" fill="none" stroke="#00ff88" stroke-width="4" stroke-dasharray="314 314" stroke-linecap="round"/>
+        </svg>
+        <div class="score-text"><span id="compliancePercentage">—</span>%</div>
+      </div>
+      <div class="score-legend">
+        <p id="frameworkName" style="color:#e8eaf6;font-weight:600;">Loading…</p>
+        <p id="complianceSummary">—</p>
+        <button type="button" class="btn btn-primary-enterprise" onclick="generateComplianceReport()">Generate compliance report</button>
+      </div>
+    </div>
+    <div class="control-summary">
+      <div class="summary-card summary-compliant"><h3 id="compliantCount">—</h3><p>Compliant</p></div>
+      <div class="summary-card summary-non-compliant"><h3 id="nonCompliantCount">—</h3><p>Non-compliant</p></div>
+      <div class="summary-card summary-in-progress"><h3 id="inProgressCount">—</h3><p>In progress</p></div>
+      <div class="summary-card summary-na"><h3 id="naCount">—</h3><p>Not applicable</p></div>
+    </div>
+    <div class="controls-table-container">
+      <table class="controls-table">
+        <thead>
+          <tr>
+            <th>Control</th>
+            <th>Title</th>
+            <th>Domain</th>
+            <th>Status</th>
+            <th>Findings</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="controlsTableBody">
+          <tr><td colspan="6" style="text-align:center;padding:24px;color:#8892a4;">Loading…</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
   <div id="reports-page" style="display:none;padding:24px;">
-    <h2 style="color:#e8eaf6;margin-bottom:24px;">📄 Security Reports</h2>
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px;">
+      <h2 style="color:#e8eaf6;margin:0;">📄 Security Reports</h2>
+      <button type="button" class="btn btn-outline-info" onclick="openReportBuilder()">+ Advanced report builder</button>
+    </div>
     <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
       <h3 style="color:#00d4ff;margin-bottom:20px;">Generate Report</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
@@ -447,6 +615,42 @@
     <span id="save-msg" style="color:#00ff88;margin-left:16px;display:none;">✅ Saved successfully!</span>
   </div>
 
+  <div id="reportBuilderModal" class="report-builder-modal" aria-hidden="true">
+    <div class="report-builder-inner">
+      <button type="button" class="report-builder-close" onclick="closeReportBuilder()" aria-label="Close">&times;</button>
+      <h3>Generate report</h3>
+      <form id="reportBuilderForm" onsubmit="return submitReportGeneration(event);">
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Report type</label>
+          <select id="reportType" class="form-select form-select-sm" required onchange="updateReportOptions()" style="background:#0a0f1f;color:#e8eaf6;border-color:#1e2d4a;">
+            <option value="">Select…</option>
+            <option value="compliance">Compliance (framework)</option>
+            <option value="findings">Security findings</option>
+            <option value="executive">Executive summary</option>
+          </select>
+        </div>
+        <div class="mb-3" id="frameworkSelectWrap" style="display:none;">
+          <label class="form-label small text-secondary">Framework</label>
+          <select id="reportFramework" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border-color:#1e2d4a;">
+            <option value="cis">CIS Controls</option>
+            <option value="iso27001">ISO 27001</option>
+            <option value="pci-dss">PCI DSS</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Format</label>
+          <div class="d-flex flex-wrap gap-3">
+            <label class="small mb-0"><input type="radio" name="reportFormat" value="html" checked> HTML</label>
+            <label class="small mb-0"><input type="radio" name="reportFormat" value="pdf"> PDF</label>
+            <label class="small mb-0"><input type="radio" name="reportFormat" value="xlsx"> Excel</label>
+            <label class="small mb-0"><input type="radio" name="reportFormat" value="json"> JSON</label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary-enterprise">Generate</button>
+      </form>
+    </div>
+  </div>
+
   {% if demo_mode %}<div class="demo-watermark">LIVE DEMO</div>{% endif %}
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -456,7 +660,17 @@
     const IS_SUPER_ADMIN = {{ "true" if is_super_admin else "false" }};
     const CURRENT_ROLE = "{{ role }}";
     const CAN_MANAGE_PASSWORDS = IS_SUPER_ADMIN || CURRENT_ROLE === "org_admin" || CURRENT_ROLE === "admin";
-    let allScanData = window.allScanData = {};
+    const CURRENT_USERNAME = "{{ username }}";
+    const CAN_BULK_FINDINGS = ["admin", "org_admin"].includes(CURRENT_ROLE);
+    const FINDINGS_PREFS_KEY = "securescope_findings_prefs_v1";
+    let findingsPage = 1;
+    let findingsTotal = 0;
+    let findingsPerPage = 25;
+    let complianceTrendChart = null;
+    let lastDashboardData = null;
+    let lastKpiPayload = null;
+    let findingsSearchTimer = null;
+    let allScanData = window.allScanData = {{ stored_scan_results_json | safe }};
     let allScanCreds = window.allScanCreds = {};
     let currentTarget = "localhost";
     let activeFilter = "all";
@@ -471,10 +685,66 @@
     window.removedTargets = window.removedTargets || new Set();
     const SCAN_CACHE_MINUTES = 5;
     const apiHeaders = () => ({"Content-Type":"application/json","X-CSRF-Token":CSRF_TOKEN});
+    const THEME_KEY = "securescope_theme";
     const nowStr = () => new Date().toLocaleString("en-GB");
     const setProgress = v => document.getElementById("progressTop").style.width = v + "%";
     setInterval(()=>document.getElementById("liveClock").textContent = nowStr(),1000);
     document.getElementById("liveClock").textContent = nowStr();
+    function setTheme(theme) {
+      const root = document.documentElement;
+      const icon = document.getElementById("themeIcon");
+      if (theme === "light") {
+        root.setAttribute("data-theme", "light");
+        if (icon) icon.textContent = "☀️";
+      } else {
+        root.setAttribute("data-theme", "dark");
+        if (icon) icon.textContent = "🌙";
+      }
+      try { localStorage.setItem(THEME_KEY, theme); } catch (_) {}
+    }
+    async function initTheme() {
+      try {
+        const res = await fetch("/api/preferences");
+        if (res.ok) {
+          const prefs = await res.json();
+          if (prefs.theme === "light" || prefs.theme === "dark") {
+            setTheme(prefs.theme);
+            return;
+          }
+        }
+      } catch (_) {}
+      const stored = localStorage.getItem(THEME_KEY);
+      setTheme(stored === "light" ? "light" : "dark");
+    }
+    async function toggleThemeAction() {
+      const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+      const next = cur === "dark" ? "light" : "dark";
+      try {
+        await fetch("/api/preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+          body: JSON.stringify({ theme: next }),
+        });
+      } catch (_) {}
+      setTheme(next);
+    }
+    function toggleMobileMenu() {
+      const sidebar = document.getElementById("appSidebar");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      const btn = document.getElementById("mobileMenuToggle");
+      if (!sidebar) return;
+      const open = sidebar.classList.toggle("open");
+      if (backdrop) backdrop.classList.toggle("open", open);
+      if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    function closeMobileMenu() {
+      const sidebar = document.getElementById("appSidebar");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      const btn = document.getElementById("mobileMenuToggle");
+      if (sidebar) sidebar.classList.remove("open");
+      if (backdrop) backdrop.classList.remove("open");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
     function switchTab(tab){ showTab(tab); }
     function riskLabel(score){ if(score>=86) return ["EXCELLENT","risk-excellent"]; if(score>=71) return ["GOOD","risk-good"]; if(score>=41) return ["FAIR","risk-fair"]; return ["CRITICAL","risk-critical"]; }
     function sevClass(s){s=(s||"").toLowerCase(); if(s.includes("critical"))return"critical"; if(s.includes("high"))return"high"; if(s.includes("medium"))return"medium"; return"low";}
@@ -484,14 +754,564 @@
     function animateScore(score){const arc=document.getElementById("scoreArc"); const max=578; let t0=null; function step(ts){if(!t0)t0=ts; const p=Math.min((ts-t0)/1500,1); const val=Math.round(score*p); document.getElementById("scoreNum").textContent=val; arc.style.strokeDashoffset=String(max-(val/100)*max); if(p<1)requestAnimationFrame(step);} requestAnimationFrame(step);}
     function toggleDetail(id){const el=document.getElementById(id); el.style.display=el.style.display==="block"?"none":"block";}
     function quickFix(check){ if(!confirm(`Run fix for "${check}" on ${currentTarget}?`)) return; runHarden(); }
-    function renderFindings(checks){const q=document.getElementById("searchInput").value.toLowerCase().trim(); const sortBy=document.getElementById("sortBy").value; let rows=[...checks]; if(activeFilter!=="all"){rows=rows.filter(c=>((c.category||"")+" "+(c.check||"")).toLowerCase().includes(activeFilter));} if(q){rows=rows.filter(c=>JSON.stringify(c).toLowerCase().includes(q));} rows.sort((a,b)=>String(a[sortBy]||"").localeCompare(String(b[sortBy]||""))); const list=document.getElementById("findingsList"); list.innerHTML=""; if(!rows.length){list.innerHTML="<div style='color:#8892a4'>No findings match filters.</div>"; return;} rows.forEach((c,idx)=>{const row=document.createElement("div"); row.className=`finding-row ${sevClass(c.severity)}`; const frameworks=(c.frameworks||[]).map(f=>`<span>${f}</span>`).join(""); row.innerHTML=`<div class="finding-main"><i class="bi ${catIcon(c.category)}"></i><div><b>${c.check||"Check"}</b><div style="font-size:12px;color:#8892a4">${c.category||"General"}</div></div><span class="status-chip ${statusClass(c.status)}">${c.status==="WARNING"?"⚠️ WARN":(c.status==="PASS"?"✅ PASS":"❌ FAIL")}</span><span style="font-size:12px;color:#8892a4">${c.severity||"Low"}</span><span class="fw-badges">${frameworks}</span><button class="btn btn-sm btn-outline-info" onclick="toggleDetail('d${idx}')"><i class="bi bi-chevron-down"></i></button></div><div id="d${idx}" class="finding-details">${c.details||"No details"} ${c.status==="FAIL"?`<div class='mt-2'><button class='btn btn-sm btn-outline-warning' onclick='quickFix("${(c.check||"").replace(/"/g,"")}");event.stopPropagation();'>Fix</button></div>`:""}</div>`; list.appendChild(row);});}
-    function clearFilters(){
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function ridFromFinding(id) {
+      try {
+        return "r" + btoa(unescape(encodeURIComponent(id))).replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+      } catch (_) {
+        return "r" + String(id).replace(/\W/g, "_");
+      }
+    }
+    async function switchFramework(framework) {
+      currentFramework = framework;
+      document.querySelectorAll(".btn-framework").forEach((btn) => btn.classList.remove("active"));
+      const map = { cis: "frameworkCIS", iso27001: "frameworkISO", "pci-dss": "frameworkPCI" };
+      document.getElementById(map[framework] || "frameworkCIS")?.classList.add("active");
+      await loadComplianceStatus(framework);
+    }
+    async function loadComplianceStatus(framework) {
+      const hint = document.getElementById("complianceOrgHint");
+      const tbody = document.getElementById("controlsTableBody");
+      try {
+        const res = await fetch("/api/compliance/" + encodeURIComponent(framework), {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = { error: res.ok ? "Invalid response" : "Could not load compliance (try refreshing or signing in again)." };
+        }
+        if (!res.ok) {
+          if (hint) {
+            hint.style.display = "block";
+            hint.textContent =
+              res.status === 401
+                ? "Session expired or not signed in. Refresh the page and log in again, and use the same host (e.g. only 127.0.0.1 or only localhost)."
+                : (data.error || "Could not load compliance.");
+          }
+          if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#ff7f8b;">${escapeHtml(data.error || "Error")}</td></tr>`;
+          return;
+        }
+        if (hint) hint.style.display = "none";
+        const pct = Number(data.compliance_percentage || 0);
+        const arc = 314 * (pct / 100);
+        const arcEl = document.getElementById("complianceScoreArc");
+        if (arcEl) arcEl.style.strokeDasharray = `${arc} 314`;
+        const pEl = document.getElementById("compliancePercentage");
+        if (pEl) pEl.textContent = pct.toFixed(1);
+        const fn = document.getElementById("frameworkName");
+        if (fn) fn.textContent = data.framework_name || "";
+        const cs = document.getElementById("complianceSummary");
+        if (cs) cs.textContent = `${data.compliant_controls} of ${data.total_controls} controls compliant`;
+        const setN = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v ?? "—"); };
+        setN("compliantCount", data.compliant_controls);
+        setN("nonCompliantCount", data.non_compliant_controls);
+        setN("inProgressCount", data.in_progress_controls);
+        setN("naCount", data.na_controls);
+        if (tbody) {
+          tbody.innerHTML = Object.values(data.controls || {}).map((control) => `
+            <tr>
+              <td><strong>${escapeHtml(control.control_id)}</strong></td>
+              <td>${escapeHtml(control.title)}</td>
+              <td><small>${escapeHtml(control.domain)}</small></td>
+              <td><span class="control-status-badge status-${escapeHtml(control.status)}">${escapeHtml(String(control.status || "").toUpperCase())}</span></td>
+              <td>${control.mapped_findings_count > 0 ? `${control.remediated_count}/${control.mapped_findings_count} remediated` : "—"}</td>
+              <td><button type="button" class="btn btn-sm btn-outline-info" onclick="viewControlFindings(${JSON.stringify(framework)}, ${JSON.stringify(control.control_id)})">View findings</button></td>
+            </tr>
+          `).join("");
+        }
+      } catch (e) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#ff7f8b;">${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+    async function viewControlFindings(framework, controlId) {
+      showTab("dashboard");
+      const fw = document.getElementById("findingsComplianceFramework");
+      const fc = document.getElementById("findingsComplianceControl");
+      if (fw) fw.value = framework;
+      if (fc) fc.value = controlId;
+      const ts = document.getElementById("findingTargetScope");
+      if (ts) ts.value = "all";
+      const ban = document.getElementById("findingsComplianceBanner");
+      const btxt = document.getElementById("findingsComplianceBannerText");
+      if (ban && btxt) {
+        btxt.textContent = `Filtered by framework ${framework} · control ${controlId}. Open a row to see details.`;
+        ban.classList.remove("d-none");
+      }
+      closeMobileMenu();
+      await loadFindingsPage(1);
+      document.getElementById("findingsList")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    function clearComplianceFindingFilter() {
+      const cff = document.getElementById("findingsComplianceFramework");
+      const cfc = document.getElementById("findingsComplianceControl");
+      if (cff) cff.value = "";
+      if (cfc) cfc.value = "";
+      document.getElementById("findingsComplianceBanner")?.classList.add("d-none");
+      findingsPage = 1;
+      if (!DEMO_MODE) loadFindingsPage(1);
+    }
+    async function generateComplianceReport() {
+      const res = await fetch("/api/reports/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ type: "compliance", framework: currentFramework, format: "html" }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Could not generate report");
+        return;
+      }
+      const html = await res.text();
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.open(url);
+    }
+    function openReportBuilder() {
+      const m = document.getElementById("reportBuilderModal");
+      if (m) {
+        m.classList.add("open");
+        m.setAttribute("aria-hidden", "false");
+      }
+    }
+    function closeReportBuilder() {
+      const m = document.getElementById("reportBuilderModal");
+      if (m) {
+        m.classList.remove("open");
+        m.setAttribute("aria-hidden", "true");
+      }
+    }
+    function updateReportOptions() {
+      const type = document.getElementById("reportType")?.value || "";
+      const wrap = document.getElementById("frameworkSelectWrap");
+      if (wrap) wrap.style.display = type === "compliance" || type === "executive" ? "block" : "none";
+    }
+    async function submitReportGeneration(e) {
+      e.preventDefault();
+      const type = document.getElementById("reportType")?.value || "";
+      const framework = document.getElementById("reportFramework")?.value || "cis";
+      const format = document.querySelector('input[name="reportFormat"]:checked')?.value || "html";
+      const res = await fetch("/api/reports/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({
+          type,
+          framework: type === "compliance" || type === "executive" ? framework : undefined,
+          format,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to generate report");
+        return false;
+      }
+      if (format === "html") {
+        const html = await res.text();
+        const blob = new Blob([html], { type: "text/html" });
+        window.open(URL.createObjectURL(blob));
+      } else if (format === "pdf") {
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "report.pdf";
+        a.click();
+      } else if (format === "xlsx") {
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "report.xlsx";
+        a.click();
+      } else {
+        const data = await res.json();
+        alert("Report JSON preview:\n" + JSON.stringify(data, null, 2).slice(0, 4000));
+      }
+      closeReportBuilder();
+      return false;
+    }
+    async function setRemediationStatus(findingId, newStatus, rid) {
+      const res = await fetch("/api/findings/" + encodeURIComponent(findingId) + "/remediation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) await loadRemediationStatus(findingId, rid);
+      else alert("Could not update remediation");
+    }
+    async function updateRemediationFields(findingId, rid) {
+      const assigned = document.getElementById("remediationAssignee-" + rid)?.value || "";
+      const deadline = document.getElementById("remediationDeadline-" + rid)?.value || "";
+      const res = await fetch("/api/findings/" + encodeURIComponent(findingId) + "/remediation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ assigned_to: assigned || null, deadline: deadline || null }),
+      });
+      if (!res.ok) alert("Could not save assignment");
+    }
+    async function addRemediationComment(findingId, rid) {
+      const ta = document.getElementById("remediationComment-" + rid);
+      const comment = (ta?.value || "").trim();
+      if (!comment) {
+        alert("Please enter a comment");
+        return;
+      }
+      const res = await fetch("/api/findings/" + encodeURIComponent(findingId) + "/remediation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ comment }),
+      });
+      if (res.ok) {
+        if (ta) ta.value = "";
+        await loadRemediationStatus(findingId, rid);
+      }
+    }
+    async function loadRemediationStatus(findingId, rid) {
+      const res = await fetch("/api/findings/" + encodeURIComponent(findingId) + "/remediation");
+      const data = await res.json();
+      const steps = ["not_started", "in_progress", "verification", "closed"];
+      const cur = (data.status && steps.includes(data.status)) ? data.status : "not_started";
+      const idx = steps.indexOf(cur);
+      const panel = document.getElementById("findingDetail-" + rid);
+      if (!panel) return;
+      panel.querySelectorAll(".workflow-step").forEach((step, i) => {
+        step.classList.remove("active", "completed");
+        if (i < idx) step.classList.add("completed");
+        else if (i === idx) step.classList.add("active");
+      });
+      const asg = document.getElementById("remediationAssignee-" + rid);
+      if (asg) asg.value = data.assigned_to || "";
+      const dl = document.getElementById("remediationDeadline-" + rid);
+      if (dl) dl.value = data.deadline || "";
+      const box = document.getElementById("remediationComments-" + rid);
+      if (box) {
+        box.innerHTML = (data.comments || []).map((c) => `
+          <div class="rem-comment">
+            <span style="font-weight:600;color:#e8eaf6;">${escapeHtml(c.author)}</span>
+            <span class="small" style="color:#8892a4;margin-left:8px;">${escapeHtml((c.timestamp || "").slice(0, 10))}</span>
+            <div style="margin-top:4px;color:#cfd6e6;">${escapeHtml(c.text)}</div>
+          </div>
+        `).join("");
+      }
+    }
+    function openCloseModal(findingId, rid) {
+      if (!confirm("Mark this finding as closed?")) return;
+      const evidence = prompt("Remediation evidence (e.g. ticket link, note):", "") ?? "";
+      closeFindingApi(findingId, evidence, rid);
+    }
+    async function closeFindingApi(findingId, evidence, rid) {
+      const res = await fetch("/api/findings/" + encodeURIComponent(findingId) + "/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ evidence: evidence || "" }),
+      });
+      if (res.ok) {
+        await loadRemediationStatus(findingId, rid);
+        loadFindingsPage(findingsPage);
+        loadDashboardKpis();
+      } else alert("Could not close finding");
+    }
+    function findingsPrefsLoad() {
+      try { return JSON.parse(localStorage.getItem(FINDINGS_PREFS_KEY) || "{}"); } catch (_) { return {}; }
+    }
+    function findingsPrefsSave(p) {
+      localStorage.setItem(FINDINGS_PREFS_KEY, JSON.stringify(p));
+    }
+    function readFindingsFiltersFromUI() {
+      return {
+        q: (document.getElementById("searchInput")?.value || "").trim(),
+        cat: (document.getElementById("categoryFilter")?.value || "all") === "all" ? "" : (document.getElementById("categoryFilter")?.value || ""),
+        severity: document.getElementById("findingSev")?.value || "",
+        status: document.getElementById("findingWfStatus")?.value || "",
+        scan_status: document.getElementById("findingScanStatus")?.value || "",
+        target_scope: document.getElementById("findingTargetScope")?.value || "current",
+        sort_by: document.getElementById("sortBy")?.value || "severity",
+        sort_order: document.getElementById("findingSortOrder")?.value || "desc",
+        per_page: parseInt(document.getElementById("findingPerPage")?.value || "25", 10) || 25,
+      };
+    }
+    function applyFindingsPrefsToUI(p) {
+      if (!p || typeof p !== "object") return;
+      if (p.q != null && document.getElementById("searchInput")) document.getElementById("searchInput").value = p.q;
+      if (p.cat != null && document.getElementById("categoryFilter")) {
+        const v = p.cat ? p.cat : "all";
+        document.getElementById("categoryFilter").value = ["all", "ssh", "firewall", "user", "service"].includes(v) ? v : "all";
+      }
+      if (p.severity != null && document.getElementById("findingSev")) document.getElementById("findingSev").value = p.severity;
+      if (p.status != null && document.getElementById("findingWfStatus")) document.getElementById("findingWfStatus").value = p.status;
+      if (p.scan_status != null && document.getElementById("findingScanStatus")) document.getElementById("findingScanStatus").value = p.scan_status;
+      if (p.target_scope && document.getElementById("findingTargetScope")) document.getElementById("findingTargetScope").value = p.target_scope;
+      if (p.sort_by && document.getElementById("sortBy")) document.getElementById("sortBy").value = p.sort_by;
+      if (p.sort_order && document.getElementById("findingSortOrder")) document.getElementById("findingSortOrder").value = p.sort_order;
+      if (p.per_page && document.getElementById("findingPerPage")) document.getElementById("findingPerPage").value = String(p.per_page);
+      if (typeof p.page === "number" && p.page > 0) findingsPage = p.page;
+    }
+    function persistFindingsPrefs() {
+      findingsPrefsSave({ ...readFindingsFiltersFromUI(), page: findingsPage });
+    }
+    function buildFindingsQuery(page) {
+      const f = readFindingsFiltersFromUI();
+      const params = new URLSearchParams();
+      if (f.q) params.set("q", f.q);
+      if (f.cat) params.set("cat", f.cat);
+      if (f.severity) params.set("severity", f.severity);
+      if (f.status) params.set("status", f.status);
+      if (f.scan_status) params.set("scan_status", f.scan_status);
+      if (f.target_scope === "current" && currentTarget) params.set("target_key", currentTarget);
+      params.set("sort_by", f.sort_by);
+      params.set("sort_order", f.sort_order);
+      params.set("per_page", String(f.per_page));
+      params.set("page", String(page || 1));
+      const cfw = document.getElementById("findingsComplianceFramework")?.value?.trim() || "";
+      const cfc = document.getElementById("findingsComplianceControl")?.value?.trim() || "";
+      if (cfw && cfc) {
+        params.set("compliance_framework", cfw);
+        params.set("compliance_control", cfc);
+      }
+      return params.toString();
+    }
+    function updateGaugeBreakdown(data) {
+      const tip = document.getElementById("gaugeHoverTip");
+      if (!tip || !data) return;
+      const p = parseInt(data.passed || 0, 10);
+      const f = parseInt(data.failed || 0, 10);
+      const w = parseInt(data.warnings || 0, 10);
+      const tot = Math.max(1, p + f + w);
+      tip.textContent = `PASS ${((p / tot) * 100).toFixed(0)}% · FAIL ${((f / tot) * 100).toFixed(0)}% · WARN ${((w / tot) * 100).toFixed(0)}%`;
+    }
+    async function loadDashboardKpis() {
+      try {
+        const r = await fetch("/api/dashboard/kpis");
+        const d = await r.json();
+        if (d.error) return;
+        lastKpiPayload = d;
+        const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+        set("kpiTargets", String(d.total_targets_scanned ?? 0));
+        set("kpiCritical", String(d.critical_vulnerabilities ?? 0));
+        set("kpiRemediation", `${Number(d.remediation_rate || 0)}%`);
+        set("kpiAvgCompliance", String(d.compliance_score_avg ?? 0));
+        const kEl = document.getElementById("kpiLlmHealth");
+        if (kEl) {
+          if (d.llm_health === "healthy") { kEl.textContent = "Healthy"; kEl.style.color = "#76ffc5"; }
+          else if (d.llm_health === "not_configured") { kEl.textContent = "Not configured"; kEl.style.color = "#ffc14d"; }
+          else { kEl.textContent = String(d.llm_health || "—"); kEl.style.color = "#8892a4"; }
+        }
+        const ctx = document.getElementById("complianceTrendSpark");
+        const series = (d.score_trend || []).slice(-14);
+        const labels = series.map((x) => x.time || "");
+        const scores = series.map((x) => Number(x.score || 0));
+        if (typeof Chart !== "undefined" && ctx) {
+          if (complianceTrendChart) complianceTrendChart.destroy();
+          complianceTrendChart = new Chart(ctx, {
+            type: "line",
+            data: { labels, datasets: [{ data: scores, borderColor: "#00d4ff", backgroundColor: "rgba(0,212,255,0.08)", fill: true, tension: 0.35, pointRadius: 2, borderWidth: 2 }] },
+            options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } }, animation: { duration: 200 } },
+          });
+        }
+        const prevCrit = Number(sessionStorage.getItem("ss_prev_crit") || -1);
+        const cur = Number(d.critical_vulnerabilities || 0);
+        const tr = document.getElementById("kpiCriticalTrend");
+        if (tr) {
+          if (prevCrit < 0) tr.textContent = "Trend: baseline";
+          else if (cur < prevCrit) tr.textContent = "Trend: ↓ vs last load";
+          else if (cur > prevCrit) tr.textContent = "Trend: ↑ vs last load";
+          else tr.textContent = "Trend: stable";
+        }
+        sessionStorage.setItem("ss_prev_crit", String(cur));
+      } catch (_) {}
+    }
+    function renderFindingsLegacy(checks) {
+      const q = document.getElementById("searchInput").value.toLowerCase().trim();
+      const sortByEl = document.getElementById("sortBy");
+      let sortKey = sortByEl ? sortByEl.value : "severity";
+      if (sortKey === "title") sortKey = "check";
+      if (!["category", "status", "severity", "check"].includes(sortKey)) sortKey = "severity";
+      let rows = [...(checks || [])];
+      if (activeFilter !== "all") { rows = rows.filter((c) => ((c.category || "") + " " + (c.check || "")).toLowerCase().includes(activeFilter)); }
+      if (q) { rows = rows.filter((c) => JSON.stringify(c).toLowerCase().includes(q)); }
+      rows.sort((a, b) => String(a[sortKey] || "").localeCompare(String(b[sortKey] || "")));
+      const list = document.getElementById("findingsList");
+      list.innerHTML = "";
+      if (!rows.length) { list.innerHTML = "<div style='color:#8892a4'>No findings match filters.</div>"; return; }
+      rows.forEach((c, idx) => {
+        const row = document.createElement("div");
+        row.className = `finding-row ${sevClass(c.severity)}`;
+        const frameworks = (c.frameworks || []).map((ff) => `<span>${escapeHtml(ff)}</span>`).join("");
+        const st = (c.status || "WARNING").toUpperCase();
+        const stNorm = st === "PASS" ? "PASS" : st === "FAIL" ? "FAIL" : "WARNING";
+        row.innerHTML = `<div class="finding-main"><span></span><i class="bi ${catIcon(c.category)}"></i><div><b>${escapeHtml(c.check || "Check")}</b><div style="font-size:12px;color:#8892a4">${escapeHtml(c.category || "General")}</div></div><span class="status-chip ${statusClass(stNorm)}">${stNorm === "WARNING" ? "⚠️ WARN" : stNorm === "PASS" ? "✅ PASS" : "❌ FAIL"}</span><span style="font-size:12px;color:#8892a4">${escapeHtml(c.severity || "Low")}</span><span class="fw-badges">${frameworks}</span><button type="button" class="btn btn-sm btn-outline-info btn-toggle-detail"><i class="bi bi-chevron-down"></i></button></div><div class="finding-details" hidden>${escapeHtml(c.details || "No details")} ${stNorm === "FAIL" ? `<div class='mt-2'><button type='button' class='btn btn-sm btn-outline-warning btn-fix-finding'>Fix</button></div>` : ""}</div>`;
+        row.querySelector(".btn-toggle-detail").addEventListener("click", () => {
+          const det = row.querySelector(".finding-details");
+          det.hidden = !det.hidden;
+          row.classList.toggle("details-open", !det.hidden);
+        });
+        const fx = row.querySelector(".btn-fix-finding");
+        if (fx) fx.addEventListener("click", () => quickFix(c.check || ""));
+        list.appendChild(row);
+      });
+    }
+    function renderFindingsFromApi(items) {
+      const list = document.getElementById("findingsList");
+      list.innerHTML = "";
+      if (!items.length) { list.innerHTML = "<div style='color:#8892a4'>No findings match filters.</div>"; return; }
+      items.forEach((f) => {
+        const row = document.createElement("div");
+        row.className = `finding-row ${sevClass(f.severity)}`;
+        const st = (f.scan_status || "WARNING").toUpperCase();
+        const stNorm = st === "PASS" ? "PASS" : st === "FAIL" ? "FAIL" : "WARNING";
+        const frameworks = (f.frameworks || []).map((x) => `<span>${escapeHtml(x)}</span>`).join("");
+        const canFix = f.target_key === currentTarget && stNorm === "FAIL" && allScanData[currentTarget];
+        const chk = CAN_BULK_FINDINGS ? `<input type="checkbox" class="finding-select form-check-input" value="${escapeHtml(f.id)}" style="width:16px;height:16px;">` : "<span></span>";
+        const assign = f.assigned_to ? `<span class="small" style="color:#8892a4">${escapeHtml(f.assigned_to)}</span>` : "—";
+        const rid = ridFromFinding(f.id);
+        row.innerHTML = `<div class="finding-main">${chk}<i class="bi ${catIcon(f.category)}"></i><div><b>${escapeHtml(f.title)}</b><div style="font-size:12px;color:#8892a4">${escapeHtml(f.category)} · ${escapeHtml(f.target_key || "")}</div></div><span class="status-chip ${statusClass(stNorm)}">${stNorm === "WARNING" ? "⚠️ WARN" : stNorm === "PASS" ? "✅ PASS" : "❌ FAIL"}</span><span style="font-size:12px;color:#8892a4">${escapeHtml(f.severity || "")}</span><span class="fw-badges">${frameworks}</span><button type="button" class="btn btn-sm btn-outline-info btn-toggle-detail"><i class="bi bi-chevron-down"></i></button></div><div class="finding-details" hidden><div>${escapeHtml(f.details || "No details")}</div><div class="mt-2 small" style="color:#8892a4;">Workflow: <b>${escapeHtml(f.status || "new")}</b> · Last scan: ${escapeHtml(f.last_scan || "—")} · Assigned: ${assign}</div>${canFix ? `<div class='mt-2'><button type='button' class='btn btn-sm btn-outline-warning btn-fix-finding'>Fix</button></div>` : ""}
+          <div class="remediation-panel" id="findingDetail-${rid}">
+            <h4>Remediation workflow</h4>
+            <div class="workflow-steps">
+              <div class="workflow-step" data-status="not_started"><div class="step-indicator">1</div><p>Not started</p></div>
+              <div class="workflow-step" data-status="in_progress"><div class="step-indicator">2</div><p>In progress</p></div>
+              <div class="workflow-step" data-status="verification"><div class="step-indicator">3</div><p>Verification</p></div>
+              <div class="workflow-step" data-status="closed"><div class="step-indicator">4</div><p>Closed</p></div>
+            </div>
+            <div class="remediation-form-grid">
+              <div>
+                <label for="remediationAssignee-${rid}">Assigned to</label>
+                <select id="remediationAssignee-${rid}" class="form-select form-select-sm" style="background:#0a0f1f;color:#e8eaf6;border-color:#1e2d4a;">
+                  <option value="">Unassigned</option>
+                  <option value="me">Me</option>
+                  <option value="team">Team lead</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label for="remediationDeadline-${rid}">Deadline</label>
+                <input type="date" id="remediationDeadline-${rid}" class="form-control form-control-sm" style="background:#0a0f1f;color:#e8eaf6;border-color:#1e2d4a;">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label>Status actions</label>
+                <div class="rem-status-btns">
+                  <button type="button" class="btn-rem">Start</button>
+                  <button type="button" class="btn-rem">Verify</button>
+                  <button type="button" class="btn-rem btn-rem-success">Close</button>
+                </div>
+              </div>
+              <div style="grid-column:1/-1;">
+                <label for="remediationComment-${rid}">Comments</label>
+                <textarea id="remediationComment-${rid}" class="form-control form-control-sm" rows="2" placeholder="Add a comment…" style="background:#0a0f1f;color:#e8eaf6;border-color:#1e2d4a;"></textarea>
+                <button type="button" class="btn btn-sm btn-outline-info mt-1">Add comment</button>
+              </div>
+              <div class="remediation-comments" id="remediationComments-${rid}"></div>
+            </div>
+          </div></div>`;
+        const det = row.querySelector(".finding-details");
+        row.querySelector(".btn-toggle-detail").addEventListener("click", () => {
+          det.hidden = !det.hidden;
+          row.classList.toggle("details-open", !det.hidden);
+          if (!det.hidden) loadRemediationStatus(f.id, rid);
+        });
+        const assignEl = row.querySelector("#remediationAssignee-" + rid);
+        const deadlineEl = row.querySelector("#remediationDeadline-" + rid);
+        assignEl?.addEventListener("change", () => updateRemediationFields(f.id, rid));
+        deadlineEl?.addEventListener("change", () => updateRemediationFields(f.id, rid));
+        const [b1, b2, b3] = row.querySelectorAll(".rem-status-btns .btn-rem");
+        b1?.addEventListener("click", () => setRemediationStatus(f.id, "in_progress", rid));
+        b2?.addEventListener("click", () => setRemediationStatus(f.id, "verification", rid));
+        b3?.addEventListener("click", () => openCloseModal(f.id, rid));
+        row.querySelector(".remediation-panel .btn-outline-info")?.addEventListener("click", () => addRemediationComment(f.id, rid));
+        const fixBtn = row.querySelector(".btn-fix-finding");
+        if (fixBtn) fixBtn.addEventListener("click", () => quickFix(f.title));
+        list.appendChild(row);
+      });
+    }
+    async function loadFindingsPage(page) {
+      findingsPage = page || 1;
+      const list = document.getElementById("findingsList");
+      if (!list) return;
+      if (DEMO_MODE) {
+        renderFindingsLegacy(currentChecks || []);
+        const meta = document.getElementById("findingsCountMeta");
+        if (meta) meta.textContent = `${(currentChecks || []).length} finding${(currentChecks || []).length === 1 ? "" : "s"} (demo)`;
+        document.getElementById("findingsBulkBar")?.classList.add("d-none");
+        document.getElementById("findingsPagination")?.classList.add("d-none");
+        return;
+      }
+      document.getElementById("findingsPagination")?.classList.remove("d-none");
+      try {
+        const qs = buildFindingsQuery(findingsPage);
+        const r = await fetch("/api/findings?" + qs);
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        findingsTotal = d.total || 0;
+        findingsPerPage = d.per_page || findingsPerPage;
+        renderFindingsFromApi(d.items || []);
+        const pages = Math.max(1, Math.ceil(findingsTotal / findingsPerPage));
+        const start = findingsTotal === 0 ? 0 : (findingsPage - 1) * findingsPerPage + 1;
+        const end = Math.min(findingsTotal, findingsPage * findingsPerPage);
+        const meta = document.getElementById("findingsCountMeta");
+        if (meta) meta.textContent = findingsTotal ? `${start}–${end} of ${findingsTotal}` : "0 findings";
+        const pm = document.getElementById("findingsPageMeta");
+        if (pm) pm.textContent = `Page ${findingsPage} / ${pages}`;
+        const prevBtn = document.getElementById("findingsPrev");
+        const nextBtn = document.getElementById("findingsNext");
+        if (prevBtn) prevBtn.disabled = findingsPage <= 1;
+        if (nextBtn) nextBtn.disabled = findingsPage >= pages || findingsTotal === 0;
+        persistFindingsPrefs();
+        const bulk = document.getElementById("findingsBulkBar");
+        if (bulk) {
+          if (CAN_BULK_FINDINGS && (d.items || []).length) bulk.classList.remove("d-none");
+          else bulk.classList.add("d-none");
+        }
+        const sa = document.getElementById("findingsSelectAll");
+        if (sa) sa.checked = false;
+      } catch (e) {
+        list.innerHTML = `<div style='color:#ff7f8b'>Could not load findings: ${escapeHtml(e.message)}</div>`;
+      }
+    }
+    function selectedFindingIds() {
+      return [...document.querySelectorAll(".finding-select:checked")].map((x) => x.value);
+    }
+    async function bulkFindings(action, extra) {
+      const ids = selectedFindingIds();
+      if (!ids.length) { alert("Select at least one finding."); return; }
+      const r = await fetch("/api/findings/bulk", { method: "POST", headers: apiHeaders(), body: JSON.stringify({ finding_ids: ids, action, ...(extra || {}) }) });
+      const out = await r.json();
+      if (out.error) { alert(out.error); return; }
+      const sa = document.getElementById("findingsSelectAll");
+      if (sa) sa.checked = false;
+      await loadFindingsPage(findingsPage);
+      await loadDashboardKpis();
+      refreshFeed();
+    }
+    function renderFindings(checks) {
+      currentChecks = checks || [];
+      if (DEMO_MODE) {
+        renderFindingsLegacy(currentChecks);
+        return;
+      }
+      loadFindingsPage(1);
+    }
+    function clearFilters() {
       const input = document.getElementById("searchInput");
-      if(input) input.value = "";
+      if (input) input.value = "";
       activeFilter = "all";
       const filter = document.getElementById("categoryFilter");
-      if(filter) filter.value = "all";
-      renderFindings(currentChecks);
+      if (filter) filter.value = "all";
+      const cff = document.getElementById("findingsComplianceFramework");
+      const cfc = document.getElementById("findingsComplianceControl");
+      if (cff) cff.value = "";
+      if (cfc) cfc.value = "";
+      document.getElementById("findingsComplianceBanner")?.classList.add("d-none");
+      ["findingSev", "findingWfStatus", "findingScanStatus"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+      const ts = document.getElementById("findingTargetScope");
+      if (ts) ts.value = "current";
+      findingsPage = 1;
+      if (DEMO_MODE) {
+        renderFindingsLegacy(currentChecks);
+        return;
+      }
+      loadFindingsPage(1);
     }
     function renderTargetCards() {
       const wrap = document.getElementById("targetsWrap");
@@ -509,7 +1329,7 @@
 
         let removeButton = "";
         if (k !== "localhost") {
-          removeButton = `<button class="target-remove-btn" title="Remove target" style="background: none; border: 1px solid #ff4757; color: #ff4757; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 11px; margin-left: 8px;">✕ Remove</button>`;
+          removeButton = `<button class="target-remove-btn btn btn-sm btn-outline-danger ms-1" title="Remove target" style="font-size:11px;padding:0.35rem 0.65rem;">✕ Remove</button>`;
         }
 
         div.innerHTML = `
@@ -530,8 +1350,40 @@
     }
     function renderExecutive(data){const checks=data.checks||[]; const fails=checks.filter(c=>c.status==="FAIL"); const [label, cls]=riskLabel(data.score||0); document.getElementById("execRisk").textContent=label; document.getElementById("execRisk").className=cls; document.getElementById("execBar").style.width=`${100-(data.score||0)}%`; document.getElementById("execTop").innerHTML=fails.slice(0,3).map(f=>`<div class="card-scope mb-2">🔴 <b>${f.check}</b><br><span style="color:#8892a4">${f.details}</span></div>`).join("") || "<div class='card-scope'>No critical issues.</div>";}
     function renderChart(history){const targetHist=history[currentTarget]||[]; const labels=targetHist.map(x=>x.time); const scores=targetHist.map(x=>x.score); const improving=scores.length<2||scores[scores.length-1]>=scores[0]; const ctx=document.getElementById("historyChart"); if(chart) chart.destroy(); chart=new Chart(ctx,{type:"line",data:{labels,datasets:[{label:"Score",data:scores,borderColor:improving?"#00ff88":"#ff4757",tension:.3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8892a4"}},y:{ticks:{color:"#8892a4"},min:0,max:100}}}});}
-    function renderData(data){currentChecks=data.checks||[]; document.getElementById("headerPlatform").textContent=data.os||"{{ plat_info.os }}"; document.getElementById("sysHost").textContent=data.hostname||"--"; document.getElementById("sysOs").textContent=data.os||"--"; document.getElementById("sysIp").textContent=data.ip_address||data.target||"--"; document.getElementById("sysPriv").textContent=data.is_admin===true?"ADMIN":(data.is_admin===false?"USER":"REMOTE"); document.getElementById("sysLast").textContent=data.last_scan||"--"; document.getElementById("statFail").textContent=data.failed||0; document.getElementById("statPass").textContent=data.passed||0; document.getElementById("statWarn").textContent=data.warnings||0; const [label, cls]=riskLabel(data.score||0); const risk=document.getElementById("riskChip"); risk.textContent=label; risk.className="risk-chip "+cls; animateScore(Number(data.score||0)); renderFindings(currentChecks); renderExecutive(data); const sev=countSeverity(currentChecks); document.getElementById("vulnBadges").textContent=`🔴 ${sev.critical} Critical  🟠 ${sev.high} High  🟡 ${sev.medium} Medium  🟢 ${sev.low} Low`; document.getElementById("threatCounter").textContent=sev.critical;}
-    function switchToTarget(key){currentTarget=key; const d=allScanData[key]; if(d) renderData(d); renderTargetCards(); refreshFeed();}
+    function renderData(data){
+      lastDashboardData = data;
+      currentChecks = data.checks || [];
+      document.getElementById("headerPlatform").textContent = data.os || "{{ plat_info.os }}";
+      document.getElementById("sysHost").textContent = data.hostname || "--";
+      document.getElementById("sysOs").textContent = data.os || "--";
+      document.getElementById("sysIp").textContent = data.ip_address || data.target || "--";
+      document.getElementById("sysPriv").textContent = data.is_admin === true ? "ADMIN" : (data.is_admin === false ? "USER" : "REMOTE");
+      document.getElementById("sysLast").textContent = data.last_scan || "--";
+      document.getElementById("statFail").textContent = data.failed || 0;
+      document.getElementById("statPass").textContent = data.passed || 0;
+      document.getElementById("statWarn").textContent = data.warnings || 0;
+      const [label, cls] = riskLabel(data.score || 0);
+      const risk = document.getElementById("riskChip");
+      risk.textContent = label;
+      risk.className = "risk-chip " + cls;
+      animateScore(Number(data.score || 0));
+      updateGaugeBreakdown(data);
+      renderFindings(currentChecks);
+      renderExecutive(data);
+      const sev = countSeverity(currentChecks);
+      document.getElementById("vulnBadges").textContent = `🔴 ${sev.critical} Critical  🟠 ${sev.high} High  🟡 ${sev.medium} Medium  🟢 ${sev.low} Low`;
+      document.getElementById("threatCounter").textContent = sev.critical;
+      if (!DEMO_MODE) loadDashboardKpis();
+    }
+    function switchToTarget(key) {
+      currentTarget = key;
+      const bc = document.getElementById("breadcrumbTarget");
+      if (bc) bc.textContent = key === "localhost" ? "Local overview" : `Target: ${key}`;
+      const d = allScanData[key];
+      if (d) renderData(d);
+      renderTargetCards();
+      refreshFeed();
+    }
     function removeTarget(host){
       if(host === 'localhost') return;
       if(!confirm('Remove ' + host + ' from targets list?')) return;
@@ -592,6 +1444,7 @@
         lastScanTime = new Date();
         switchToTarget("localhost");
         updateAllTargetDisplays();
+        if (!DEMO_MODE) loadDashboardKpis();
       }catch(e){
         console.error("Scan failed:", e);
         if(scoreEl){ scoreEl.textContent = "ERR"; }
@@ -603,10 +1456,20 @@
         document.getElementById("skeletons").classList.add("d-none");
       }
     }
-    function openModal(){
+    function openModal() {
       document.getElementById("remoteScanModal").classList.add("active");
-      const searchEl = document.getElementById("searchInput");
-      if(searchEl){ searchEl.value = ""; renderFindings(currentChecks); }
+    }
+    async function openSchedulePrompt() {
+      if (!["admin", "org_admin"].includes(CURRENT_ROLE)) {
+        alert("Scheduling requires an administrator.");
+        return;
+      }
+      const freq = (prompt("Schedule local scan frequency: hourly, daily, or weekly", "daily") || "").trim().toLowerCase();
+      if (!freq) return;
+      const r = await fetch("/api/schedule", { method: "POST", headers: apiHeaders(), body: JSON.stringify({ target: "localhost", frequency: freq }) });
+      const d = await r.json();
+      if (d.error) alert(d.error);
+      else alert(`Scheduled. Next run: ${d.next_run || "n/a"}`);
     }
     function closeModal(){ document.getElementById("remoteScanModal").classList.remove("active"); }
     function updateModalFields() {
@@ -655,6 +1518,7 @@
         switchToTarget(key);
         closeModal();
         updateAllTargetDisplays();
+        if (!DEMO_MODE) loadDashboardKpis();
       }catch(e){
         alert(`Could not connect to ${host}\nCheck: Is SSH/Web reachable?\n${e.message}`);
       }finally{
@@ -671,13 +1535,69 @@
       console.log('updateAllTargetDisplays called. Current targets:', Object.keys(allScanData || {}));
       renderTargetCards();
       updateReportTargets();
-      if (document.getElementById('targets-page')?.style.display === 'block') {
-        renderTargetsPage();
+    }
+    function applyTargetFromUrl() {
+      const p = new URLSearchParams(location.search).get("target");
+      if (!p) return;
+      const trySw = () => {
+        if (allScanData[p]) {
+          switchToTarget(p);
+          return true;
+        }
+        return false;
+      };
+      if (!trySw()) {
+        const iv = setInterval(() => { if (trySw()) clearInterval(iv); }, 400);
+        setTimeout(() => clearInterval(iv), 12000);
       }
     }
+    let currentFramework = 'cis';
+    function expandNavAccordionForActiveTab(tabName) {
+      const idMap = {
+        dashboard: "tab-dashboard",
+        compliance: "tab-compliance",
+        targets: "tab-targets",
+        reports: "tab-reports",
+        llm: "tab-llm",
+        users: "tab-users",
+        licenses: "tab-licenses",
+        organizations: "tab-organizations",
+        settings: "tab-settings",
+        executive: "tab-executive",
+      };
+      const tid = idMap[tabName];
+      if (!tid) return;
+      const el = document.getElementById(tid);
+      if (!el) return;
+      const group = el.closest(".nav-acc-group");
+      if (!group) return;
+      document.querySelectorAll(".nav-acc-group").forEach((g) => {
+        const open = g === group;
+        g.classList.toggle("is-open", open);
+        const tr = g.querySelector(".nav-acc-trigger");
+        if (tr) tr.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    }
+
+    function initNavAccordion() {
+      document.querySelectorAll(".nav-acc-trigger").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const group = btn.closest(".nav-acc-group");
+          if (!group) return;
+          const willOpen = !group.classList.contains("is-open");
+          document.querySelectorAll(".nav-acc-group").forEach((g) => {
+            const open = willOpen && g === group;
+            g.classList.toggle("is-open", open);
+            const tr = g.querySelector(".nav-acc-trigger");
+            if (tr) tr.setAttribute("aria-expanded", open ? "true" : "false");
+          });
+        });
+      });
+    }
+
     function showTab(tabName) {
       // Hide ALL possible content containers first
-      const allPages = ['targets-page', 'reports-page', 'llm-page', 'users-page', 'licenses-page', 'organizations-page', 'settings-page'];
+      const allPages = ['compliance-page', 'reports-page', 'llm-page', 'users-page', 'licenses-page', 'organizations-page', 'settings-page'];
       allPages.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -721,8 +1641,10 @@
           page.style.display = 'block';
           document.getElementById('tab-' + tabName)?.classList.add('active');
           // Call render functions for specific tabs
-          if (tabName === 'targets') renderTargetsPage();
           if (tabName === 'reports') updateReportTargets();
+          if (tabName === 'compliance') {
+            switchFramework(currentFramework || 'cis');
+          }
           if (tabName === 'llm') { loadLLMModels(); loadLLMDashboard(); loadLLMRemediationList(); loadLLMActivity(); }
           if (tabName === 'users') loadUsers();
           if (tabName === 'licenses') loadLicenses();
@@ -730,61 +1652,7 @@
           if (tabName === 'settings') console.log('Settings tab opened');
         }
       }
-    }
-    function renderTargetsPage() {
-      const grid = document.getElementById('targets-grid');
-      const empty = document.getElementById('targets-empty');
-      if (!grid) return;
-      grid.innerHTML = '';
-      const data = allScanData || {};
-      let hosts = Object.keys(data);
-      if (window.removedTargets && window.removedTargets.size > 0) {
-        hosts = hosts.filter(h => !window.removedTargets.has(h));
-      }
-      console.log('renderTargetsPage - Found hosts:', hosts, 'Total data keys:', Object.keys(data));
-      if (hosts.length === 0) {
-        if (empty) empty.style.display = 'block';
-        return;
-      }
-      if (empty) empty.style.display = 'none';
-      hosts.forEach(host => {
-        const d = data[host];
-        if (!d || typeof d !== 'object') {
-          console.warn('Invalid data for host:', host, d);
-          return;
-        }
-        const score = d.score || 0;
-        const color = score >= 86 ? '#00ff88' : score >= 71 ? '#3b82f6' : score >= 41 ? '#f97316' : '#ff4757';
-        const isLocal = host === 'localhost';
-        const card = document.createElement('div');
-        card.style.cssText = 'background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:20px;transition:all 0.2s;cursor:pointer;';
-        card.onmouseenter = () => {
-          card.style.borderColor = '#00d4ff';
-          card.style.transform = 'translateY(-3px)';
-        };
-        card.onmouseleave = () => {
-          card.style.borderColor = '#1e2d4a';
-          card.style.transform = 'translateY(0)';
-        };
-        card.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
-            <div>
-              <div style="font-size:16px;font-weight:700;color:#e8eaf6;margin-bottom:4px;">${isLocal ? '🖥️ Localhost' : '🌐 '+host}</div>
-              <div style="color:#8892a4;font-size:12px;">${d.os || 'Unknown OS'}</div>
-            </div>
-            <div style="font-size:32px;font-weight:800;color:${color}">${score}</div>
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-            <span style="background:rgba(255,71,87,0.15);color:#ff4757;padding:3px 10px;border-radius:20px;font-size:12px;">❌ ${d.failed||0} Failed</span>
-            <span style="background:rgba(0,255,136,0.15);color:#00ff88;padding:3px 10px;border-radius:20px;font-size:12px;">✅ ${d.passed||0} Passed</span>
-            <span style="background:rgba(255,165,2,0.15);color:#ffa502;padding:3px 10px;border-radius:20px;font-size:12px;">⚠️ ${d.warnings||0} Warn</span>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button onclick="switchToTarget('${host}');showTab('dashboard')" style="flex:1;background:#00d4ff;color:#000;border:none;padding:9px;border-radius:6px;cursor:pointer;font-weight:700;">📊 View Details</button>
-            ${!isLocal ? '<button onclick="removeTarget(\''+host+'\')" style="background:none;border:1px solid #ff4757;color:#ff4757;padding:9px 12px;border-radius:6px;cursor:pointer;">✕</button>' : ''}
-          </div>`;
-        grid.appendChild(card);
-      });
+      expandNavAccordionForActiveTab(tabName);
     }
     function updateReportTargets() {
       const sel = document.getElementById('report-target');
@@ -1344,29 +2212,163 @@
       return false;
     }
     function openRemoteModal(){openModal();}
+    function isTypingTarget(el) {
+      if (!el) return false;
+      const tag = (el.tagName || "").toLowerCase();
+      return tag === "input" || tag === "textarea" || tag === "select" || el.isContentEditable;
+    }
     const categoryFilterEl = document.getElementById("categoryFilter");
     if (categoryFilterEl) {
       categoryFilterEl.addEventListener("change", (e) => {
         activeFilter = e.target.value || "all";
-        renderFindings(currentChecks);
+        findingsPage = 1;
+        if (DEMO_MODE) renderFindingsLegacy(currentChecks);
+        else loadFindingsPage(1);
       });
     }
-    document.getElementById("searchInput").addEventListener("input",()=>renderFindings(currentChecks));
-    document.getElementById("sortBy").addEventListener("change",()=>renderFindings(currentChecks));
-    document.getElementById("btnScan").addEventListener("click",runLocalScan);
-    document.getElementById("btnHarden").addEventListener("click",runHarden);
-    document.addEventListener("keydown",(e)=>{
-      if(e.key === "Escape"){ closeModal(); return; }
-      if(!e.ctrlKey)return;
-      const k=e.key.toLowerCase();
-      if(k==="s"){e.preventDefault();runLocalScan();}
-      if(k==="r"){e.preventDefault();openModal();}
-      if(k==="h"){e.preventDefault();runHarden();}
-      if(k==="d"){e.preventDefault();downloadHtmlReport();}
+    const findingsDebounce = () => {
+      clearTimeout(findingsSearchTimer);
+      findingsSearchTimer = setTimeout(() => {
+        findingsPage = 1;
+        if (DEMO_MODE) renderFindingsLegacy(currentChecks);
+        else loadFindingsPage(1);
+      }, 280);
+    };
+    document.getElementById("searchInput").addEventListener("input", findingsDebounce);
+    document.getElementById("sortBy").addEventListener("change", () => {
+      findingsPage = 1;
+      if (DEMO_MODE) renderFindingsLegacy(currentChecks);
+      else loadFindingsPage(1);
+    });
+    document.getElementById("findingSortOrder")?.addEventListener("change", () => {
+      findingsPage = 1;
+      if (DEMO_MODE) renderFindingsLegacy(currentChecks);
+      else loadFindingsPage(1);
+    });
+    document.getElementById("findingPerPage")?.addEventListener("change", () => {
+      findingsPage = 1;
+      if (DEMO_MODE) renderFindingsLegacy(currentChecks);
+      else loadFindingsPage(1);
+    });
+    ["findingSev", "findingWfStatus", "findingScanStatus", "findingTargetScope"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("change", () => {
+        findingsPage = 1;
+        if (DEMO_MODE) renderFindingsLegacy(currentChecks);
+        else loadFindingsPage(1);
+      });
+    });
+    document.getElementById("findingsResetFilters")?.addEventListener("click", clearFilters);
+    document.getElementById("findingsPrev")?.addEventListener("click", () => loadFindingsPage(findingsPage - 1));
+    document.getElementById("findingsNext")?.addEventListener("click", () => loadFindingsPage(findingsPage + 1));
+    document.getElementById("bulkMarkReviewed")?.addEventListener("click", () => bulkFindings("mark_reviewed"));
+    document.getElementById("bulkClose")?.addEventListener("click", () => { if (confirm("Close selected findings?")) bulkFindings("close"); });
+    document.getElementById("bulkAssignSelf")?.addEventListener("click", () => bulkFindings("assign", { assigned_to: CURRENT_USERNAME }));
+    document.getElementById("findingsSelectAll")?.addEventListener("change", (e) => {
+      document.querySelectorAll(".finding-select").forEach((cb) => { cb.checked = e.target.checked; });
+    });
+    document.getElementById("btnScan").addEventListener("click", () => runLocalScan(true));
+    document.getElementById("btnHarden").addEventListener("click", runHarden);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { closeModal(); return; }
+      if (document.getElementById("remoteScanModal")?.classList.contains("active") && isTypingTarget(e.target)) return;
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && isTypingTarget(e.target)) return;
+      const k = e.key.toLowerCase();
+      if (!e.ctrlKey && !e.metaKey) {
+        if (k === "s") { e.preventDefault(); runLocalScan(true); return; }
+        if (k === "r") { e.preventDefault(); openModal(); return; }
+        if (k === "g") { e.preventDefault(); window.location.href = "/targets"; return; }
+        if (k === "n") { e.preventDefault(); openModal(); return; }
+        if (k === "h") { e.preventDefault(); runHarden(); return; }
+        if (k === "d") { e.preventDefault(); downloadHtmlReport(); return; }
+        if (k === "a") { e.preventDefault(); document.getElementById("threatFeed")?.scrollIntoView({ behavior: "smooth" }); return; }
+      }
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (k === "s") { e.preventDefault(); runLocalScan(true); }
+      if (k === "r") { e.preventDefault(); openModal(); }
+      if (k === "g") { e.preventDefault(); window.location.href = "/targets"; }
+      if (k === "n") { e.preventDefault(); openModal(); }
+      if (k === "h") { e.preventDefault(); runHarden(); }
+      if (k === "d") { e.preventDefault(); downloadHtmlReport(); }
     });
     function runDemoSequence(){const fake={score:90,failed:1,passed:8,warnings:1,hostname:"DEMO-HOST",ip_address:"192.168.56.1",os:"Windows 11",is_admin:true,last_scan:nowStr(),checks:[{category:"User Security",check:"Root login disabled",status:"FAIL",severity:"Critical",details:"Root login enabled",frameworks:["CIS","NIST"]},{category:"Service",check:"Print Spooler",status:"WARNING",severity:"Medium",details:"Service running",frameworks:["ISO"]},{category:"System",check:"Defender Active",status:"PASS",severity:"Low",details:"Defender active",frameworks:["CIS"]}]}; let s=0; const iv=setInterval(()=>{s+=5; fake.score=Math.min(90,s); allScanData.localhost=fake; switchToTarget("localhost"); if(s>=90) clearInterval(iv);},120);}
+
+    function initializeUIByRole() {
+      const userRole = document.querySelector('[data-user-role]')?.dataset.userRole || 'viewer';
+      
+      // Tab visibility matrix
+      const TAB_ACCESS = {
+        'super_admin': ['dashboard', 'targets', 'reports', 'llm', 'compliance', 'users', 'licenses', 'organizations', 'settings', 'executive'],
+        'org_admin': ['dashboard', 'targets', 'reports', 'llm', 'compliance', 'users', 'settings', 'executive'],
+        'security_manager': ['dashboard', 'targets', 'reports', 'llm', 'compliance', 'settings', 'executive'],
+        'normal_user': ['dashboard', 'targets', 'reports', 'settings', 'executive'],
+        'viewer': ['dashboard', 'reports', 'settings', 'executive']
+      };
+      
+      const allowedTabs = TAB_ACCESS[userRole] || [];
+      
+      // Hide tabs not in allowed list (skip missing data-tabs)
+      document.querySelectorAll('.tab-btn').forEach(tab => {
+        const tabId = tab.dataset.tab;
+        if (!tabId) return;
+        if (!allowedTabs.includes(tabId)) {
+          tab.style.display = 'none';
+        }
+      });
+      
+      // Hide modals/buttons based on role
+      hideElementsByRole(userRole);
+    }
+
+    function hideElementsByRole(role) {
+      const BUTTON_ACCESS = {
+        'super_admin': ['btn-create-user', 'btn-create-license', 'btn-create-org', 'btn-delete-user'],
+        'org_admin': ['btn-create-user'],
+        'security_manager': ['btn-create-target', 'btn-scan'],
+        'normal_user': [],
+        'viewer': []
+      };
+      
+      const allowedButtons = BUTTON_ACCESS[role] || [];
+      
+      // Hide all action buttons
+      document.querySelectorAll('[data-btn-class]').forEach(btn => {
+        const btnClass = btn.dataset.btnClass;
+        btn.style.display = allowedButtons.includes(btnClass) ? 'block' : 'none';
+      });
+    }
+
     document.addEventListener("DOMContentLoaded", async ()=>{
+      await initTheme();
+      document.getElementById("themeToggle")?.addEventListener("click", toggleThemeAction);
+      document.getElementById("mobileMenuToggle")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleMobileMenu();
+      });
+      document.getElementById("sidebarBackdrop")?.addEventListener("click", closeMobileMenu);
+      document.querySelectorAll("#appSidebar .tab-btn").forEach((el) => {
+        el.addEventListener("click", () => closeMobileMenu());
+      });
+      initNavAccordion();
+      initializeUIByRole();
+      document.addEventListener("click", (e) => {
+        const sidebar = document.getElementById("appSidebar");
+        const toggle = document.getElementById("mobileMenuToggle");
+        if (!sidebar || !toggle || !sidebar.classList.contains("open")) return;
+        if (sidebar.contains(e.target) || toggle.contains(e.target)) return;
+        closeMobileMenu();
+      });
+      const qp = new URLSearchParams(location.search);
+      const tabQ = qp.get("tab");
+      if (tabQ && ["compliance", "reports", "llm", "users", "licenses", "organizations", "settings", "executive"].includes(tabQ)) {
+        showTab(tabQ);
+      }
+      if (qp.get("openRemote") === "1") {
+        setTimeout(() => openModal(), 400);
+      }
+      applyTargetFromUrl();
       updateModalFields();
+      applyFindingsPrefsToUI(findingsPrefsLoad());
       const modal = document.getElementById("remoteScanModal");
       const dialog = modal?.querySelector(".modal-dialog");
       if(modal && dialog){
@@ -1374,13 +2376,36 @@
         modal.addEventListener("mousedown", (e)=>{ if(e.target === modal){ closeModal(); } });
         dialog.addEventListener("mousedown", (e)=> e.stopPropagation());
       }
-      if(DEMO_MODE){ runDemoSequence(); }
-      else { setTimeout(()=>runLocalScan(), 500); }
+      document.getElementById("gaugeHoverWrap")?.addEventListener("mouseenter", () => updateGaugeBreakdown(lastDashboardData));
+      document.getElementById("gaugeCard")?.addEventListener("click", () => document.getElementById("findingsList")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      const fabBtn = document.getElementById("fabToggle");
+      const fabMenu = document.getElementById("fabMenu");
+      fabBtn?.addEventListener("click", (ev) => { ev.stopPropagation(); fabMenu?.classList.toggle("d-none"); });
+      document.addEventListener("click", (e) => {
+        if (e.target.closest("#fabRoot")) return;
+        fabMenu?.classList.add("d-none");
+      });
+      if (DEMO_MODE) {
+        runDemoSequence();
+      } else {
+        if (Object.keys(allScanData || {}).length > 0) {
+          if (!allScanData[currentTarget]) {
+            currentTarget = Object.keys(allScanData)[0];
+          }
+          switchToTarget(currentTarget);
+          updateAllTargetDisplays();
+        } else {
+          setTimeout(() => runLocalScan(), 500);
+        }
+      }
+      loadDashboardKpis();
+      if (!DEMO_MODE) loadFindingsPage(findingsPage);
       loadLLMModels();
       loadLLMDashboard();
       loadLLMRemediationList();
       refreshFeed();
       setInterval(refreshFeed,4000);
+      setInterval(() => { if (!DEMO_MODE) loadDashboardKpis(); }, 30000);
     });
   </script>
 </body>

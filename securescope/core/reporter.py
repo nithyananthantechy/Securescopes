@@ -196,22 +196,22 @@ class Reporter:
             }}
             .no-print {{ display: none !important; }}
         }}
-        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f0f2f5; color: #333; }}
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #081026; color: #e2e8f0; }}
         .page {{ 
             width: 210mm; 
             height: 297mm; 
             padding: 20mm; 
             margin: 10mm auto; 
-            background: white; 
-            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+            background: #091526; 
+            box-shadow: 0 0 24px rgba(0,0,0,0.35); 
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
             page-break-after: always;
         }}
         .cover {{ 
-            background: #0d1b2a !important; 
-            color: white; 
+            background: linear-gradient(135deg, #020917 0%, #081a32 100%) !important; 
+            color: #e8f1ff; 
             display: flex; 
             flex-direction: column; 
             justify-content: center; 

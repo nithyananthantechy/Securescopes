@@ -196,9 +196,21 @@ class LLMStore:
                     created_at TEXT NOT NULL,
                     FOREIGN KEY(organization_id) REFERENCES organizations(id) ON DELETE SET NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS chat_models (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
+                    model_type TEXT NOT NULL,
+                    api_key TEXT,
+                    endpoint TEXT,
+                    model_name TEXT,
+                    is_active INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL
+                );
                 """
             )
             self._ensure_llm_vulnerability_columns(conn)
+            self._seed_chat_models(conn)
 
     def _ensure_llm_vulnerability_columns(self, conn: sqlite3.Connection) -> None:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(llm_vulnerabilities)").fetchall()}
@@ -212,6 +224,81 @@ class LLMStore:
         for col, col_type in needed.items():
             if col not in cols:
                 conn.execute(f"ALTER TABLE llm_vulnerabilities ADD COLUMN {col} {col_type}")
+
+    def _seed_chat_models(self, conn: sqlite3.Connection) -> None:
+        count = conn.execute("SELECT COUNT(*) as c FROM chat_models").fetchone()["c"]
+        if count == 0:
+            now = _utc_now()
+            conn.executescript(f"""
+                INSERT INTO chat_models (id, name, model_type, api_key, endpoint, model_name, is_active, created_at)
+                VALUES ('{uuid.uuid4()}', 'Gemini 2.0 Flash', 'gemini', '{self.cipher.encrypt(os.environ.get("GEMINI_API_KEY", ""))}', '', 'gemini-2.0-flash', 1, '{now}');
+                
+                INSERT INTO chat_models (id, name, model_type, api_key, endpoint, model_name, is_active, created_at)
+                VALUES ('{uuid.uuid4()}', 'Ollama Mistral', 'ollama', '', 'http://localhost:11434', 'mistral', 0, '{now}');
+                
+                INSERT INTO chat_models (id, name, model_type, api_key, endpoint, model_name, is_active, created_at)
+                VALUES ('{uuid.uuid4()}', 'Ollama Mistral 2', 'ollama', '', 'http://localhost:11434', 'mistral2', 0, '{now}');
+            """)
+
+    # --- Chat Models CRUD ---
+
+    def list_chat_models(self) -> list[dict[str, Any]]:
+        with self._conn() as conn:
+            rows = conn.execute("SELECT * FROM chat_models ORDER BY name").fetchall()
+            return [
+                dict(r, api_key=self.cipher.decrypt(r["api_key"]))
+                for r in rows
+            ]
+
+    def add_chat_model(self, name: str, model_type: str, api_key: str, endpoint: str, model_name: str) -> str:
+        model_id = str(uuid.uuid4())
+        now = _utc_now()
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT INTO chat_models (id, name, model_type, api_key, endpoint, model_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (model_id, name, model_type, self.cipher.encrypt(api_key), endpoint, model_name, now)
+            )
+        return model_id
+
+    def update_chat_model(self, model_id: str, name: str, model_type: str, api_key: str, endpoint: str, model_name: str) -> bool:
+        with self._conn() as conn:
+            cur = conn.execute(
+                "UPDATE chat_models SET name=?, model_type=?, api_key=?, endpoint=?, model_name=? WHERE id=?",
+                (name, model_type, self.cipher.encrypt(api_key), endpoint, model_name, model_id)
+            )
+            return cur.rowcount > 0
+
+    def delete_chat_model(self, model_id: str) -> bool:
+        with self._conn() as conn:
+            cur = conn.execute("DELETE FROM chat_models WHERE id=?", (model_id,))
+            return cur.rowcount > 0
+
+    def activate_chat_model(self, model_id: str) -> bool:
+        with self._conn() as conn:
+            # Check if model exists
+            if conn.execute("SELECT id FROM chat_models WHERE id=?", (model_id,)).fetchone() is None:
+                return False
+            # Deactivate all
+            conn.execute("UPDATE chat_models SET is_active=0")
+            # Activate target
+            conn.execute("UPDATE chat_models SET is_active=1 WHERE id=?", (model_id,))
+            return True
+
+    def get_active_chat_model(self) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT * FROM chat_models WHERE is_active=1 LIMIT 1").fetchone()
+            if not row:
+                row = conn.execute("SELECT * FROM chat_models LIMIT 1").fetchone()
+            if row:
+                return dict(row, api_key=self.cipher.decrypt(row["api_key"]))
+            return None
+
+    def get_chat_model(self, model_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT * FROM chat_models WHERE id=?", (model_id,)).fetchone()
+            if row:
+                return dict(row, api_key=self.cipher.decrypt(row["api_key"]))
+            return None
 
     def add_model(
         self,

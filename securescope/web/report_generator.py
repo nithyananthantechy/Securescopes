@@ -41,21 +41,26 @@ class LLMReportGenerator:
   <meta charset="utf-8" />
   <title>SecureScope LLM Security Report</title>
   <style>
-    body {{ font-family: Arial, sans-serif; background:#f3f6fb; margin:0; color:#0f172a; }}
-    .top {{ background:#0b1730; color:#fff; padding:16px 24px; display:flex; align-items:center; gap:12px; }}
-    .top img {{ height:38px; }}
-    .container {{ padding:22px; }}
-    .card {{ background:#fff; border:1px solid #dbe3ef; border-radius:12px; padding:14px; margin-bottom:14px; }}
+    body {{ font-family: Arial, sans-serif; background:#071126; margin:0; color:#e7edf8; }}
+    .top {{ background:#081b34; color:#f8fbff; padding:18px 24px; display:flex; align-items:center; gap:18px; box-shadow: inset 0 -1px 0 rgba(255,255,255,0.08); }}
+    .top img {{ height:40px; filter: drop-shadow(0 0 25px rgba(0,212,255,0.25)); }}
+    .container {{ padding:24px; }}
+    .card {{ background:rgba(10,18,34,0.95); border:1px solid rgba(0,212,255,0.16); border-radius:16px; padding:18px; margin-bottom:18px; color:#e7edf8; }}
     .score {{ font-size:44px; font-weight:700; color:{score_color}; }}
-    .grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }}
-    .chip {{ border-radius:10px; padding:10px; text-align:center; font-weight:600; }}
-    .critical {{ background:#fee2e2; color:#dc2626; }}
-    .high {{ background:#ffedd5; color:#ea580c; }}
-    .medium {{ background:#fef9c3; color:#a16207; }}
-    .low {{ background:#dcfce7; color:#166534; }}
-    table {{ width:100%; border-collapse:collapse; }}
-    th, td {{ border:1px solid #e5e7eb; padding:8px; text-align:left; font-size:13px; }}
-    th {{ background:#f8fafc; }}
+    .grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px; }}
+    .chip {{ border-radius:12px; padding:12px 10px; text-align:center; font-weight:700; color:#0f172a; }}
+    .critical {{ background:#fee2e2; color:#991b1b; }}
+    .high {{ background:#ffedd5; color:#9a3412; }}
+    .medium {{ background:#fef9c3; color:#78350f; }}
+    .low {{ background:#dcfce7; color:#14532d; }}
+    .title-text {{ margin:0; font-weight:700; color:#e7edf8; }}
+    .subtitle-text {{ margin:4px 0 0 0; opacity:.9; }}
+    table {{ width:100%; border-collapse:collapse; color:#e7edf8; }}
+    th, td {{ border:1px solid rgba(255,255,255,0.08); padding:10px; text-align:left; font-size:13px; }}
+    th {{ background:rgba(0,212,255,0.08); color:#cbd5e1; }}
+    tr:nth-child(even) {{ background:rgba(255,255,255,0.04); }}
+    tr:hover {{ background:rgba(0,212,255,0.08); }}
+    .summary-text {{ color:#cbd5e1; margin:12px 0 0; }}
   </style>
 </head>
 <body>

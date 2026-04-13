@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment Targets · SecureScope{% endblock %}
+
+{% block content %}
+<main class="targets-main-layout page-container">
+  <div class="page-header">
+    <div class="page-title-section">
+      <h1>Assessment Targets</h1>
+      <p class="breadcrumb text-muted small mb-0">Dashboard › Targets</p>
+    </div>
+    <button type="button" class="btn btn-primary-enterprise" id="btnAddTargetTop">+ Add New Target</button>
+  </div>
+
+  <div class="targets-toolbar card-scope">
+    <div class="toolbar-row toolbar-row1">
+      <input type="search" id="targetsSearch" class="form-control form-control-sm targets-search" placeholder="Search by name, IP, or key…" autocomplete="off">
+      <select id="targetsStatus" class="form-select form-select-sm">
+        <option value="">All status</option>
+        <option value="online">Online</option>
+        <option value="offline">Offline</option>
+        <option value="scanning">Scanning</option>
+      </select>
+      <select id="targetsOS" class="form-select form-select-sm">
+        <option value="">All OS</option>
+        <option value="windows">Windows</option>
+        <option value="linux">Linux</option>
+        <option value="macos">macOS</option>
+      </select>
+    </div>
+    <div class="toolbar-row toolbar-row2">
+      <select id="targetsSort" class="form-select form-select-sm">
+        <option value="name">Sort: Name</option>
+        <option value="score">Sort: Compliance score</option>
+        <option value="last_scan">Sort: Last scan</option>
+        <option value="status">Sort: Status</option>
+      </select>
+      <select id="targetsOrder" class="form-select form-select-sm">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
+      </select>
+      <select id="targetsPageSize" class="form-select form-select-sm">
+        <option value="10">10 / page</option>
+        <option value="25" selected>25 / page</option>
+        <option value="50">50 / page</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-responsive card-scope targets-table-wrap">
+    <table class="table table-dark table-hover targets-table mb-0">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>IP / target</th>
+          <th>OS</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>Findings</th>
+          <th>Last scan</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="targetsTableBody">
+        <tr><td colspan="8" class="text-center py-4 text-secondary">Loading targets…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination-container">
+    <button type="button" id="pagePrev" class="btn btn-sm btn-outline-secondary">← Previous</button>
+    <span id="pageInfo" class="page-info small text-secondary">Page 1 of 1</span>
+    <button type="button" id="pageNext" class="btn btn-sm btn-outline-secondary">Next →</button>
+  </div>
+</main>
+
+{% if demo_mode %}<div class="demo-watermark">LIVE DEMO</div>{% endif %}
+
+<div id="addTargetModal" class="modal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Add New Target</h3>
+      <button type="button" class="modal-close" onclick="closeAddTargetModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="small text-secondary">Remote assessments are started from the dashboard. Continue to the dashboard to run a remote, web, or port scan.</p>
+      <form id="addTargetForm" onsubmit="return submitAddTarget(event);">
+        <div class="form-group mb-2">
+          <label>Display name</label>
+          <input type="text" id="targetName" class="form-control" placeholder="Optional label">
+        </div>
+        <div class="form-group mb-2">
+          <label>IP or hostname</label>
+          <input type="text" id="targetIP" class="form-control" placeholder="e.g. 192.168.1.10" required>
+        </div>
+        <div class="form-group mb-3">
+          <label>OS family</label>
+          <select id="targetOS" class="form-control" required>
+            <option value="">Select…</option>
+            <option value="windows">Windows</option>
+            <option value="linux">Linux</option>
+            <option value="macos">macOS</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary-enterprise w-100">Open dashboard to scan</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+  const CSRF_TOKEN = "{{ csrf_token }}";
+  const CAN_TRIGGER_SCAN = {{ 'true' if role in ('admin', 'org_admin', 'normal') else 'false' }};
+  let targetsCurrentPage = 1;
+  let targetsTotalPages = 1;
+  let targetsSearchTimeout = null;
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function scoreClass(score) {
+    const n = Number(score) || 0;
+    if (n >= 70) return "score-good";
+    if (n >= 40) return "score-fair";
+    return "score-poor";
+  }
+
+  async function loadTargets() {
+    const search = document.getElementById("targetsSearch")?.value.trim() || "";
+    const status = document.getElementById("targetsStatus")?.value || "";
+    const os = document.getElementById("targetsOS")?.value || "";
+    const sort = document.getElementById("targetsSort")?.value || "name";
+    const order = document.getElementById("targetsOrder")?.value || "asc";
+    const pageSize = parseInt(document.getElementById("targetsPageSize")?.value || "25", 10) || 25;
+
+    const params = new URLSearchParams({ sort, order, page: String(targetsCurrentPage), page_size: String(pageSize) });
+    if (status) params.set("status", status);
+    if (os) params.set("os", os);
+    if (search) params.set("q", search);
+
+    const tbody = document.getElementById("targetsTableBody");
+    try {
+      const res = await fetch(`/api/targets?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      const rows = data.targets || data.items || [];
+      targetsTotalPages = Math.max(1, Number(data.total_pages) || 1);
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-secondary">No targets match filters.</td></tr>`;
+      } else {
+        tbody.innerHTML = rows.map((t) => {
+          const tidEnc = encodeURIComponent(t.id);
+          const scanBtn = CAN_TRIGGER_SCAN
+            ? `<button type="button" class="btn btn-sm btn-outline-info btn-scan-row" data-tid="${tidEnc}">Scan</button>`
+            : `<span class="small text-secondary">—</span>`;
+          const removeBtn = t.removable !== false
+            ? `<button type="button" class="btn btn-sm btn-outline-danger btn-remove-target ms-1" data-tid="${tidEnc}" title="Remove this target from stored scans">Remove</button>`
+            : `<span class="small text-secondary ms-1" title="This machine baseline cannot be removed.">—</span>`;
+          const parts = [];
+          if (t.critical_count > 0) parts.push(`<span class="text-danger">${t.critical_count} Critical</span>`);
+          if (t.high_count > 0) parts.push(`<span class="text-warning">${t.high_count} High</span>`);
+          parts.push(`${t.findings_count} total`);
+          return `<tr>
+            <td><strong>${escapeHtml(t.name)}</strong></td>
+            <td>${escapeHtml(t.ip || "—")}</td>
+            <td>${escapeHtml(t.os)}</td>
+            <td><span class="target-status status-${escapeHtml(t.status)}">${escapeHtml(t.status)}</span></td>
+            <td class="${scoreClass(t.compliance_score)}">${Number(t.compliance_score)}%</td>
+            <td class="small">${parts.join(" · ")}</td>
+            <td class="small">${t.last_scan ? escapeHtml(t.last_scan) : "Never"}</td>
+            <td class="text-nowrap">${scanBtn}${removeBtn}
+              <button type="button" class="btn btn-sm btn-outline-light ms-1 btn-details-row" data-tid="${tidEnc}">Details</button>
+            </td>
+          </tr>`;
+        }).join("");
+        tbody.querySelectorAll(".btn-scan-row").forEach((btn) => {
+          btn.addEventListener("click", () => scanTarget(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+        tbody.querySelectorAll(".btn-details-row").forEach((btn) => {
+          btn.addEventListener("click", () => viewTarget(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+        tbody.querySelectorAll(".btn-remove-target").forEach((btn) => {
+          btn.addEventListener("click", () => removeTargetRow(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+      }
+
+      document.getElementById("pageInfo").textContent =
+        `Page ${data.page} of ${targetsTotalPages} (${data.total} targets)`;
+      document.getElementById("pagePrev").disabled = data.page <= 1;
+      document.getElementById("pageNext").disabled = data.page >= targetsTotalPages;
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Could not load targets: ${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  function debounceTargetsSearch() {
+    clearTimeout(targetsSearchTimeout);
+    targetsCurrentPage = 1;
+    targetsSearchTimeout = setTimeout(loadTargets, 300);
+  }
+
+  function openAddTargetModal() {
+    document.getElementById("addTargetModal")?.classList.add("active");
+  }
+  function closeAddTargetModal() {
+    document.getElementById("addTargetModal")?.classList.remove("active");
+  }
+  function submitAddTarget(e) {
+    e.preventDefault();
+    closeAddTargetModal();
+    window.location.href = "/?openRemote=1";
+    return false;
+  }
+
+  async function scanTarget(targetId) {
+    if (!CAN_TRIGGER_SCAN) return;
+    if (!confirm("Start scan on this target?")) return;
+    const res = await fetch(`/api/targets/${encodeURIComponent(targetId)}/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+      body: "{}",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error || "Scan request failed");
+      return;
+    }
+    alert(data.message || "Scan queued");
+    loadTargets();
+  }
+
+  function viewTarget(targetId) {
+    window.location.href = `/targets/${encodeURIComponent(targetId)}`;
+  }
+
+  async function removeTargetRow(targetId) {
+    if (!targetId || targetId === "localhost") {
+      alert("This target cannot be removed.");
+      return;
+    }
+    if (!confirm(`Remove "${targetId}" from stored scans? You can add it again later with a new scan.`)) return;
+    try {
+      const res = await fetch("/api/targets/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ host: targetId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || "Remove failed");
+        return;
+      }
+      loadTargets();
+    } catch (e) {
+      alert(e.message || "Remove failed");
+    }
+  }
+
+  document.getElementById("targetsSearch")?.addEventListener("input", debounceTargetsSearch);
+  ["targetsStatus", "targetsOS", "targetsSort", "targetsOrder", "targetsPageSize"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => { targetsCurrentPage = 1; loadTargets(); });
+  });
+  document.getElementById("pagePrev")?.addEventListener("click", () => {
+    if (targetsCurrentPage > 1) {
+      targetsCurrentPage -= 1;
+      loadTargets();
+    }
+  });
+  document.getElementById("pageNext")?.addEventListener("click", () => {
+    if (targetsCurrentPage < targetsTotalPages) {
+      targetsCurrentPage += 1;
+      loadTargets();
+    }
+  });
+  document.getElementById("btnAddTargetTop")?.addEventListener("click", openAddTargetModal);
+  document.addEventListener("DOMContentLoaded", () => {
+    loadTargets();
+  });
+</script>
+{% endblock %}
