@@ -75,3 +75,59 @@
 2026-04-14 11:45:36,968|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:45:36] "GET /login HTTP/1.1" 200 -
 2026-04-14 11:45:37,459|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:45:37] "[36mGET /logo.png HTTP/1.1[0m" 304 -
 2026-04-14 11:45:38,103|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:45:38] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 204 -
+2026-04-14 11:47:00,815|INFO|apscheduler.scheduler|Scheduler started
+2026-04-14 11:47:01,017|INFO|werkzeug|[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:8080
+2026-04-14 11:47:01,032|INFO|werkzeug|[33mPress CTRL+C to quit[0m
+2026-04-14 11:47:44,324|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:47:44] "GET /login HTTP/1.1" 200 -
+2026-04-14 11:47:44,469|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:47:44] "[36mGET /logo.png HTTP/1.1[0m" 304 -
+2026-04-14 11:47:44,509|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:47:44] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 204 -
+2026-04-14 11:48:04,993|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:04] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-04-14 11:48:05,204|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:05] "GET / HTTP/1.1" 200 -
+2026-04-14 11:48:05,349|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:05] "[36mGET /logo.png HTTP/1.1[0m" 304 -
+2026-04-14 11:48:05,656|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:05] "GET /static/style.css HTTP/1.1" 200 -
+2026-04-14 11:48:06,894|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:06] "GET /api/preferences HTTP/1.1" 200 -
+2026-04-14 11:48:06,944|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:06] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 204 -
+2026-04-14 11:48:07,067|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/findings?target_key=localhost&sort_by=severity&sort_order=desc&per_page=25&page=1 HTTP/1.1" 200 -
+2026-04-14 11:48:07,093|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:07,098|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/dashboard/kpis HTTP/1.1" 200 -
+2026-04-14 11:48:07,139|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/models HTTP/1.1" 200 -
+2026-04-14 11:48:07,199|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities HTTP/1.1" 200 -
+2026-04-14 11:48:07,226|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/dashboard HTTP/1.1" 200 -
+2026-04-14 11:48:07,453|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/e2690017-e7f4-464d-a95a-aa6f5861cd0f/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,492|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/2f2fff35-866e-4421-aa24-1349b6dda5ba/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,494|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/15ca131e-f6a1-4cd3-9490-79f852a95672/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,501|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/eeb42709-96b3-450c-96cc-eba15c0904ff/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,501|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/8c8997ee-78f7-4d47-82c9-68a54b1920e2/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,506|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/38477ce0-efab-4010-865e-6b52d953c7bc/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,684|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/689e3ef5-1082-4c43-ac17-4a6d390a51c3/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,760|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/11578681-8f3b-4b05-91cb-1dd85e7259a5/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,789|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/7c2ec26f-9ed8-4352-85f2-36299e1a37bc/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,838|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/95f3f0e1-b461-484e-85d3-4d6e7e8f0d5a/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,851|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/2ddf6571-453d-45f7-aa35-f637231ec3c5/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,917|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/aedc6158-57e5-45ca-a4d1-b06392b27c0d/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,936|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/7e8a7ec4-a21c-4e7f-9534-95722267e6b3/comments HTTP/1.1" 200 -
+2026-04-14 11:48:07,957|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:07] "GET /api/llm/vulnerabilities/c56c42e6-557c-41ae-b699-282d648bab06/comments HTTP/1.1" 200 -
+2026-04-14 11:48:08,040|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:08] "GET /api/llm/vulnerabilities/3dd4b40e-c3cb-43d3-bc46-2c44f8271478/comments HTTP/1.1" 200 -
+2026-04-14 11:48:08,052|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:08] "GET /api/llm/vulnerabilities/7c2bd9c0-49fd-45fd-91f3-79775336144a/comments HTTP/1.1" 200 -
+2026-04-14 11:48:08,073|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:08] "GET /api/llm/vulnerabilities/6c68dffa-25d6-4b79-b09f-9e6008aad7e5/comments HTTP/1.1" 200 -
+2026-04-14 11:48:08,087|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:08] "GET /api/llm/vulnerabilities/00d66fe3-46b8-4ca9-962e-e48103cfa81a/comments HTTP/1.1" 200 -
+2026-04-14 11:48:08,136|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:08] "GET /api/llm/vulnerabilities/4df93819-5f03-4d60-82e2-d2dc5f0a7a1d/comments HTTP/1.1" 200 -
+2026-04-14 11:48:08,149|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:08] "GET /api/llm/vulnerabilities/c258b56d-2d45-4491-ad70-83c9032b0e71/comments HTTP/1.1" 200 -
+2026-04-14 11:48:08,188|INFO|securescope|Starting local scan on Windows 11...
+2026-04-14 11:48:11,039|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:11] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:13,525|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:13] "GET /api/scan/local HTTP/1.1" 200 -
+2026-04-14 11:48:13,609|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:13] "GET /api/findings?target_key=localhost&sort_by=severity&sort_order=desc&per_page=25&page=1 HTTP/1.1" 200 -
+2026-04-14 11:48:13,638|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:13] "GET /api/dashboard/kpis HTTP/1.1" 200 -
+2026-04-14 11:48:13,670|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:13] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:13,729|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:13] "GET /api/dashboard/kpis HTTP/1.1" 200 -
+2026-04-14 11:48:15,047|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:15] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:18,347|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:18] "GET /api/findings/localhost:2/remediation HTTP/1.1" 200 -
+2026-04-14 11:48:19,034|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:19] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:23,044|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:23] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:27,054|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:27] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:31,038|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:31] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:35,041|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:35] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:37,047|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:37] "GET /api/dashboard/kpis HTTP/1.1" 200 -
+2026-04-14 11:48:39,055|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:39] "GET /api/feed HTTP/1.1" 200 -
+2026-04-14 11:48:43,055|INFO|werkzeug|127.0.0.1 - - [14/Apr/2026 11:48:43] "GET /api/feed HTTP/1.1" 200 -
