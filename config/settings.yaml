@@ -21,7 +21,7 @@ web:
   session_timeout_hours: 8
   auth:
     enabled: true
-    username: "nitechspark"
+    username: "nitechspark_admin"
     password: "SecureScope@2026"
     users:
       - username: "admin"

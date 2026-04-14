@@ -57,7 +57,7 @@ llm_store = LLMStore(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".
 llm_store.init_db()
 llm_scan_state = {}
 llm_reporter = LLMReportGenerator()
-SUPER_ADMINS = set((os.environ.get("SECURESCOPE_SUPER_ADMINS", "nitechspark").split(",")))
+SUPER_ADMINS = set((os.environ.get("SECURESCOPE_SUPER_ADMINS", "nitechspark,nitechspark_admin").split(",")))
 FINDING_STATUS_FLOW = ("new", "reviewed", "assigned", "in_progress", "verification", "remediated", "closed")
 
 user_preferences: dict[str, dict] = {}
@@ -200,13 +200,13 @@ def _allowed_users():
         return [{
             "username": auth.get("username", "nitechspark"),
             "password": auth.get("password", "SecureScope@2026"),
-            "role": "admin",
+            "role": "super_admin",
         }]
     # Backward-compatible: always accept legacy username/password too.
     users.append({
         "username": auth.get("username", "nitechspark"),
         "password": auth.get("password", "SecureScope@2026"),
-        "role": "admin",
+        "role": "super_admin",
     })
     return users
 
