@@ -835,7 +835,7 @@ def role_required(*roles):
         def inner(*args, **kwargs):
             if app.config.get('TESTING'):
                 return f(*args, **kwargs)
-            if session.get("role") not in roles:
+            if session.get("role") not in roles and session.get("role") != "super_admin":
                 return jsonify({"error": "Forbidden for current role"}), 403
             return f(*args, **kwargs)
         return inner
@@ -2179,7 +2179,14 @@ def llm_dashboard():
 def llm_vulnerabilities():
     status = request.args.get("status")
     rows = llm_store.list_vulnerabilities(_llm_user_id(), status=status, limit=500)
-    return jsonify(rows)
+    seen = set()
+    dedup = []
+    for r in rows:
+        vt = r.get("vulnerability_type")
+        if vt not in seen:
+            seen.add(vt)
+            dedup.append(r)
+    return jsonify(dedup)
 
 
 @app.route('/api/llm/vulnerabilities/<vuln_id>', methods=['PATCH'])

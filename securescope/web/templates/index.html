@@ -1768,7 +1768,15 @@
     async function loadLLMRemediationList() {
       const wrap = document.getElementById("llm-remediation-list");
       const r = await fetch("/api/llm/vulnerabilities");
-      const rows = await r.json();
+      let rows = await r.json();
+      if (Array.isArray(rows)) {
+        const seen = new Set();
+        rows = rows.filter(v => {
+          if (seen.has(v.vulnerability_type)) return false;
+          seen.add(v.vulnerability_type);
+          return true;
+        });
+      }
       if (!Array.isArray(rows) || rows.length === 0) {
         wrap.innerHTML = "<div style='color:#8892a4'>No vulnerabilities to remediate.</div>";
         return;
