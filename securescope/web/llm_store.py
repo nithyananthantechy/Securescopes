@@ -381,6 +381,28 @@ class LLMStore:
             "model_parameters": _from_json(row["model_parameters"]),
         }
 
+    def update_model(self, model_id: str, user_id: str, model_name: str, model_type: str, api_endpoint: str | None, api_key: str | None, model_parameters: dict | None) -> bool:
+        now = _utc_now()
+        with self._conn() as conn:
+            cur = conn.execute(
+                """
+                UPDATE llm_models 
+                SET model_name = ?, model_type = ?, api_endpoint = ?, api_key = ?, model_parameters = ?, updated_at = ?
+                WHERE id = ? AND user_id = ?
+                """,
+                (
+                    model_name,
+                    model_type,
+                    self.cipher.encrypt(api_endpoint),
+                    self.cipher.encrypt(api_key),
+                    _to_json(model_parameters),
+                    now,
+                    model_id,
+                    user_id
+                ),
+            )
+        return cur.rowcount > 0
+
     def create_scan(self, model_id: str) -> str:
         scan_id = str(uuid.uuid4())
         now = _utc_now()
