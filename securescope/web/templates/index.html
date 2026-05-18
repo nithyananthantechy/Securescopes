@@ -171,6 +171,14 @@
       letter-spacing: 0.05em;
       display: flex;
       align-items: center;
+      gap: 12px;
+    }
+
+    .logo-img-main {
+      height: 42px;
+      width: auto;
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.25);
     }
 
     .logo .logo-nite {
@@ -1307,6 +1315,16 @@
       font-family: var(--font-display);
       font-size: 1.25rem;
       font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .footer-logo img {
+      height: 32px;
+      width: auto;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
     }
 
     .footer-logo span.nite { color: var(--text-muted); }
@@ -1349,6 +1367,7 @@
   <header id="mainHeader">
     <div class="container nav-container">
       <a href="/" class="logo">
+        <img src="/static/img/nitesentinel-logo.png" alt="NiteSentinel Logo" class="logo-img-main" onerror="this.style.display='none'">
         <span class="logo-nite">Nite</span><span class="logo-sentinel">Sentinel</span>
       </a>
       
@@ -1801,6 +1820,7 @@
   <footer>
     <div class="container footer-inner">
       <div class="footer-logo">
+        <img src="/static/img/nitesentinel-logo.png" alt="NiteSentinel Logo" onerror="this.style.display='none'">
         <span class="nite">Nite</span><span class="sentinel">Sentinel</span> v1.1
       </div>
       
