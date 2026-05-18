@@ -5,7 +5,7 @@ from unittest.mock import patch
 def test_index_route(client):
     resp = client.get('/')
     assert resp.status_code == 200
-    assert b'SecureScope' in resp.data
+    assert b'NiteSentinel' in resp.data
 
 
 def test_login_route(client):
@@ -56,7 +56,7 @@ def test_login_post_valid_credentials(client):
     """Valid login should redirect to index."""
     resp = client.post('/login', data={
         'username': 'nitechspark',
-        'password': 'SecureScope@2026'
+        'password': 'NiteSentinel@2026'
     })
     assert resp.status_code == 302
     assert '/' in resp.headers.get('Location', '')
@@ -94,7 +94,7 @@ def test_report_local_route(client, monkeypatch):
     resp = client.get('/api/report/local')
     assert resp.status_code == 200
     assert resp.content_type == 'text/html; charset=utf-8'
-    assert b'SecureScope' in resp.data
+    assert b'NiteSentinel' in resp.data
 
 
 def test_report_remote_no_data(client):

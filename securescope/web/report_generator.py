@@ -39,7 +39,7 @@ class LLMReportGenerator:
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>SecureScope LLM Security Report</title>
+  <title>NiteSentinel LLM Security Report</title>
   <style>
     body {{ font-family: Arial, sans-serif; background:#071126; margin:0; color:#e7edf8; }}
     .top {{ background:#081b34; color:#f8fbff; padding:18px 24px; display:flex; align-items:center; gap:18px; box-shadow: inset 0 -1px 0 rgba(255,255,255,0.08); }}
@@ -65,9 +65,9 @@ class LLMReportGenerator:
 </head>
 <body>
   <div class="top">
-    <img src="/logo.png" alt="NITECHSPARK logo" />
+    <img src="/static/img/nitesentinel-logo.png" alt="NITECHSPARK logo" />
     <div>
-      <div style="font-size:20px;font-weight:700;">NITECHSPARK SecureScope</div>
+      <div style="font-size:20px;font-weight:700;">NITECHSPARK NiteSentinel</div>
       <div style="font-size:12px;opacity:.9;">LLM & Chatbot Security Audit Report</div>
     </div>
   </div>
@@ -122,7 +122,7 @@ class LLMReportGenerator:
         doc = SimpleDocTemplate(buffer, pagesize=A4)
         styles = getSampleStyleSheet()
         elems = []
-        elems.append(Paragraph("<b>NITECHSPARK SecureScope - LLM Security Report</b>", styles["Title"]))
+        elems.append(Paragraph("<b>NITECHSPARK NiteSentinel - LLM Security Report</b>", styles["Title"]))
         elems.append(Spacer(1, 12))
         elems.append(Paragraph(f"Scan ID: {scan.get('scan_id')}", styles["Normal"]))
         elems.append(Paragraph(f"Security Score: {scan.get('security_score', 0)}/100", styles["Normal"]))

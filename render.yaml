@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nitesentinel
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT securescope.web.app:app
+    disk:
+      name: nitesentinel-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: SECURESCOPE_DB_PATH
+        value: /data/llm_audit.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+        placeholder: "Optional: Your Google Gemini API Key"
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-2.0-flash

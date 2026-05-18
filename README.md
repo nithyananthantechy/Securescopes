@@ -1,12 +1,12 @@
-# SecureScope by NiTechSpark
+# NiteSentinel by NITECHSPARK
 > One Tool. Every Device. Total Visibility.
 
-## What is SecureScope?
-SecureScope is a comprehensive cybersecurity platform designed to enhance security measures for businesses and organizations. It offers AI-driven cybersecurity risk analysis, compliance automation, and supply chain risk management, making it an invaluable tool for maintaining robust security protocols. SecureScope combines threat intelligence with CVE aggregation, asynchronous scanning, repository static analysis, and real-time alerting within a single dashboard. This local-first cyber risk platform provides users with the ability to scan AI-generated applications for data leakage and vulnerabilities effectively. Additionally, SecureScope performs full-stack TLS and HTTPS security analysis by evaluating certificate health, detecting risky protocol support and weak ciphers, assigning a security grade to domains scanned. The results are presented in an intuitive React dashboard that facilitates easy interpretation of complex data.
+## What is NiteSentinel?
+NiteSentinel is a comprehensive cybersecurity platform designed to enhance security measures for businesses and organizations. It offers AI-driven cybersecurity risk analysis, compliance automation, and supply chain risk management, making it an invaluable tool for maintaining robust security protocols. NiteSentinel combines threat intelligence with CVE aggregation, asynchronous scanning, repository static analysis, and real-time alerting within a single dashboard. This local-first cyber risk platform provides users with the ability to scan AI-generated applications for data leakage and vulnerabilities effectively. Additionally, NiteSentinel performs full-stack TLS and HTTPS security analysis by evaluating certificate health, detecting risky protocol support and weak ciphers, assigning a security grade to domains scanned. The results are presented in an intuitive dashboard that facilitates easy interpretation of complex data.
 
 ## Features
 - AI-driven cybersecurity risk analysis
-- Compliance automation (CIS/ISO/PCI/NIST)
+- Compliance automation (CIS/ISO/PCI/NIST/DPDP)
 - Supply chain risk management
 - Threat intelligence with CVE aggregation
 - Asynchronous scanning
@@ -17,7 +17,6 @@ SecureScope is a comprehensive cybersecurity platform designed to enhance securi
 - Certificate health evaluation
 - Detect risky protocol support and weak ciphers
 - Security grade assignment for domains scanned
-- React dashboard for intuitive data visualization
 - Windows 11/10 security audit
 - Linux remote scan via SSH
 - Network device scan (no SSH needed)
@@ -40,10 +39,10 @@ python main.py web --port 8080 --demo
 
 ## Login
 Username: nitechspark
-Password: SecureScope@2026
+Password: NiteSentinel@2026
 
 ## Built By
-NiTechSpark - IT Security & DevOps Startup
+NITECHSPARK - IT Security & DevOps Startup
 - Email: nitechspark@gmail.com
 - Phone: +91 6385576354
 - Website: https://nitechspark.vercel.app/
@@ -51,4 +50,4 @@ NiTechSpark - IT Security & DevOps Startup
 
 ## License
 
-MIT License - Copyright (c) 2026 NiTechSpark
+MIT License - Copyright (c) 2026 NITECHSPARK

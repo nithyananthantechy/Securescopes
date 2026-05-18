@@ -155,7 +155,7 @@ class Scanner:
 
         # 2. Security Headers Check
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "SecureScope/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "NiteSentinel/1.1.0"})
             resp = urllib.request.urlopen(req, timeout=10)
             headers = dict(resp.headers)
 

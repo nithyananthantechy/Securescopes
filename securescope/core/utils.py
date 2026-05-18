@@ -12,10 +12,19 @@ from rich.logging import RichHandler
 # Global Console for rich output
 console = Console()
 
+class SafeTimedRotatingFileHandler(TimedRotatingFileHandler):
+    """A standard TimedRotatingFileHandler that gracefully handles Windows file locks on rollover."""
+    def doRollover(self):
+        try:
+            super().doRollover()
+        except (PermissionError, OSError) as e:
+            # On Windows, logs may be temporarily locked by other active processes or threads
+            sys.stderr.write(f"[Logging Warning] Safely bypassed rollover PermissionError: {e}\n")
+
 def setup_logging(log_file="logs/securescope.log"):
     """Setup logging to both file and rich console."""
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    rotating = TimedRotatingFileHandler(log_file, when="midnight", backupCount=7, encoding="utf-8")
+    rotating = SafeTimedRotatingFileHandler(log_file, when="midnight", backupCount=7, encoding="utf-8")
     rotating.setFormatter(logging.Formatter("%(asctime)s|%(levelname)s|%(name)s|%(message)s"))
     logging.basicConfig(
         level=logging.INFO,
@@ -100,9 +109,9 @@ def run_command(command, shell=True, timeout=30, ssh=None):
         return {"stdout": "", "stderr": str(e), "returncode": -1, "success": False}
 
 def get_banner(plat_info):
-    """Generate the SecureScope startup banner."""
+    """Generate the NiteSentinel startup banner."""
     banner_content = [
-        "[bold cyan]SecureScope v1.0 by NiTechSpark[/bold cyan]",
+        "[bold cyan]NiteSentinel v1.1.0 by NITECHSPARK[/bold cyan]",
         f"[yellow]Platform: {plat_info['os']}[/yellow]",
         "[green]Mode: Local + Remote Scan Ready[/green]"
     ]

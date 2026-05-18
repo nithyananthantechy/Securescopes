@@ -177,7 +177,7 @@ class Reporter:
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SecureScope Security Report - {org}</title>
+    <title>NiteSentinel Security Report - {org}</title>
     <style>
         @page {{
             size: A4;
@@ -252,7 +252,7 @@ class Reporter:
     <!-- PAGE 1: COVER -->
     <div class="page cover">
         <div class="logo">NITECHSPARK</div>
-        <div class="subtitle">SecureScope Security Assessment Report</div>
+        <div class="subtitle">NiteSentinel Security Assessment Report</div>
         <table class="cover-table">
             <tr><td><b>Target</b></td><td>{hostname}</td></tr>
             <tr><td><b>Operating System</b></td><td>{os_name}</td></tr>
@@ -307,9 +307,9 @@ class Reporter:
         </div>
 
         <div class="footer-box">
-            <p style="font-weight: bold; color: #00d4ff; margin-bottom: 5px;">About NiTechSpark Security Systems</p>
+            <p style="font-weight: bold; color: #00d4ff; margin-bottom: 5px;">About NITECHSPARK Security Systems</p>
             <p style="font-size: 12px; margin-bottom: 10px;">
-                NiTechSpark provides advanced security automation and hardening solutions for enterprise infrastructure.
+                NITECHSPARK provides advanced security automation and hardening solutions for enterprise infrastructure.
             </p>
             <p style="font-size: 12px;">
                 Email: <a href="mailto:nitechspark@gmail.com">nitechspark@gmail.com</a> | 
@@ -337,7 +337,7 @@ class Reporter:
         doc = SimpleDocTemplate(output_path, pagesize=letter)
         styles = getSampleStyleSheet()
         elements = []
-        elements.append(Paragraph(f"<b>{self.org_name} SecureScope Security Assessment Report</b>", styles['Title']))
+        elements.append(Paragraph(f"<b>{self.org_name} NiteSentinel Security Assessment Report</b>", styles['Title']))
         elements.append(Spacer(1, 12))
         meta_data = [[f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"], [f"Target: {target_info.get('os')}"], [f"Security Score: {score}/100"]]
         t = Table(meta_data); elements.append(t); elements.append(Spacer(1, 12))

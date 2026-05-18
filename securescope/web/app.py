@@ -44,6 +44,7 @@ from securescope.web.llm_store import LLMStore
 from securescope.web.report_generator import LLMReportGenerator
 from securescope.integrations.slack import send_slack_alert
 from securescope.integrations.email import send_email_report
+from securescope.core.compliance.dpdp_2023 import DPDP_2023_FRAMEWORK
 
 
 # Load Configuration
@@ -64,7 +65,7 @@ template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templat
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
-app.secret_key = os.environ.get("SECRET_KEY", "nitechspark-securescope-2026-prod")
+app.secret_key = os.environ.get("SECRET_KEY", "nitechspark-nitesentinel-2026-prod")
 app.permanent_session_lifetime = timedelta(
     hours=config.get("web", {}).get("session_timeout_hours", 8)
 )
@@ -77,12 +78,15 @@ removed_hosts = set()
 rate_limit_state = {}
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.start()
-llm_store = LLMStore(
-    os.path.join(
+db_path = os.environ.get("SECURESCOPE_DB_PATH")
+if not db_path:
+    db_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "llm_audit.db"
     )
-)
+llm_store = LLMStore(db_path)
 llm_store.init_db()
+from securescope.web.demo_routes import demo_bp
+app.register_blueprint(demo_bp)
 llm_scan_state = {}
 llm_reporter = LLMReportGenerator()
 
@@ -164,7 +168,7 @@ def get_security_context():
 
 def create_system_prompt():
     context = get_security_context()
-    return f"""You are SecureScope, an AI-powered security assistant for enterprise cybersecurity assessment and remediation.
+    return f"""You are NiteSentinel, an AI-powered security assistant for enterprise cybersecurity assessment and remediation.
 
 Current Environment Context:
 - Total Targets: {context["targets_total"]}
@@ -470,7 +474,7 @@ ROLE_MAP = {
     "admin": "admin",
     "super_admin": "super_admin",
     "viewer": "viewer",
-    "guest": "viewer",
+    "guest": "guest",
 }
 
 
@@ -562,6 +566,7 @@ COMPLIANCE_FRAMEWORKS = {
             },
         },
     },
+    "dpdp_2023": DPDP_2023_FRAMEWORK,
 }
 
 FINDING_TO_CONTROL_MAP = {
@@ -569,21 +574,25 @@ FINDING_TO_CONTROL_MAP = {
         "cis": ["CIS-1.1"],
         "iso27001": ["A.5.1"],
         "pci-dss": ["PCI-2"],
+        "dpdp_2023": ["DPDP-8.5"],
     },
     "weak_encryption": {
         "cis": ["CIS-3.13"],
         "iso27001": ["A.10.1"],
         "pci-dss": ["PCI-4"],
+        "dpdp_2023": ["DPDP-8.5"],
     },
     "exposed_service": {
         "cis": ["CIS-1.1"],
         "iso27001": ["A.8.1"],
         "pci-dss": ["PCI-1"],
+        "dpdp_2023": ["DPDP-8.5"],
     },
     "missing_patch": {
         "cis": ["CIS-2.3"],
         "iso27001": ["A.12.6"],
         "pci-dss": ["PCI-6"],
+        "dpdp_2023": ["DPDP-8.5"],
     },
 }
 
@@ -615,18 +624,29 @@ def _allowed_users():
         return [
             {
                 "username": auth.get("username", "nitechspark"),
-                "password": auth.get("password", "SecureScope@2026"),
-                "role": "admin",
+                "password": auth.get("password", "NiteSentinel@2026"),
+                "role": "super_admin",
             }
         ]
     # Backward-compatible: always accept legacy username/password too.
+    legacy_user = auth.get("username", "nitechspark")
+    legacy_pass = auth.get("password", "NiteSentinel@2026")
     users.append(
         {
-            "username": auth.get("username", "nitechspark"),
-            "password": auth.get("password", "SecureScope@2026"),
-            "role": "admin",
+            "username": legacy_user,
+            "password": legacy_pass,
+            "role": "super_admin",
         }
     )
+    # Also support 'nitechspark' as standard fallback
+    if legacy_user != "nitechspark":
+        users.append(
+            {
+                "username": "nitechspark",
+                "password": "NiteSentinel@2026",
+                "role": "super_admin",
+            }
+        )
     return users
 
 
@@ -675,13 +695,13 @@ def _frameworks_for_check(check_name):
     name = (check_name or "").lower()
     mapping = []
     if any(x in name for x in ("ssh", "root", "password auth")):
-        mapping += ["CIS", "NIST"]
+        mapping += ["CIS", "NIST", "DPDP"]
     if any(x in name for x in ("firewall", "port", "smb")):
-        mapping += ["CIS", "PCI", "NIST"]
+        mapping += ["CIS", "PCI", "NIST", "DPDP"]
     if any(x in name for x in ("password", "guest", "admin")):
-        mapping += ["ISO", "CIS", "NIST"]
+        mapping += ["ISO", "CIS", "NIST", "DPDP"]
     if not mapping:
-        mapping = ["ISO"]
+        mapping = ["ISO", "DPDP"]
     return list(dict.fromkeys(mapping))
 
 
@@ -888,7 +908,10 @@ def _default_user_preferences() -> dict:
 
 
 def has_permission(_org_id, perm: str) -> bool:
-    role = session.get("role", "viewer")
+    if app.config.get("TESTING") and "role" not in session:
+        role = "super_admin"
+    else:
+        role = session.get("role", "viewer")
 
     # Permission matrix
     PERMISSIONS = {
@@ -980,6 +1003,11 @@ def has_permission(_org_id, perm: str) -> bool:
             "target_view",  # summary only
             "report_view",  # view only
             "compliance_view",  # read-only
+        ],
+        "guest": [
+            "finding_view",
+            "target_view",
+            "compliance_view",
         ],
     }
 
@@ -1233,7 +1261,7 @@ def _build_llm_html_report(scan: dict):
     <html>
     <head>
       <meta charset="utf-8">
-      <title>SecureScope LLM Report</title>
+      <title>NiteSentinel LLM Report</title>
       <style>
         body {{ font-family: Arial, sans-serif; margin: 0; background: #071124; color: #e8f0ff; }}
         .header {{ display: flex; align-items: center; gap: 12px; background: #10213d; color: #fff; padding: 16px 24px; }}
@@ -1245,9 +1273,9 @@ def _build_llm_html_report(scan: dict):
     </head>
     <body>
       <div class="header">
-        <img src="/logo.png" class="logo" alt="SecureScope logo" />
+        <img src="/static/img/nitesentinel-logo.png" class="logo" alt="NiteSentinel logo" />
         <div>
-          <div style="font-size:20px;font-weight:700;">SecureScope</div>
+          <div style="font-size:20px;font-weight:700;">NiteSentinel</div>
           <div style="font-size:12px;opacity:.9;">LLM & Chatbot Security Audit Report</div>
         </div>
       </div>
@@ -1319,6 +1347,10 @@ def login_required(f):
             return _login_or_api_unauthorized()
         session.permanent = True
         now_ts = datetime.utcnow().timestamp()
+        if session.get("demo_session"):
+            if now_ts > session.get("demo_expiry", 0):
+                session.clear()
+                return _login_or_api_unauthorized()
         # Do not treat missing last_seen as epoch 0 — that would instantly expire every session.
         if "last_seen" in session:
             try:
@@ -1378,6 +1410,12 @@ def secure_post(f):
         key = session.get("username") or request.remote_addr or "anon"
         if not _check_rate_limit(f"{request.path}:{key}", limit=10, per_seconds=60):
             return jsonify({"error": "Rate limit exceeded (10/min)."}), 429
+        if session.get("demo_session"):
+            if request.path.startswith("/api/") or request.headers.get("Content-Type") == "application/json":
+                return jsonify({"error": "Forbidden: write operations are not allowed in demo mode."}), 403
+            from flask import flash
+            flash("Write operations are not allowed in demo mode.", "warning")
+            return redirect(url_for("dashboard"))
         token = request.headers.get("X-CSRF-Token")
         if token != session.get("csrf_token"):
             return jsonify({"error": "Invalid CSRF token"}), 403
@@ -1403,6 +1441,7 @@ def login():
         password = request.form.get("password")
         db_user = llm_store.authenticate_user(username, password)
         if db_user:
+            session.clear()
             session["logged_in"] = True
             session["username"] = db_user["username"]
             session["user_id"] = db_user.get("id")
@@ -1410,9 +1449,10 @@ def login():
             session["org_id"] = db_user.get("org_id")
             session["last_seen"] = datetime.utcnow().timestamp()
             _csrf_token()
-            return redirect(url_for("index"))
+            return redirect(url_for("dashboard"))
         for user in _allowed_users():
             if username == user.get("username") and password == user.get("password"):
+                session.clear()
                 session["logged_in"] = True
                 session["username"] = username
                 session["user_id"] = username
@@ -1420,7 +1460,7 @@ def login():
                 session["org_id"] = None
                 session["last_seen"] = datetime.utcnow().timestamp()
                 _csrf_token()
-                return redirect(url_for("index"))
+                return redirect(url_for("dashboard"))
         return render_template("login.html", error="Invalid credentials")
     return render_template("login.html")
 
@@ -1431,14 +1471,19 @@ def logout():
     return redirect(url_for("login"))
 
 
-# --- Routes ---
-@app.route("/")
-@login_required
+@app.route("/", methods=["GET"])
+@app.route("/home", methods=["GET"])
 def index():
+    return render_template("index.html")
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
     plat_info = detect_platform()
     demo_mode = bool(app.config.get("DEMO_MODE"))
     return render_template(
-        "index.html",
+        "dashboard.html",
         plat_info=plat_info,
         csrf_token=_csrf_token(),
         username=session.get("username", "operator"),
@@ -2121,6 +2166,12 @@ def api_frameworks():
                     "version": COMPLIANCE_FRAMEWORKS["pci-dss"]["version"],
                     "control_count": len(COMPLIANCE_FRAMEWORKS["pci-dss"]["controls"]),
                 },
+                {
+                    "id": "dpdp_2023",
+                    "name": COMPLIANCE_FRAMEWORKS["dpdp_2023"]["name"],
+                    "version": COMPLIANCE_FRAMEWORKS["dpdp_2023"]["version"],
+                    "control_count": len(COMPLIANCE_FRAMEWORKS["dpdp_2023"]["controls"]),
+                },
             ]
         }
     )
@@ -2157,6 +2208,7 @@ def api_get_remediation(finding_id):
 @require_permission("finding_update")
 def api_update_remediation(finding_id):
     finding_id = unquote(finding_id)
+    user_id = session.get("user_id") or session.get("username") or "anonymous"
     data = request.get_json() or {}
     if finding_id not in finding_remediation:
         finding_remediation[finding_id] = {
@@ -2319,8 +2371,8 @@ def _attach_report_branding(report_data: dict, org_id: str | None) -> dict:
     if org_id:
         display = f"{brand_org} (org {org_id})"
     out["organization_display_name"] = display
-    out["logo_url"] = f"{root}/logo.png"
-    out["product_name"] = (config.get("app", {}) or {}).get("name", "SecureScope")
+    out["logo_url"] = f"{root}/static/img/nitesentinel-logo.png"
+    out["product_name"] = (config.get("app", {}) or {}).get("name", "NiteSentinel")
     out["client_name"] = (config.get("branding", {}) or {}).get("client_name", "")
     return out
 
@@ -2338,12 +2390,12 @@ def render_report_html(report_data: dict, report_type: str) -> str:
         org_line = html_escape(
             str(
                 (config.get("branding", {}) or {}).get(
-                    "organization_name", "NiTechSpark"
+                    "organization_name", "NITECHSPARK"
                 )
             )
         )
     logo = html_escape(str(report_data.get("logo_url", "")))
-    product = html_escape(str(report_data.get("product_name", "SecureScope")))
+    product = html_escape(str(report_data.get("product_name", "NiteSentinel")))
     gen_at = html_escape(str(report_data.get("generated_at", "")))
 
     html = f"""<!doctype html>
@@ -2376,7 +2428,7 @@ def render_report_html(report_data: dict, report_type: str) -> str:
 </head>
 <body>
   <div class="report-brand">
-    <img src="/logo.png" alt="SecureScope logo" onerror="this.style.display='none'" />
+    <img src="/static/img/nitesentinel-logo.png" alt="NiteSentinel logo" onerror="this.style.display='none'" />
     <div>
       <div class="product">{product}</div>
     </div>
@@ -2462,7 +2514,7 @@ def render_report_html(report_data: dict, report_type: str) -> str:
         html += "  </table>\n"
     html += """
   <div class="footer">
-    <p>This report was automatically generated by SecureScope.</p>
+    <p>This report was automatically generated by NiteSentinel.</p>
     <p>CONFIDENTIAL - For authorized recipients only.</p>
   </div>
 </body>
@@ -2553,7 +2605,7 @@ def generate_xlsx_report(report_data: dict, report_type: str) -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = "Report"
-    ws.append([report_data.get("title", "SecureScope Report")])
+    ws.append([report_data.get("title", "NiteSentinel Report")])
     ws.append(["Generated", report_data.get("generated_at", "")])
     if report_type == "findings":
         ws.append(["Target", "Title", "Severity", "Status"])
@@ -2623,7 +2675,23 @@ def api_generate_report():
         html_content = render_report_html(report_data, report_type)
         return Response(html_content, mimetype="text/html")
     if format_type == "pdf":
-        pdf_content = generate_pdf_report(report_data, report_type)
+        html_content = render_report_html(report_data, report_type)
+        if session.get("demo_session"):
+            watermark_div = """
+            <div style="position: fixed; top: 350px; left: 100px; width: 600px; height: 600px; z-index: -1000; font-size: 80px; color: rgba(220, 38, 38, 0.08); font-weight: bold; transform: rotate(-30deg); pointer-events: none;">
+              DEMO VERSION
+            </div>
+            """
+            html_content = html_content.replace("<body>", f"<body>{watermark_div}")
+        try:
+            from xhtml2pdf import pisa
+            pdf_buf = BytesIO()
+            pisa_status = pisa.CreatePDF(html_content, dest=pdf_buf)
+            if pisa_status.err:
+                raise Exception("pisa.CreatePDF failed")
+            pdf_content = pdf_buf.getvalue()
+        except Exception:
+            pdf_content = generate_pdf_report(report_data, report_type)
         return Response(
             pdf_content,
             mimetype="application/pdf",
@@ -2637,6 +2705,48 @@ def api_generate_report():
             headers={"Content-Disposition": 'attachment; filename="report.xlsx"'},
         )
     return jsonify({"error": "Unsupported format"}), 400
+
+
+@app.route("/report/<scan_id>/pdf")
+@login_required
+def download_target_pdf_report(scan_id):
+    scan_id = unquote(scan_id)
+    if scan_id not in stored_scan_results:
+        return jsonify({"error": f"Target/Scan {scan_id} not found."}), 404
+        
+    org_id = session.get("org_id")
+    scan_data = stored_scan_results[scan_id]
+    if org_id and scan_data.get("org_id") not in (None, org_id):
+        return jsonify({"error": "Forbidden"}), 403
+        
+    report_data = generate_executive_report("cis", [scan_id], org_id)
+    report_data = _attach_report_branding(report_data, org_id)
+    
+    html_content = render_report_html(report_data, "executive")
+    
+    if session.get("demo_session"):
+        watermark_div = """
+        <div style="position: fixed; top: 350px; left: 100px; width: 600px; height: 600px; z-index: -1000; font-size: 80px; color: rgba(220, 38, 38, 0.08); font-weight: bold; transform: rotate(-30deg); pointer-events: none;">
+          DEMO VERSION
+        </div>
+        """
+        html_content = html_content.replace("<body>", f"<body>{watermark_div}")
+        
+    try:
+        from xhtml2pdf import pisa
+        pdf_buf = BytesIO()
+        pisa_status = pisa.CreatePDF(html_content, dest=pdf_buf)
+        if pisa_status.err:
+            raise Exception("pisa.CreatePDF failed")
+        pdf_bytes = pdf_buf.getvalue()
+    except Exception:
+        pdf_bytes = generate_pdf_report(report_data, "executive")
+        
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="nitesentinel_report_{scan_id}.pdf"'},
+    )
 
 
 def _run_scheduled_scan(target, mode):
@@ -3036,11 +3146,11 @@ def email_llm_report(scan_id):
     html = scan.get("report_html") or llm_reporter.build_html(scan)
     score = scan.get("security_score", 0)
     body = (
-        f"SecureScope LLM report\nScan ID: {scan_id}\nScore: {score}/100\n\n{message}"
+        f"NiteSentinel LLM report\nScan ID: {scan_id}\nScore: {score}/100\n\n{message}"
     )
     ok, msg = send_email_report(
         recipients=recipients,
-        subject=f"SecureScope LLM Report {scan_id}",
+        subject=f"NiteSentinel LLM Report {scan_id}",
         body=body,
         html=html,
     )

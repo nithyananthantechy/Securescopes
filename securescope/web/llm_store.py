@@ -207,6 +207,14 @@ class LLMStore:
                     is_active INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS demo_visits (
+                    id TEXT PRIMARY KEY,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    timestamp TEXT NOT NULL,
+                    pages_viewed INTEGER DEFAULT 0
+                );
                 """
             )
             self._ensure_llm_vulnerability_columns(conn)

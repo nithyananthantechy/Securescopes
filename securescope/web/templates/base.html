@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}SecureScope Enterprise{% endblock %}</title>
+  <title>{% block title %}NiteSentinel Enterprise{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  {% if session.get('demo_session') %}
+  <div style="background: #fbbf24; color: #000; padding: 10px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 1050;">
+      You are viewing a 3-day free trial of NiteSentinel. Access is limited to Dashboard, Targets, and Compliance. Contact NITECHSPARK Sales to license NiteSentinel for your organization: <a href="mailto:nitechspark@gmail.com" style="color: #000; text-decoration: underline; font-weight: bold;">nitechspark@gmail.com</a> / +91 6385576354
+  </div>
+  {% endif %}
   <div class="progress-top"><div id="progressTop" class="progress-bar-top"></div></div>
   <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
 
@@ -17,8 +22,8 @@
     <div class="header-inner header-top-bar">
       <div class="header-top-left">
         <div class="header-brand">
-          <img src="/logo.png" alt="SecureScope logo" class="brand-logo" onerror="this.style.display='none'">
-          <div class="brand-title">SecureScope</div>
+          <img src="/static/img/nitesentinel-logo.png" alt="NiteSentinel logo" class="brand-logo" onerror="this.style.display='none'">
+          <div class="brand-title">NiteSentinel</div>
         </div>
         <div class="header-mobile-toggle">
           <button type="button" id="mobileMenuToggle" class="btn-hamburger" aria-label="Open menu" aria-expanded="false">
@@ -66,6 +71,9 @@
           <a href="/?tab=settings" class="tab-btn" data-tab="settings">Settings</a>
           <a href="/?tab=executive" class="tab-btn" data-tab="executive">Executive</a>
         </div>
+      </div>
+      <div style="padding:12px;text-align:center;font-size:10px;color:#8892a4;border-top:1px solid #1e2d4a;margin-top:auto;white-space:nowrap;">
+        NiteSentinel v1.1.0 by NITECHSPARK
       </div>
     </div>
   </aside>

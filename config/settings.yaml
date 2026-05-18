@@ -1,12 +1,12 @@
-# SecureScope Default Configuration
+# NiteSentinel Default Configuration
 app:
-  name: SecureScope
-  version: 1.0.0
-  company: NiTechSpark
+  name: NiteSentinel
+  version: 1.1.0
+  company: NITECHSPARK
   license: MIT
 
 reporting:
-  org_name: NiTechSpark
+  org_name: NITECHSPARK
   output_dir: reports/
   default_format: pdf
 
@@ -22,16 +22,16 @@ web:
   auth:
     enabled: true
     username: "nitechspark_admin"
-    password: "SecureScope@2026"
+    password: "NiteSentinel@2026"
     users:
       - username: "admin"
-        password: "SecureScope@2026"
+        password: "NiteSentinel@2026"
         role: "admin"
       - username: "viewer"
         password: "ViewOnly@2026"
         role: "viewer"
 
 branding:
-  organization_name: "NiTechSpark"
+  organization_name: "NITECHSPARK"
   client_name: "Default Client"
   report_primary_color: "#00d4ff"
