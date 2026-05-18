@@ -1041,8 +1041,40 @@
         if (i < idx) step.classList.add("completed");
         else if (i === idx) step.classList.add("active");
       });
+      
       const asg = document.getElementById("remediationAssignee-" + rid);
-      if (asg) asg.value = data.assigned_to || "";
+      if (asg) {
+        let users = [];
+        try {
+          const uRes = await fetch("/api/admin/users");
+          if (uRes.ok) {
+            users = await uRes.json();
+          }
+        } catch (_) {}
+        
+        if (!users || users.length === 0) {
+          users = [
+            { username: "nitechspark_admin", role: "super_admin" },
+            { username: "admin", role: "admin" },
+            { username: "viewer", role: "viewer" }
+          ];
+        }
+        
+        const currentVal = data.assigned_to || "";
+        let optionsHtml = '<option value="">Unassigned</option>';
+        users.forEach(u => {
+          const displayRole = u.role ? ` (${u.role.toUpperCase()})` : '';
+          optionsHtml += `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}${displayRole}</option>`;
+        });
+        
+        if (currentVal && !users.some(u => u.username === currentVal)) {
+          optionsHtml += `<option value="${escapeHtml(currentVal)}">${escapeHtml(currentVal)}</option>`;
+        }
+        
+        asg.innerHTML = optionsHtml;
+        asg.value = currentVal;
+      }
+      
       const dl = document.getElementById("remediationDeadline-" + rid);
       if (dl) dl.value = data.deadline || "";
       const box = document.getElementById("remediationComments-" + rid);
