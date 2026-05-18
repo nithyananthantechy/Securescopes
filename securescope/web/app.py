@@ -80,9 +80,12 @@ scheduler = BackgroundScheduler(daemon=True)
 scheduler.start()
 db_path = os.environ.get("SECURESCOPE_DB_PATH")
 if not db_path:
-    db_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "llm_audit.db"
-    )
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        db_path = "/tmp/llm_audit.db"
+    else:
+        db_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "llm_audit.db"
+        )
 llm_store = LLMStore(db_path)
 llm_store.init_db()
 from securescope.web.demo_routes import demo_bp

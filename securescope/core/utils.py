@@ -22,17 +22,24 @@ class SafeTimedRotatingFileHandler(TimedRotatingFileHandler):
             sys.stderr.write(f"[Logging Warning] Safely bypassed rollover PermissionError: {e}\n")
 
 def setup_logging(log_file="logs/securescope.log"):
-    """Setup logging to both file and rich console."""
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    rotating = SafeTimedRotatingFileHandler(log_file, when="midnight", backupCount=7, encoding="utf-8")
-    rotating.setFormatter(logging.Formatter("%(asctime)s|%(levelname)s|%(name)s|%(message)s"))
+    """Setup logging to both file and rich console with a serverless read-only fallback."""
+    is_serverless = os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or os.environ.get("SECURESCOPE_READONLY")
+    
+    handlers = [RichHandler(rich_tracebacks=True, markup=True)]
+    
+    if not is_serverless:
+        try:
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            rotating = SafeTimedRotatingFileHandler(log_file, when="midnight", backupCount=7, encoding="utf-8")
+            rotating.setFormatter(logging.Formatter("%(asctime)s|%(levelname)s|%(name)s|%(message)s"))
+            handlers.append(rotating)
+        except Exception as e:
+            sys.stderr.write(f"[Logging Warning] Failed to initialize file logger: {e}. Falling back to console-only.\n")
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s|%(levelname)s|%(name)s|%(message)s",
-        handlers=[
-            rotating,
-            RichHandler(rich_tracebacks=True, markup=True)
-        ]
+        handlers=handlers
     )
     return logging.getLogger("securescope")
 
