@@ -7,6 +7,8 @@
   <meta name="description" content="See Every Threat. Harden Every Layer. India's only affordable security tool mapped to DPDP Act 2023 compliance. Built for CTOs, IT Directors, and DevOps leads.">
   
   <!-- Typography & Icons -->
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.svg') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -1369,7 +1371,7 @@
   <header id="mainHeader">
     <div class="container nav-container">
       <a href="/" class="logo">
-        <img src="/static/img/nitesentinel-logo.png" alt="NiteSentinel Logo" class="logo-img-main" onerror="this.style.display='none'">
+        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="NiteSentinel Logo" class="logo-img-main" onerror="this.style.display='none'">
         <span><span class="logo-nite">Nite</span><span class="logo-sentinel">Sentinel</span></span>
       </a>
       
@@ -1822,7 +1824,7 @@
   <footer>
     <div class="container footer-inner">
       <div class="footer-logo">
-        <img src="/static/img/nitesentinel-logo.png" alt="NiteSentinel Logo" onerror="this.style.display='none'">
+        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="NiteSentinel Logo" onerror="this.style.display='none'">
         <span><span class="nite">Nite</span><span class="sentinel">Sentinel</span> v1.1</span>
       </div>
       

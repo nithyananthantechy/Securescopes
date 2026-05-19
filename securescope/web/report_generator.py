@@ -65,7 +65,7 @@ class LLMReportGenerator:
 </head>
 <body>
   <div class="top">
-    <img src="/static/img/nitesentinel-logo.png" alt="NITECHSPARK logo" />
+    <img src="/static/img/logo.svg" alt="NITECHSPARK logo" />
     <div>
       <div style="font-size:20px;font-weight:700;">NITECHSPARK NiteSentinel</div>
       <div style="font-size:12px;opacity:.9;">LLM & Chatbot Security Audit Report</div>

@@ -13,6 +13,11 @@ from flask import (
 from io import BytesIO
 from dotenv import load_dotenv
 import os
+import mimetypes
+
+# Explicitly register SVG MIME type for environments (like Windows) that miss it
+mimetypes.add_type("image/svg+xml", ".svg")
+mimetypes.add_type("image/png", ".png")
 
 load_dotenv()
 import platform
@@ -1276,7 +1281,7 @@ def _build_llm_html_report(scan: dict):
     </head>
     <body>
       <div class="header">
-        <img src="/static/img/nitesentinel-logo.png" class="logo" alt="NiteSentinel logo" />
+        <img src="/static/img/logo.svg" class="logo" alt="NiteSentinel logo" />
         <div>
           <div style="font-size:20px;font-weight:700;">NiteSentinel</div>
           <div style="font-size:12px;opacity:.9;">LLM & Chatbot Security Audit Report</div>
@@ -1512,6 +1517,14 @@ def serve_logo():
 
 @app.route("/favicon.ico")
 def favicon():
+    favicon_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "static",
+        "img",
+        "favicon.svg",
+    )
+    if os.path.exists(favicon_path):
+        return send_file(favicon_path, mimetype="image/svg+xml")
     return "", 204
 
 
@@ -2374,7 +2387,7 @@ def _attach_report_branding(report_data: dict, org_id: str | None) -> dict:
     if org_id:
         display = f"{brand_org} (org {org_id})"
     out["organization_display_name"] = display
-    out["logo_url"] = f"{root}/static/img/nitesentinel-logo.png"
+    out["logo_url"] = f"{root}/static/img/logo.svg"
     out["product_name"] = (config.get("app", {}) or {}).get("name", "NiteSentinel")
     out["client_name"] = (config.get("branding", {}) or {}).get("client_name", "")
     return out
@@ -2431,7 +2444,7 @@ def render_report_html(report_data: dict, report_type: str) -> str:
 </head>
 <body>
   <div class="report-brand">
-    <img src="/static/img/nitesentinel-logo.png" alt="NiteSentinel logo" onerror="this.style.display='none'" />
+    <img src="/static/img/logo.svg" alt="NiteSentinel logo" onerror="this.style.display='none'" />
     <div>
       <div class="product">{product}</div>
     </div>

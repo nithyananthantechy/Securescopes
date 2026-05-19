@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#000000" />
+  
+  <!-- Definitions for Gradients -->
+  <defs>
+    <!-- Hexagon Border Gradient -->
+    <linearGradient id="hexBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#1e3a5f" />
+    </linearGradient>
+    
+    <!-- Iris Radial Gradient -->
+    <radialGradient id="irisGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" />
+      <stop offset="40%" stop-color="#1e3a5f" />
+      <stop offset="75%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </radialGradient>
+  </defs>
+
+  <!-- Hexagon Outer Glow Frame (Concentric sharp outline for flat-vector glow effect) -->
+  <!-- Outer sharp violet border -->
+  <polygon points="256,40 443,148 443,364 256,472 69,364 69,148" 
+           fill="none" stroke="#6366f1" stroke-width="2" opacity="0.4" />
+  
+  <!-- Main sharp cyan/violet border -->
+  <polygon points="256,43 440,150 440,362 256,469 72,362 72,150" 
+           fill="#0b0f19" fill-opacity="0.85" stroke="url(#hexBorderGrad)" stroke-width="6" stroke-linejoin="round" />
+  
+  <!-- Inner sharp navy border accent -->
+  <polygon points="256,49 434,153 434,359 256,463 78,359 78,153" 
+           fill="none" stroke="#1e3a5f" stroke-width="2" />
+
+  <!-- Eye Container Group -->
+  <g transform="translate(0, 0)">
+    <!-- Outer Eye Lid Shadow/Backing -->
+    <path d="M 130 256 Q 256 130 382 256 Q 256 382 130 256 Z" 
+          fill="#05070c" stroke="#1e3a5f" stroke-width="3" />
+
+    <!-- Sharp Tech Accents on Lids (Cyberpunk style geometric sub-lines) -->
+    <!-- Top arch accent -->
+    <path d="M 160 230 Q 256 160 352 230" 
+          fill="none" stroke="#6366f1" stroke-width="2" opacity="0.6" />
+    <!-- Bottom arch accent -->
+    <path d="M 160 282 Q 256 352 352 282" 
+          fill="none" stroke="#6366f1" stroke-width="2" opacity="0.6" />
+
+    <!-- Main Eye Lid Frame -->
+    <path d="M 130 256 Q 256 120 382 256 Q 256 392 130 256 Z" 
+          fill="none" stroke="#38bdf8" stroke-width="8" stroke-linejoin="round" />
+
+    <!-- Inner Eye Glow Mask/Iris -->
+    <g>
+      <!-- Iris Background with glow gradient -->
+      <circle cx="256" cy="256" r="68" fill="url(#irisGrad)" stroke="#38bdf8" stroke-width="2" />
+      
+      <!-- Neon iris electric ring details (ultra-sharp geometric lines) -->
+      <!-- Middle Neon Cyan Ring -->
+      <circle cx="256" cy="256" r="48" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="12 4 8 4" />
+      
+      <!-- Violet Ring Details -->
+      <circle cx="256" cy="256" r="38" fill="none" stroke="#6366f1" stroke-width="1" stroke-dasharray="6 6" />
+
+      <!-- Pupil (Dark center) -->
+      <circle cx="256" cy="256" r="24" fill="#000000" stroke="#1e3a5f" stroke-width="2" />
+      
+      <!-- Pupil neon glow accent dot -->
+      <circle cx="247" cy="247" r="3" fill="#38bdf8" />
+    </g>
+
+    <!-- Tech Crosshair Marks (Adds cybersecurity flavor) -->
+    <!-- Left tick -->
+    <line x1="110" y1="256" x2="125" y2="256" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" />
+    <!-- Right tick -->
+    <line x1="387" y1="256" x2="402" y2="256" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" />
+    <!-- Top tick -->
+    <line x1="256" y1="110" x2="256" y2="125" stroke="#6366f1" stroke-width="2" />
+    <!-- Bottom tick -->
+    <line x1="256" y1="387" x2="256" y2="402" stroke="#6366f1" stroke-width="2" />
+
+    <!-- Thin Horizontal Scan Line -->
+    <!-- Ultra-sharp neon cyan line going straight across, with small outer ticks -->
+    <line x1="80" y1="256" x2="432" y2="256" stroke="#38bdf8" stroke-width="2" opacity="0.9" />
+    
+    <!-- Cyberpunk scanning block/cursor accent on the scan line -->
+    <rect x="220" y="254" width="8" height="4" fill="#38bdf8" />
+    <rect x="284" y="254" width="8" height="4" fill="#38bdf8" />
+  </g>
+</svg>
