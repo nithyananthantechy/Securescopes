@@ -11,12 +11,34 @@ class WindowsScanner:
         if self.target_host == "local":
             full_cmd = f"powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{cmd}\""
             return run_command(full_cmd, timeout=8)
+        elif self.winrm_client:
+            try:
+                res = self.winrm_client.run_ps(cmd)
+                return {
+                    "stdout": res.std_out.decode('utf-8', errors='ignore').strip(),
+                    "stderr": res.std_err.decode('utf-8', errors='ignore').strip(),
+                    "success": res.status_code == 0
+                }
+            except Exception as e:
+                logger.error(f"WinRM PS execution failed: {str(e)}")
+                return {"stdout": "", "stderr": str(e), "success": False}
         return {"stdout": "", "stderr": "Remote not implemented", "success": False}
 
     def execute_cmd(self, cmd, timeout=12):
         """Execute native Windows shell command (faster than PowerShell startup)."""
         if self.target_host == "local":
             return run_command(f'cmd /c "{cmd}"', timeout=timeout)
+        elif self.winrm_client:
+            try:
+                res = self.winrm_client.run_cmd(cmd)
+                return {
+                    "stdout": res.std_out.decode('utf-8', errors='ignore').strip(),
+                    "stderr": res.std_err.decode('utf-8', errors='ignore').strip(),
+                    "success": res.status_code == 0
+                }
+            except Exception as e:
+                logger.error(f"WinRM CMD execution failed: {str(e)}")
+                return {"stdout": "", "stderr": str(e), "success": False}
         return {"stdout": "", "stderr": "Remote not implemented", "success": False}
 
     def run_all_checks(self):
@@ -38,24 +60,27 @@ class WindowsScanner:
         # 1. Guest account disabled
         res = self.execute_cmd("net user Guest")
         text = (res.get("stdout") or "").lower()
-        guest_enabled = ("account active" in text and "yes" in text) or ("enabled" in text and "true" in text)
+        import re
+        guest_enabled = bool(re.search(r"account active\s+yes", text)) or bool(re.search(r"enabled\s+true", text))
         results.append({
             "category": "User Security",
             "check": "Guest account disabled",
             "status": "FAIL" if guest_enabled else "PASS",
             "severity": "Critical",
-            "details": "Guest account is enabled" if guest_enabled else "Guest account is disabled"
+            "details": "Guest account is enabled" if guest_enabled else "Guest account is disabled",
+            "description": "The built-in Guest account should be disabled to prevent anonymous, unauthenticated access to the system."
         })
         # 2. Default Admin disabled
         res = self.execute_cmd("net user Administrator")
         text = (res.get("stdout") or "").lower()
-        admin_enabled = ("account active" in text and "yes" in text) or ("enabled" in text and "true" in text)
+        admin_enabled = bool(re.search(r"account active\s+yes", text)) or bool(re.search(r"enabled\s+true", text))
         results.append({
             "category": "User Security",
             "check": "Default Admin disabled",
             "status": "FAIL" if admin_enabled else "PASS",
             "severity": "High",
-            "details": "Default Administrator account is enabled" if admin_enabled else "Default Admin is disabled"
+            "details": "Default Administrator account is enabled" if admin_enabled else "Default Admin is disabled",
+            "description": "The default 'Administrator' account is a prime target for attackers. It should be renamed or disabled."
         })
         return results
 
@@ -64,13 +89,15 @@ class WindowsScanner:
         # 3. Windows Firewall Status
         res = self.execute_cmd("netsh advfirewall show allprofiles state")
         text = (res.get("stdout") or "").lower()
-        status = "PASS" if "state on" in text and "state off" not in text else "FAIL"
+        import re
+        status = "PASS" if re.search(r"state\s+on", text) and not re.search(r"state\s+off", text) else "FAIL"
         results.append({
             "category": "Network Security",
             "check": "Windows Firewall Status",
             "status": status,
             "severity": "Critical",
-            "details": "All firewall profiles active" if status == "PASS" else "One or more profiles disabled"
+            "details": "All firewall profiles active" if status == "PASS" else "One or more profiles disabled",
+            "description": "Windows Firewall defends the system against unauthorized network access. All profiles (Domain, Private, Public) must be enabled."
         })
         # 4. SMBv1 Disabled
         res = self.execute_cmd("reg query HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters /v SMB1")
@@ -81,7 +108,8 @@ class WindowsScanner:
             "check": "SMBv1 Disabled",
             "status": "PASS" if smb_disabled else "FAIL",
             "severity": "Critical",
-            "details": "SMBv1 is disabled" if smb_disabled else "SMBv1 may be enabled (Vulnerable)"
+            "details": "SMBv1 is disabled" if smb_disabled else "SMBv1 may be enabled (Vulnerable)",
+            "description": "SMBv1 is a legacy, highly vulnerable protocol (exploited by WannaCry). It must be disabled to prevent ransomware propagation."
         })
         return results
 
@@ -95,7 +123,8 @@ class WindowsScanner:
             "check": "Windows Defender Active",
             "status": "PASS" if defender_running else "FAIL",
             "severity": "High",
-            "details": "Antivirus service is running" if defender_running else "Antivirus service is not running"
+            "details": "Antivirus service is running" if defender_running else "Antivirus service is not running",
+            "description": "An active Antivirus/Anti-malware solution is critical to detect and block malicious software."
         })
         # 6. UAC Enabled
         res = self.execute_cmd("reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v ConsentPromptBehaviorAdmin")
@@ -110,7 +139,8 @@ class WindowsScanner:
             "check": "UAC Enabled",
             "status": "PASS" if uac_val and uac_val not in ["0x0"] else "FAIL",
             "severity": "High",
-            "details": f"UAC Level: {uac_val}"
+            "details": f"UAC Level: {uac_val}",
+            "description": "User Account Control (UAC) prompts for confirmation before running executables as an administrator, mitigating malware execution."
         })
         return results
 
@@ -123,7 +153,8 @@ class WindowsScanner:
             "check": "Service Telnet",
             "status": "FAIL" if "running" in (res.get("stdout") or "").lower() else "PASS",
             "severity": "Medium",
-            "details": "Telnet is running" if "running" in (res.get("stdout") or "").lower() else "Telnet is not running"
+            "details": "Telnet is running" if "running" in (res.get("stdout") or "").lower() else "Telnet is not running",
+            "description": "Telnet sends data and passwords in cleartext. It should be disabled and replaced with SSH."
         })
         # 8. Service FTP
         res = self.execute_cmd("sc query FTPSVC")
@@ -132,7 +163,8 @@ class WindowsScanner:
             "check": "Service FTP",
             "status": "FAIL" if "running" in (res.get("stdout") or "").lower() else "PASS",
             "severity": "Medium",
-            "details": "FTP is running" if "running" in (res.get("stdout") or "").lower() else "FTP is not running"
+            "details": "FTP is running" if "running" in (res.get("stdout") or "").lower() else "FTP is not running",
+            "description": "FTP transmits passwords and data in cleartext. Secure alternatives like SFTP should be used."
         })
         # 9. Service Print Spooler
         res = self.execute_cmd("sc query Spooler")
@@ -142,7 +174,8 @@ class WindowsScanner:
             "check": "Service Print Spooler",
             "status": "WARNING" if spool_running else "PASS",
             "severity": "Medium",
-            "details": "Spooler is running" if spool_running else "Spooler is stopped"
+            "details": "Spooler is running" if spool_running else "Spooler is stopped",
+            "description": "The Print Spooler service is vulnerable to exploits (e.g., PrintNightmare) and should be disabled if not needed."
         })
         return results
 
@@ -156,6 +189,7 @@ class WindowsScanner:
             "check": "Event Log Running",
             "status": "PASS" if event_running else "FAIL",
             "severity": "Medium",
-            "details": "Event Log is active" if event_running else "Event Log is stopped"
+            "details": "Event Log is active" if event_running else "Event Log is stopped",
+            "description": "The Windows Event Log service is required for tracking security events, audits, and system errors."
         })
         return results

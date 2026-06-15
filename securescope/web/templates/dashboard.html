@@ -34,6 +34,10 @@
         <div class="pill threat-pill"><span class="blinker">●</span> Threats: <b id="threatCounter">0</b></div>
         <div class="pill" id="headerPlatform">{{ plat_info.os }}</div>
         <div class="pill" id="liveClock"></div>
+        <div class="pill" style="cursor:pointer;position:relative;" id="notifBell" data-bs-toggle="offcanvas" data-bs-target="#notifCanvas">
+          <i class="bi bi-bell-fill"></i> Notifications
+          <span class="badge bg-danger rounded-pill" id="notifBadge" style="display:none;position:absolute;top:-5px;right:-5px;">0</span>
+        </div>
         <div class="pill"><i class="bi bi-person-circle"></i> {{ username }} ({{ role }})</div>
         <div class="pill user-role-badge" data-user-role="{{ role }}">
           {{ role.upper() }}
@@ -49,8 +53,9 @@
         <button type="button" class="nav-acc-trigger" aria-expanded="true">Overview</button>
         <div class="nav-acc-panel">
           <button type="button" class="tab-btn active" onclick="showTab('dashboard')" id="tab-dashboard" data-tab="dashboard">Dashboard</button>
+          <button type="button" class="tab-btn" onclick="showTab('ticketing')" id="tab-ticketing" data-tab="ticketing">Ticketing</button>
           <button type="button" class="tab-btn" onclick="showTab('compliance')" id="tab-compliance" data-tab="compliance">Compliance</button>
-          <a href="/targets" class="tab-btn" id="tab-targets" data-tab="targets">Targets</a>
+          <button type="button" class="tab-btn" onclick="showTab('targets')" id="tab-targets" data-tab="targets">Targets</button>
         </div>
       </div>
       <div class="nav-acc-group" id="nav-group-reports">
@@ -82,6 +87,14 @@
   </aside>
 
   <main class="main-grid" id="dashboardTab">
+    <script>
+      (function() {
+        const tab = new URLSearchParams(window.location.search).get('tab');
+        if (tab && tab !== 'dashboard') {
+          document.getElementById('dashboardTab').style.display = 'none';
+        }
+      })();
+    </script>
     <div style="grid-column:1/-1;display:grid;gap:12px;">
       <nav aria-label="Breadcrumb" style="font-size:12px;color:#8892a4;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         <span style="color:#e8eaf6;">Dashboard</span>
@@ -282,6 +295,77 @@
     <div class="offcanvas-body"><pre id="hardenLog" style="height:70vh;overflow:auto;background:#000;color:#00ff88;padding:10px;"></pre></div>
   </div>
 
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="notifCanvas" style="width:400px;background:rgba(10,14,26,0.95);backdrop-filter:blur(20px);border-left:1px solid rgba(0,255,255,0.1);">
+    <div class="offcanvas-header" style="border-bottom:1px solid rgba(0,255,255,0.1);padding:20px;">
+      <h5 style="color:#fff;font-weight:700;margin:0;letter-spacing:1px;"><i class="bi bi-bell"></i> Notifications</h5>
+      <button type="button" class="modal-close" data-bs-dismiss="offcanvas" aria-label="Close" style="color:#fff;">✕</button>
+    </div>
+    <div class="offcanvas-body" style="padding:20px;">
+      <div id="notifContainer" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="color:#8892a4;text-align:center;padding:40px 20px;">
+          <i class="bi bi-bell-slash" style="font-size:2rem;opacity:0.5;display:block;margin-bottom:10px;"></i>
+          No notifications
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="reportBuilderModal" class="modal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-header" style="border-bottom:1px solid rgba(0,255,255,0.1);">
+      <h3 style="font-weight:700;letter-spacing:1px;color:#fff;"><i class="bi bi-file-earmark-pdf"></i> Advanced Report Builder</h3>
+      <button type="button" class="modal-close" onclick="closeReportBuilder()" aria-label="Close" style="color:#fff;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:25px;">
+      <p style="color:var(--secondary-text);font-size:0.95rem;margin-bottom:25px;">Select the sections and filters you want to include in this custom report export.</p>
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label style="color:#8892a4;font-size:0.75rem;text-transform:uppercase;font-weight:700;display:block;margin-bottom:8px;">Target Context</label>
+            <select id="builderTarget" class="form-select" style="background:rgba(0,0,0,0.3);border:1px solid rgba(0,255,255,0.1);color:#fff;">
+              <option value="all">🌐 All Targets (Global Overview)</option>
+              <option value="localhost">🖥️ Localhost</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label style="color:#8892a4;font-size:0.75rem;text-transform:uppercase;font-weight:700;display:block;margin-bottom:8px;">Format</label>
+            <select id="builderFormat" class="form-select" style="background:rgba(0,0,0,0.3);border:1px solid rgba(0,255,255,0.1);color:#fff;">
+              <option value="pdf">📄 PDF Report</option>
+              <option value="html">🌐 Standalone HTML</option>
+              <option value="csv">📊 CSV Data Export</option>
+            </select>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label style="color:#8892a4;font-size:0.75rem;text-transform:uppercase;font-weight:700;display:block;margin-bottom:12px;">Include Sections</label>
+          <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:15px;">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="secExecSum" checked>
+              <label class="form-check-label" for="secExecSum">Executive Summary & KPIs</label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="secCompliance" checked>
+              <label class="form-check-label" for="secCompliance">Compliance Matrix (CIS/ISO)</label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="secFindings" checked>
+              <label class="form-check-label" for="secFindings">Detailed Findings List</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="secRemediation" checked>
+              <label class="form-check-label" for="secRemediation">Remediation Roadmap</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="border-top:1px solid rgba(0,255,255,0.1);padding:20px 25px;">
+      <button type="button" class="btn btn-outline-secondary" onclick="closeReportBuilder()">Cancel</button>
+      <button type="button" class="btn btn-primary-enterprise" onclick="runAdvancedBuilder()"><i class="bi bi-download"></i> Compile & Download</button>
+    </div>
+  </div>
+</div>
+
   <div id="remoteScanModal" class="modal">
     <div class="modal-dialog">
       <div class="modal-header">
@@ -291,7 +375,7 @@
       <div class="modal-body">
         <div class="form-group">
           <label>Scan Type</label>
-          <select id="remote-type" onchange="updateModalFields()" class="form-control">
+          <select id="remote-type" onchange="updateModalFields()" class="form-select">
             <option value="linux">🐧 Linux Server (SSH)</option>
             <option value="windows">🪟 Windows (WinRM)</option>
             <option value="network">🔌 Network Device (No SSH)</option>
@@ -313,7 +397,10 @@
           </div>
           <div class="form-group">
             <label>Password *</label>
-            <input type="password" id="remote-password" name="remote-password" autocomplete="new-password" class="form-control" placeholder="Enter password">
+            <div style="position: relative;">
+              <input type="password" id="remote-password" name="remote-password" autocomplete="new-password" class="form-control" placeholder="Enter password" style="padding-right: 40px;">
+              <svg id="togglePassword" onclick="const p = document.getElementById('remote-password'); if(p.type === 'password') { p.type = 'text'; this.innerHTML = '<path d=\'M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755l.191.195zM8 5c.533 0 1.02.163 1.42.443l-1.56 1.56C7.666 7.07 7.5 7.495 7.5 8c0 .12.016.236.046.348l-1.45 1.45A2.49 2.49 0 0 1 6 8c0-1.38 1.12-2.5 2.5-2.5zm3.957 4.093-1.63-1.63A2.49 2.49 0 0 0 10.5 8c0-1.38-1.12-2.5-2.5-2.5a2.49 2.49 0 0 0-.82.14l-1.63-1.63A6.97 6.97 0 0 1 8 2.5c4.05 0 8 4 8 5.5 0 1.5-3.95 5.5-8 5.5-.326 0-.64-.02-.94-.06l1.32-1.32A13.29 13.29 0 0 0 8 12.5c2.12 0 3.879-1.168 5.168-2.457A13.133 13.133 0 0 0 14.828 8a12.062 12.062 0 0 0-2.871-2.907zM1.35 2.15l1.63 1.63A13.25 13.25 0 0 0 1.172 8c.058.087.122.183.195.288.335.48.83 1.12 1.465 1.755L1.35 11.5l-1.35-1.35 13.5-13.5z\'/>'; } else { p.type = 'password'; this.innerHTML = '<path d=\'M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z\'/><path d=\'M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z\'/>'; }" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #8892a4; z-index: 9999;" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/></svg>
+            </div>
           </div>
           <div class="form-group">
             <label>Port</label>
@@ -351,6 +438,112 @@
       <div class="modal-footer">
         <button onclick="closeModal()" class="btn-secondary">Cancel</button>
         <button onclick="startRemoteScan()" id="start-scan-btn" class="btn-primary">🚀 Start Assessment</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- TARGETS PAGE -->
+  <div id="targets-page" style="display:none;padding:24px;">
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;">
+      <div>
+        <h2 style="color:#e8eaf6;margin:0;">Assessment Targets</h2>
+        <p class="small mb-0 mt-1" style="color:#8892a4;">Manage and view scan targets</p>
+      </div>
+      <button type="button" class="btn btn-primary-enterprise" onclick="openAddTargetModal()">+ Add New Target</button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="card-scope mb-3" style="padding:16px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+      <input type="search" id="targetsSearch" class="form-control form-control-sm" style="max-width:250px; background:#1e2638; border-color:#2a3441; color:#fff;" placeholder="Search by name, IP, or key..." autocomplete="off">
+      <select id="targetsStatus" class="form-select form-select-sm" style="max-width:150px; background:#1e2638; border-color:#2a3441; color:#fff;">
+        <option value="">All status</option>
+        <option value="online">Online</option>
+        <option value="offline">Offline</option>
+        <option value="scanning">Scanning</option>
+      </select>
+      <select id="targetsOS" class="form-select form-select-sm" style="max-width:150px; background:#1e2638; border-color:#2a3441; color:#fff;">
+        <option value="">All OS</option>
+        <option value="windows">Windows</option>
+        <option value="linux">Linux</option>
+        <option value="macos">macOS</option>
+      </select>
+      <div style="flex-grow:1;"></div>
+      <select id="targetsSort" class="form-select form-select-sm" style="max-width:160px; background:#1e2638; border-color:#2a3441; color:#fff;">
+        <option value="name">Sort: Name</option>
+        <option value="score">Sort: Compliance</option>
+        <option value="last_scan">Sort: Last scan</option>
+        <option value="status">Sort: Status</option>
+      </select>
+      <select id="targetsOrder" class="form-select form-select-sm" style="max-width:120px; background:#1e2638; border-color:#2a3441; color:#fff;">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
+      </select>
+      <select id="targetsPageSize" class="form-select form-select-sm" style="max-width:120px; background:#1e2638; border-color:#2a3441; color:#fff;">
+        <option value="10">10 / page</option>
+        <option value="25" selected>25 / page</option>
+        <option value="50">50 / page</option>
+      </select>
+    </div>
+
+    <!-- Targets Table -->
+    <div class="card-scope" style="padding:0; overflow:hidden;">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0" style="background:transparent;">
+          <thead style="background:rgba(255,255,255,0.02); border-bottom:1px solid #2a3441;">
+            <tr>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase;">Name</th>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase;">IP / target</th>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase;">OS</th>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase;">Status</th>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase;">Score</th>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase;">Findings</th>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase;">Last scan</th>
+              <th style="border:none; color:#8892a4; font-weight:500; font-size:12px; text-transform:uppercase; text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="targetsTableBody">
+            <tr><td colspan="8" class="text-center py-4" style="color:#8892a4;">Loading targets...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:16px;">
+      <button type="button" id="pagePrev" class="btn btn-sm" style="background:#1e2638; border:1px solid #2a3441; color:#fff;">← Previous</button>
+      <span id="pageInfo" class="small" style="color:#8892a4;">Page 1 of 1</span>
+      <button type="button" id="pageNext" class="btn btn-sm" style="background:#1e2638; border:1px solid #2a3441; color:#fff;">Next →</button>
+    </div>
+  </div>
+
+  <div id="addTargetModal" class="modal">
+    <div class="modal-dialog" style="background:#0b1120; border:1px solid #2a3441;">
+      <div class="modal-header" style="border-bottom:1px solid #2a3441;">
+        <h3 style="color:#e8eaf6;">Add New Target</h3>
+        <button type="button" class="modal-close" onclick="closeAddTargetModal()" aria-label="Close" style="color:#8892a4;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="small" style="color:#8892a4;">Remote assessments are started from the dashboard. Continue to the dashboard to run a remote, web, or port scan.</p>
+        <form id="addTargetForm" onsubmit="return submitAddTarget(event);">
+          <div class="form-group mb-2">
+            <label style="color:#e8eaf6;">Display name</label>
+            <input type="text" id="targetName" class="form-control" style="background:#1e2638; border-color:#2a3441; color:#fff;" placeholder="Optional label">
+          </div>
+          <div class="form-group mb-2">
+            <label style="color:#e8eaf6;">IP or hostname</label>
+            <input type="text" id="targetIP" class="form-control" style="background:#1e2638; border-color:#2a3441; color:#fff;" placeholder="e.g. 192.168.1.10" required>
+          </div>
+          <div class="form-group mb-3">
+            <label style="color:#e8eaf6;">OS family</label>
+            <select id="targetOS" class="form-control" style="background:#1e2638; border-color:#2a3441; color:#fff;" required>
+              <option value="">Select...</option>
+              <option value="windows">Windows</option>
+              <option value="linux">Linux</option>
+              <option value="macos">macOS</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary-enterprise w-100">Open dashboard to scan</button>
+        </form>
       </div>
     </div>
   </div>
@@ -408,28 +601,50 @@
     </div>
   </div>
 
-  <div id="reports-page" style="display:none;padding:24px;">
-    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px;">
-      <h2 style="color:#e8eaf6;margin:0;">📄 Security Reports</h2>
-      <button type="button" class="btn btn-outline-info" onclick="openReportBuilder()">+ Advanced report builder</button>
+  <div id="reports-page" class="page-content" style="display:none;padding:30px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
+      <h2 style="color:#fff;margin:0;font-weight:700;letter-spacing:1px;"><i class="bi bi-file-earmark-bar-graph"></i> Security Reports</h2>
+      <button type="button" class="btn btn-primary-enterprise" onclick="openReportBuilder()"><i class="bi bi-magic"></i> Advanced Report Builder</button>
     </div>
-    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;margin-bottom:20px;">
-      <h3 style="color:#00d4ff;margin-bottom:20px;">Generate Report</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-        <div>
-          <label style="color:#8892a4;font-size:12px;text-transform:uppercase;display:block;margin-bottom:8px;">TARGET</label>
-          <select id="report-target" style="width:100%;background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;"><option value="localhost">🖥️ Localhost (This Machine)</option></select>
-        </div>
-        <div>
-          <label style="color:#8892a4;font-size:12px;text-transform:uppercase;display:block;margin-bottom:8px;">FORMAT</label>
-          <select id="report-format" style="width:100%;background:#0a0e1a;border:1px solid #1e2d4a;color:#e8eaf6;padding:10px;border-radius:6px;"><option value="html">📄 HTML Report</option><option value="json">📦 JSON Export</option></select>
+    
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="card-scope" style="height:100%;">
+          <div class="section-title"><i class="bi bi-lightning-charge"></i> Quick Generate</div>
+          <p style="color:var(--secondary-text);font-size:0.9rem;margin-bottom:20px;">Generate standard compliance and vulnerability reports instantly.</p>
+          
+          <div class="mb-3">
+            <label style="color:#8892a4;font-size:0.75rem;text-transform:uppercase;font-weight:700;display:block;margin-bottom:8px;letter-spacing:0.5px;">Target Scope</label>
+            <select id="report-target" class="form-select" style="background:rgba(0,0,0,0.3);border:1px solid rgba(0,255,255,0.1);color:#fff;">
+              <option value="localhost">🖥️ Localhost (This Machine)</option>
+            </select>
+          </div>
+          
+          <div class="mb-4">
+            <label style="color:#8892a4;font-size:0.75rem;text-transform:uppercase;font-weight:700;display:block;margin-bottom:8px;letter-spacing:0.5px;">Export Format</label>
+            <select id="report-format" class="form-select" style="background:rgba(0,0,0,0.3);border:1px solid rgba(0,255,255,0.1);color:#fff;">
+              <option value="html">📄 HTML Executive Summary</option>
+              <option value="json">📦 JSON Raw Data Export</option>
+            </select>
+          </div>
+          
+          <button onclick="generateReport()" class="btn btn-outline-info w-100" style="font-weight:600;padding:12px;">
+            <i class="bi bi-download"></i> Generate & Download
+          </button>
         </div>
       </div>
-      <button onclick="generateReport()" style="background:#00d4ff;color:#000;border:none;padding:12px 32px;border-radius:8px;cursor:pointer;font-weight:700;font-size:15px;">⬇️ Generate & Download</button>
-    </div>
-    <div style="background:#0f1629;border:1px solid #1e2d4a;border-radius:12px;padding:24px;">
-      <h3 style="color:#00d4ff;margin-bottom:16px;">Report History (This Session)</h3>
-      <div id="report-history"><p style="color:#8892a4;text-align:center;padding:20px;">No reports generated yet.</p></div>
+      
+      <div class="col-md-6">
+        <div class="card-scope" style="height:100%;">
+          <div class="section-title"><i class="bi bi-clock-history"></i> Report History</div>
+          <div id="report-history" style="max-height:300px;overflow-y:auto;padding-right:10px;">
+            <div style="text-align:center;padding:40px 20px;color:rgba(255,255,255,0.3);">
+              <i class="bi bi-inbox" style="font-size:3rem;display:block;margin-bottom:15px;"></i>
+              <p>No reports generated in this session.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -880,7 +1095,7 @@
               <td><small>${escapeHtml(control.domain)}</small></td>
               <td><span class="control-status-badge status-${escapeHtml(control.status)}">${escapeHtml(String(control.status || "").toUpperCase())}</span></td>
               <td>${control.mapped_findings_count > 0 ? `${control.remediated_count}/${control.mapped_findings_count} remediated` : "—"}</td>
-              <td><button type="button" class="btn btn-sm btn-outline-info" onclick="viewControlFindings(${JSON.stringify(framework)}, ${JSON.stringify(control.control_id)})">View findings</button></td>
+              <td><button type="button" class="btn btn-sm btn-outline-info" onclick='viewControlFindings(${JSON.stringify(framework)}, ${JSON.stringify(control.control_id)})'>View findings</button></td>
             </tr>
           `).join("");
         }
@@ -1233,7 +1448,8 @@
         const frameworks = (c.frameworks || []).map((ff) => `<span>${escapeHtml(ff)}</span>`).join("");
         const st = (c.status || "WARNING").toUpperCase();
         const stNorm = st === "PASS" ? "PASS" : st === "FAIL" ? "FAIL" : "WARNING";
-        row.innerHTML = `<div class="finding-main"><span></span><i class="bi ${catIcon(c.category)}"></i><div><b>${escapeHtml(c.check || "Check")}</b><div style="font-size:12px;color:#8892a4">${escapeHtml(c.category || "General")}</div></div><span class="status-chip ${statusClass(stNorm)}">${stNorm === "WARNING" ? "⚠️ WARN" : stNorm === "PASS" ? "✅ PASS" : "❌ FAIL"}</span><span style="font-size:12px;color:#8892a4">${escapeHtml(c.severity || "Low")}</span><span class="fw-badges">${frameworks}</span><button type="button" class="btn btn-sm btn-outline-info btn-toggle-detail"><i class="bi bi-chevron-down"></i></button></div><div class="finding-details" hidden>${escapeHtml(c.details || "No details")} ${stNorm === "FAIL" ? `<div class='mt-2'><button type='button' class='btn btn-sm btn-outline-warning btn-fix-finding'>Fix</button></div>` : ""}</div>`;
+        const canFix = CURRENT_ROLE !== 'support_team';
+        row.innerHTML = `<div class="finding-main"><span></span><i class="bi ${catIcon(c.category)}"></i><div><b>${escapeHtml(c.check || "Check")}</b><div style="font-size:12px;color:#8892a4">${escapeHtml(c.category || "General")}</div></div><span class="status-chip ${statusClass(stNorm)}">${stNorm === "WARNING" ? "⚠️ WARN" : stNorm === "PASS" ? "✅ PASS" : "❌ FAIL"}</span><span style="font-size:12px;color:#8892a4">${escapeHtml(c.severity || "Low")}</span><span class="fw-badges">${frameworks}</span><button type="button" class="btn btn-sm btn-outline-info btn-toggle-detail"><i class="bi bi-chevron-down"></i></button></div><div class="finding-details" hidden>${escapeHtml(c.details || "No details")} ${stNorm === "FAIL" && canFix ? `<div class='mt-2'><button type='button' class='btn btn-sm btn-outline-warning btn-fix-finding'>Fix</button></div>` : ""}</div>`;
         row.querySelector(".btn-toggle-detail").addEventListener("click", () => {
           const det = row.querySelector(".finding-details");
           det.hidden = !det.hidden;
@@ -1254,11 +1470,11 @@
         const st = (f.scan_status || "WARNING").toUpperCase();
         const stNorm = st === "PASS" ? "PASS" : st === "FAIL" ? "FAIL" : "WARNING";
         const frameworks = (f.frameworks || []).map((x) => `<span>${escapeHtml(x)}</span>`).join("");
-        const canFix = f.target_key === currentTarget && stNorm === "FAIL" && allScanData[currentTarget];
+        const canFix = f.target_key === currentTarget && stNorm === "FAIL" && allScanData[currentTarget] && CURRENT_ROLE !== 'support_team';
         const chk = CAN_BULK_FINDINGS ? `<input type="checkbox" class="finding-select form-check-input" value="${escapeHtml(f.id)}" style="width:16px;height:16px;">` : "<span></span>";
         const assign = f.assigned_to ? `<span class="small" style="color:#8892a4">${escapeHtml(f.assigned_to)}</span>` : "—";
         const rid = ridFromFinding(f.id);
-        row.innerHTML = `<div class="finding-main">${chk}<i class="bi ${catIcon(f.category)}"></i><div><b>${escapeHtml(f.title)}</b><div style="font-size:12px;color:#8892a4">${escapeHtml(f.category)} · ${escapeHtml(f.target_key || "")}</div></div><span class="status-chip ${statusClass(stNorm)}">${stNorm === "WARNING" ? "⚠️ WARN" : stNorm === "PASS" ? "✅ PASS" : "❌ FAIL"}</span><span style="font-size:12px;color:#8892a4">${escapeHtml(f.severity || "")}</span><span class="fw-badges">${frameworks}</span><button type="button" class="btn btn-sm btn-outline-info btn-toggle-detail"><i class="bi bi-chevron-down"></i></button></div><div class="finding-details" hidden><div>${escapeHtml(f.details || "No details")}</div><div class="mt-2 small" style="color:#8892a4;">Workflow: <b>${escapeHtml(f.status || "new")}</b> · Last scan: ${escapeHtml(f.last_scan || "—")} · Assigned: ${assign}</div>${canFix ? `<div class='mt-2'><button type='button' class='btn btn-sm btn-outline-warning btn-fix-finding'>Fix</button></div>` : ""}
+        row.innerHTML = `<div class="finding-main">${chk}<i class="bi ${catIcon(f.category)}"></i><div><b>${escapeHtml(f.title)}</b><div style="font-size:12px;color:#8892a4">${escapeHtml(f.category)} · ${escapeHtml(f.target_key || "")}</div></div><span class="status-chip ${statusClass(stNorm)}">${stNorm === "WARNING" ? "⚠️ WARN" : stNorm === "PASS" ? "✅ PASS" : "❌ FAIL"}</span><span style="font-size:12px;color:#8892a4">${escapeHtml(f.severity || "")}</span><span class="fw-badges">${frameworks}</span><button type="button" class="btn btn-sm btn-outline-info btn-toggle-detail"><i class="bi bi-chevron-down"></i></button></div><div class="finding-details" hidden><div>${escapeHtml(f.details || "No details")}</div><div class="finding-description">${escapeHtml(f.description || "")}</div><div class="mt-2 small" style="color:#8892a4;">Workflow: <b>${escapeHtml(f.status || "new")}</b> · Last scan: ${escapeHtml(f.last_scan || "—")} · Assigned: ${assign}</div>${stNorm === "FAIL" ? `<div class='mt-2'>${canFix ? `<button type='button' class='btn btn-sm btn-outline-warning btn-fix-finding me-2'>Fix Automatically</button>` : ""}<button type='button' class='btn btn-sm btn-outline-info btn-gen-script'><i class="bi bi-robot"></i> Generate Fix Script</button></div><div class="mt-2 gen-script-output" id="genScript-${rid}" style="display:none;background:#050810;border:1px solid #1e2d4a;padding:8px;border-radius:4px;font-family:monospace;white-space:pre-wrap;color:#76ffc5;max-height:300px;overflow-y:auto;font-size:11px;"></div>` : ""}
           <div class="remediation-panel" id="findingDetail-${rid}">
             <h4>Remediation workflow</h4>
             <div class="workflow-steps">
@@ -1550,6 +1766,17 @@
     }
     function openModal() {
       document.getElementById("remoteScanModal").classList.add("active");
+      if (typeof currentTarget !== 'undefined' && currentTarget && currentTarget !== 'localhost' && currentTarget !== 'All') {
+        document.getElementById('remote-host').value = currentTarget;
+        let data = (typeof allScanData !== 'undefined' && allScanData[currentTarget]) ? allScanData[currentTarget] : {};
+        let os = (data.os || "").toLowerCase();
+        if (os.includes("windows")) {
+            document.getElementById('remote-type').value = 'windows';
+        } else if (os.includes("linux") || os.includes("ubuntu") || os.includes("debian")) {
+            document.getElementById('remote-type').value = 'linux';
+        }
+        updateModalFields();
+      }
     }
     async function openSchedulePrompt() {
       if (!["admin", "org_admin", "super_admin"].includes(CURRENT_ROLE)) {
@@ -1647,6 +1874,7 @@
     function expandNavAccordionForActiveTab(tabName) {
       const idMap = {
         dashboard: "tab-dashboard",
+        ticketing: "tab-ticketing",
         compliance: "tab-compliance",
         targets: "tab-targets",
         reports: "tab-reports",
@@ -1767,10 +1995,157 @@ function initNavAccordion() {
       }, 1000);
     });
 
+    
+  // === TARGETS PAGE LOGIC ===
+  let targetsCurrentPage = 1;
+  let targetsTotalPages = 1;
+  let targetsSearchTimeout = null;
+
+  function scoreClass(score) {
+    const n = Number(score) || 0;
+    if (n >= 70) return "score-good";
+    if (n >= 40) return "score-fair";
+    return "score-poor";
+  }
+
+  async function loadTargets() {
+    const search = document.getElementById("targetsSearch")?.value.trim() || "";
+    const status = document.getElementById("targetsStatus")?.value || "";
+    const os = document.getElementById("targetsOS")?.value || "";
+    const sort = document.getElementById("targetsSort")?.value || "name";
+    const order = document.getElementById("targetsOrder")?.value || "asc";
+    const pageSize = parseInt(document.getElementById("targetsPageSize")?.value || "25", 10) || 25;
+
+    const params = new URLSearchParams({ sort, order, page: String(targetsCurrentPage), page_size: String(pageSize) });
+    if (status) params.set("status", status);
+    if (os) params.set("os", os);
+    if (search) params.set("q", search);
+
+    const tbody = document.getElementById("targetsTableBody");
+    if (!tbody) return;
+    try {
+      const res = await fetch(`/api/targets?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      const rows = data.targets || data.items || [];
+      targetsTotalPages = Math.max(1, Number(data.total_pages) || 1);
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4" style="color:#8892a4;">No targets match filters.</td></tr>`;
+      } else {
+        tbody.innerHTML = rows.map((t) => {
+          const tidEnc = encodeURIComponent(t.id);
+          const scanBtn = CAN_TRIGGER_SCAN
+            ? `<button type="button" class="btn btn-sm btn-outline-info btn-scan-row" data-tid="${tidEnc}">Scan</button>`
+            : `<span class="small text-secondary">—</span>`;
+          const removeBtn = t.removable !== false
+            ? `<button type="button" class="btn btn-sm btn-outline-danger btn-remove-target ms-1" data-tid="${tidEnc}" title="Remove this target from stored scans">Remove</button>`
+            : `<span class="small text-secondary ms-1" title="This machine baseline cannot be removed.">—</span>`;
+          const parts = [];
+          if (t.critical_count > 0) parts.push(`<span class="text-danger">${t.critical_count} Critical</span>`);
+          if (t.high_count > 0) parts.push(`<span class="text-warning">${t.high_count} High</span>`);
+          parts.push(`${t.findings_count} total`);
+          return `<tr>
+            <td style="border-top:1px solid #2a3441;"><strong>${escapeHtml(t.name)}</strong></td>
+            <td style="border-top:1px solid #2a3441;">${escapeHtml(t.ip || "—")}</td>
+            <td style="border-top:1px solid #2a3441;">${escapeHtml(t.os)}</td>
+            <td style="border-top:1px solid #2a3441;"><span class="target-status status-${escapeHtml(t.status)}">${escapeHtml(t.status)}</span></td>
+            <td style="border-top:1px solid #2a3441;" class="${scoreClass(t.compliance_score)}">${Number(t.compliance_score)}%</td>
+            <td style="border-top:1px solid #2a3441;" class="small">${parts.join(" · ")}</td>
+            <td style="border-top:1px solid #2a3441;" class="small">${t.last_scan ? escapeHtml(t.last_scan) : "Never"}</td>
+            <td style="border-top:1px solid #2a3441;" class="text-nowrap text-end">${scanBtn}${removeBtn}
+              <button type="button" class="btn btn-sm btn-outline-light ms-1 btn-details-row" data-tid="${tidEnc}">Details</button>
+            </td>
+          </tr>`;
+        }).join("");
+        tbody.querySelectorAll(".btn-scan-row").forEach((btn) => {
+          btn.addEventListener("click", () => scanTargetList(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+        tbody.querySelectorAll(".btn-details-row").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const t = decodeURIComponent(btn.getAttribute("data-tid") || "");
+            switchToTarget(t);
+            showTab('dashboard');
+          });
+        });
+        tbody.querySelectorAll(".btn-remove-target").forEach((btn) => {
+          btn.addEventListener("click", () => removeTargetRow(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+      }
+
+      document.getElementById("pageInfo").textContent = `Page ${data.page} of ${targetsTotalPages} (${data.total} targets)`;
+      document.getElementById("pagePrev").disabled = data.page <= 1;
+      document.getElementById("pageNext").disabled = data.page >= targetsTotalPages;
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Could not load targets: ${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  function debounceTargetsSearch() {
+    clearTimeout(targetsSearchTimeout);
+    targetsCurrentPage = 1;
+    targetsSearchTimeout = setTimeout(loadTargets, 300);
+  }
+
+  function openAddTargetModal() {
+    document.getElementById("addTargetModal")?.classList.add("active");
+  }
+  function closeAddTargetModal() {
+    document.getElementById("addTargetModal")?.classList.remove("active");
+  }
+  function submitAddTarget(e) {
+    e.preventDefault();
+    closeAddTargetModal();
+    showTab('dashboard');
+    setTimeout(() => openModal(), 400);
+    return false;
+  }
+
+  async function scanTargetList(targetId) {
+    if (!CAN_TRIGGER_SCAN) return;
+    if (!confirm("Start scan on this target?")) return;
+    const res = await fetch(`/api/targets/${encodeURIComponent(targetId)}/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+      body: "{}"
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error || "Scan request failed");
+      return;
+    }
+    alert(data.message || "Scan queued");
+    loadTargets();
+  }
+
+  async function removeTargetRow(targetId) {
+    if (!targetId || targetId === "localhost") {
+      alert("This target cannot be removed.");
+      return;
+    }
+    if (!confirm(`Remove "${targetId}" from stored scans? You can add it again later with a new scan.`)) return;
+    try {
+      const res = await fetch("/api/targets/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ host: targetId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || "Remove failed");
+        return;
+      }
+      loadTargets();
+    } catch (e) {
+      alert(e.message || "Remove failed");
+    }
+  }
+  // ==========================
+
     function showTab(tabName) {
       console.log('showTab called with:', tabName);
       // Hide ALL possible content containers first
-      const allPages = ['compliance-page', 'reports-page', 'llm-page', 'users-page', 'licenses-page', 'organizations-page', 'settings-page', 'executiveTab'];
+      const allPages = ['compliance-page', 'reports-page', 'llm-page', 'users-page', 'licenses-page', 'organizations-page', 'settings-page', 'executiveTab', 'ticketing-page', 'targets-page'];
       allPages.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -1805,9 +2180,23 @@ function initNavAccordion() {
       // Now show only the requested tab
       console.log('showTab processing for:', tabName);
       if (tabName === 'dashboard') {
-        // Show main dashboard grid
         if (dashboardTab) dashboardTab.style.display = 'grid';
         document.getElementById('tab-dashboard')?.classList.add('active');
+        // Ensure dashboard elements are visible
+        document.querySelectorAll('.kpi-card, #gaugeCard, #targets-overview-card').forEach(el => {
+          if(el) el.classList.remove('d-none');
+        });
+        const fList = document.getElementById('findingsList');
+        if(fList) fList.style.gridColumn = '';
+      } else if (tabName === 'ticketing') {
+        // Ticketing is just the dashboard view with KPIs hidden
+        if (dashboardTab) dashboardTab.style.display = 'grid';
+        document.getElementById('tab-ticketing')?.classList.add('active');
+        document.querySelectorAll('.kpi-card, #gaugeCard, #targets-overview-card').forEach(el => {
+          if(el) el.classList.add('d-none');
+        });
+        const fList = document.getElementById('findingsList');
+        if(fList) fList.style.gridColumn = '1 / -1';
       } else if (tabName === 'executive') {
         // Show executive view grid
         if (executiveTab) {
@@ -1852,13 +2241,14 @@ function initNavAccordion() {
     function updateReportTargets() {
       const sel = document.getElementById('report-target');
       if (!sel) return;
-      sel.innerHTML = '<option value="localhost">🖥️ Localhost</option>';
-      Object.keys(allScanData || {})
+      sel.innerHTML = '<option value="localhost">🖥️ Localhost (This Machine)</option>';
+      const targets = typeof allScanData !== 'undefined' && allScanData ? Object.keys(allScanData) : [];
+      targets
         .filter(h => h !== 'localhost')
         .forEach(h => {
-          sel.innerHTML += '<option value="'+h+'">🌐 '+h+'</option>';
+          sel.innerHTML += '<option value="'+h+'">🎯 '+h+'</option>';
         });
-      console.log('updateReportTargets - Current targets:', Object.keys(allScanData || {}));
+      console.log('updateReportTargets - Current targets:', targets);
     }
     function generateReport() {
       const target = document.getElementById('report-target').value;
@@ -2718,6 +3108,24 @@ function initNavAccordion() {
       });
     });
     document.getElementById("findingsResetFilters")?.addEventListener("click", clearFilters);
+    
+      document.getElementById("targetsSearch")?.addEventListener("input", debounceTargetsSearch);
+      ["targetsStatus", "targetsOS", "targetsSort", "targetsOrder", "targetsPageSize"].forEach((id) => {
+        document.getElementById(id)?.addEventListener("change", () => { targetsCurrentPage = 1; loadTargets(); });
+      });
+      document.getElementById("pagePrev")?.addEventListener("click", () => {
+        if (targetsCurrentPage > 1) {
+          targetsCurrentPage -= 1;
+          loadTargets();
+        }
+      });
+      document.getElementById("pageNext")?.addEventListener("click", () => {
+        if (targetsCurrentPage < targetsTotalPages) {
+          targetsCurrentPage += 1;
+          loadTargets();
+        }
+      });
+
     document.getElementById("findingsPrev")?.addEventListener("click", () => loadFindingsPage(findingsPage - 1));
     document.getElementById("findingsNext")?.addEventListener("click", () => loadFindingsPage(findingsPage + 1));
     document.getElementById("bulkMarkReviewed")?.addEventListener("click", () => bulkFindings("mark_reviewed"));
@@ -2726,8 +3134,8 @@ function initNavAccordion() {
     document.getElementById("findingsSelectAll")?.addEventListener("change", (e) => {
       document.querySelectorAll(".finding-select").forEach((cb) => { cb.checked = e.target.checked; });
     });
-    document.getElementById("btnScan").addEventListener("click", () => runLocalScan(true));
-    document.getElementById("btnHarden").addEventListener("click", runHarden);
+    document.getElementById("btnScan")?.addEventListener("click", () => runLocalScan(true));
+    document.getElementById("btnHarden")?.addEventListener("click", runHarden);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") { closeModal(); return; }
       if (document.getElementById("remoteScanModal")?.classList.contains("active") && isTypingTarget(e.target)) return;
@@ -2794,12 +3202,13 @@ function initNavAccordion() {
       
       // Tab visibility matrix
       const TAB_ACCESS = {
-        'super_admin': ['dashboard', 'targets', 'reports', 'llm', 'compliance', 'users', 'licenses', 'organizations', 'settings', 'executive'],
-        'admin': ['dashboard', 'targets', 'reports', 'llm', 'compliance', 'users', 'licenses', 'organizations', 'settings', 'executive'],
-        'org_admin': ['dashboard', 'targets', 'reports', 'llm', 'compliance', 'users', 'settings'],
-        'security_manager': ['dashboard', 'targets', 'reports', 'llm', 'compliance', 'settings'],
+        'super_admin': ['dashboard', 'ticketing', 'targets', 'reports', 'llm', 'compliance', 'users', 'licenses', 'organizations', 'settings', 'executive'],
+        'admin': ['dashboard', 'ticketing', 'targets', 'reports', 'llm', 'compliance', 'users', 'licenses', 'organizations', 'settings', 'executive'],
+        'org_admin': ['dashboard', 'ticketing', 'targets', 'reports', 'llm', 'compliance', 'users', 'settings'],
+        'security_manager': ['dashboard', 'ticketing', 'targets', 'reports', 'llm', 'compliance', 'settings'],
         'normal_user': ['dashboard', 'targets', 'reports', 'settings'],
         'viewer': ['dashboard', 'reports', 'settings'],
+        'support_team': ['ticketing', 'settings'],
         'guest': ['dashboard', 'targets', 'compliance']
       };
       
@@ -2812,6 +3221,19 @@ function initNavAccordion() {
           tab.style.display = 'none';
         }
       });
+
+      if (userRole === 'support_team') {
+        const topRow = document.querySelector('.dashboard-top-row');
+        if (topRow) topRow.style.display = 'none';
+        const sidebarCol = document.querySelector('.dashboard-sidebar-col');
+        if (sidebarCol) sidebarCol.style.display = 'none';
+        
+        // Rename Dashboard tab to Ticketing
+        const dashTab = document.getElementById('tab-dashboard');
+        if (dashTab) {
+          dashTab.innerHTML = 'Ticketing';
+        }
+      }
       
       // Hide modals/buttons based on role
       hideElementsByRole(userRole);
@@ -2859,7 +3281,7 @@ function initNavAccordion() {
       });
       const qp = new URLSearchParams(location.search);
       const tabQ = qp.get("tab");
-      if (tabQ && ["compliance", "reports", "llm", "users", "licenses", "organizations", "settings", "executive"].includes(tabQ)) {
+      if (tabQ && ["compliance", "reports", "llm", "users", "licenses", "organizations", "settings", "executive", "ticketing", "targets"].includes(tabQ)) {
         showTab(tabQ);
       }
       if (qp.get("openRemote") === "1") {
@@ -2894,7 +3316,7 @@ function initNavAccordion() {
           switchToTarget(currentTarget);
           updateAllTargetDisplays();
         } else {
-          setTimeout(() => runLocalScan(), 500);
+          console.log("No previous scan data. Please trigger a scan manually.");
         }
       }
       loadDashboardKpis();
@@ -2905,7 +3327,62 @@ function initNavAccordion() {
       refreshFeed();
       setInterval(refreshFeed,4000);
       setInterval(() => { if (!DEMO_MODE) loadDashboardKpis(); }, 30000);
+
+      // Notifications initialization
+      fetchNotifications();
+      setInterval(fetchNotifications, 10000);
     });
+
+    let unreadNotifCount = 0;
+    async function fetchNotifications() {
+      try {
+        const r = await fetch("/api/notifications");
+        if(!r.ok) return;
+        const d = await r.json();
+        const notifs = d.notifications || [];
+        
+        unreadNotifCount = notifs.filter(n => !n.read).length;
+        const badge = document.getElementById("notifBadge");
+        if(unreadNotifCount > 0) {
+          badge.style.display = "inline-block";
+          badge.textContent = unreadNotifCount;
+        } else {
+          badge.style.display = "none";
+        }
+        
+        const container = document.getElementById("notifContainer");
+        if(notifs.length === 0) {
+          container.innerHTML = '<div style="color:#8892a4;text-align:center;">No notifications</div>';
+          return;
+        }
+        
+        container.innerHTML = notifs.map(n => `
+          <div style="background:${n.read ? 'rgba(0,0,0,0.2)' : 'rgba(0,212,255,0.05)'};border-radius:12px;padding:16px;border:1px solid ${n.read ? 'rgba(255,255,255,0.05)' : 'rgba(0,212,255,0.2)'};position:relative;transition:all 0.2s;">
+            <div style="font-size:14px;color:#e8eaf6;margin-bottom:8px;padding-right:24px;">${escapeHtml(n.message)}</div>
+            <div style="font-size:11px;color:#8892a4;display:flex;align-items:center;gap:6px;">
+              <i class="bi bi-clock"></i> ${new Date(n.timestamp).toLocaleString()}
+            </div>
+            ${!n.read ? `<button type="button" class="btn btn-sm" style="position:absolute;top:12px;right:12px;color:#00d4ff;padding:2px 6px;" onclick="markNotificationRead('${n.id}')" title="Mark as Read"><i class="bi bi-check2-circle" style="font-size:16px;"></i></button>` : `<i class="bi bi-check-all" style="position:absolute;top:16px;right:16px;color:#8892a4;font-size:16px;" title="Read"></i>`}
+          </div>
+        `).join("");
+      } catch(e) {
+        console.error("Failed to fetch notifications:", e);
+      }
+    }
+    
+    window.markNotificationRead = async function(id) {
+      try {
+        const r = await fetch("/api/notifications/" + encodeURIComponent(id) + "/read", {
+          method: "POST", headers: apiHeaders()
+        });
+        if(r.ok) {
+          fetchNotifications();
+        }
+      } catch(e) {
+        console.error("Failed to mark read:", e);
+      }
+    };
+
   </script>
 </body>
 </html>

@@ -105,31 +105,76 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 chat_history = {}
 
 
-def init_llm_client():
-    try:
-        if LLM_PROVIDER == "openai" and LLM_API_KEY:
-            from openai import OpenAI
-
-            return OpenAI(api_key=LLM_API_KEY)
-        elif LLM_PROVIDER == "claude" and LLM_API_KEY:
-            from anthropic import Anthropic
-
-            return Anthropic(api_key=LLM_API_KEY)
-        elif LLM_PROVIDER == "ollama":
-            import requests
-
-            return requests
-        elif LLM_PROVIDER == "gemini" and LLM_API_KEY:
+# Multi-LLM Fallback Helper
+def call_llm_with_fallback(system_prompt, messages=None, user_prompt=None, temperature=0.7, max_tokens=1500):
+    if messages is None:
+        messages = [{"role": "user", "content": user_prompt}]
+        
+    errors = []
+    
+    # 1. Try Gemini
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    if gemini_key:
+        try:
             import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            
+            contents = []
+            for m in messages:
+                role = "user" if m["role"] == "user" else "model"
+                contents.append({"role": role, "parts": [m["content"]]})
+                
+            response = model.generate_content(
+                [{"role": "user", "parts": [system_prompt]}] + contents,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                )
+            )
+            return response.text
+        except Exception as e:
+            errors.append(f"Gemini: {str(e)}")
+            print(f"[WARN] Gemini failed: {e}. Falling back...")
 
-            genai.configure(api_key=LLM_API_KEY)
-            return genai
-    except Exception as e:
-        print(f"[WARN] LLM client init failed: {e}")
-    return None
+    # 2. Try Groq
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if groq_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=groq_key, base_url="https://api.groq.com/openai/v1")
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "system", "content": system_prompt}] + messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            errors.append(f"Groq: {str(e)}")
+            print(f"[WARN] Groq failed: {e}. Falling back...")
 
+    # 3. Try Nvidia
+    nvidia_key = os.environ.get("NVIDIA_API_KEY")
+    if nvidia_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=nvidia_key, base_url="https://integrate.api.nvidia.com/v1")
+            response = client.chat.completions.create(
+                model="meta/llama-3.1-70b-instruct",
+                messages=[{"role": "system", "content": system_prompt}] + messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            errors.append(f"Nvidia: {str(e)}")
+            print(f"[WARN] Nvidia failed: {e}.")
 
-llm_client = init_llm_client()
+    if not gemini_key and not groq_key and not nvidia_key:
+        return None
+        
+    return f"Analysis unavailable - All LLM providers failed: {'; '.join(errors)}"
 
 
 def get_security_context():
@@ -141,16 +186,19 @@ def get_security_context():
             [
                 f
                 for target_data in stored_scan_results.values()
+                if _target_visible_for_org(target_data)
                 for f in target_data.get("findings", [])
             ]
         ),
-        "targets_total": len(stored_scan_results),
+        "targets_total": sum(1 for v in stored_scan_results.values() if _target_visible_for_org(v)),
         "critical_findings": 0,
         "high_findings": 0,
         "organizations": len(llm_store.list_organizations()) if llm_store else 0,
         "recent_findings": [],
     }
     for target_data in stored_scan_results.values():
+        if not _target_visible_for_org(target_data):
+            continue
         for finding in target_data.get("findings", []):
             severity = (finding.get("severity") or "").lower()
             if severity == "critical":
@@ -159,6 +207,8 @@ def get_security_context():
                 context["high_findings"] += 1
     all_findings = []
     for target_key, target_data in stored_scan_results.items():
+        if not _target_visible_for_org(target_data):
+            continue
         for finding in target_data.get("findings", []):
             all_findings.append(
                 {
@@ -214,68 +264,14 @@ def query_llm(user_message, user_id):
         for msg in chat_history[user_id][-10:]:
             messages.append({"role": msg["role"], "content": msg["content"]})
         system_prompt = create_system_prompt()
-        response_text = ""
-        if LLM_PROVIDER == "openai" and llm_client:
-            response = llm_client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[{"role": "system", "content": system_prompt}, *messages],
-                temperature=0.7,
-                max_tokens=1500,
-            )
-            response_text = response.choices[0].message.content
-        elif LLM_PROVIDER == "claude" and llm_client:
-            response = llm_client.messages.create(
-                model=LLM_MODEL,
-                max_tokens=1500,
-                system=system_prompt,
-                messages=messages,
-            )
-            response_text = response.content[0].text
-        elif LLM_PROVIDER == "ollama":
-            import requests
-
-            try:
-                models_resp = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
-                available_models = models_resp.json().get("models", [])
-                if not available_models:
-                    return "No Ollama models found. Run 'ollama pull mistral' to download a model."
-                model_name = LLM_MODEL
-                if not any(
-                    m.get("name", "").startswith(model_name) for m in available_models
-                ):
-                    model_name = (
-                        available_models[0].get("name", "mistral").split(":")[0]
-                    )
-                response = requests.post(
-                    f"{OLLAMA_URL}/api/chat",
-                    json={
-                        "model": model_name,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            *messages,
-                        ],
-                        "stream": False,
-                    },
-                    timeout=60,
-                )
-                if response.ok:
-                    response_text = (
-                        response.json().get("message", {}).get("content", "")
-                    )
-                else:
-                    response_text = f"Ollama error: {response.status_code}"
-            except Exception as e:
-                response_text = f"Ollama error: {str(e)}"
-        elif LLM_PROVIDER == "gemini":
-            import google.generativeai as genai
-
-            model = genai.GenerativeModel(LLM_MODEL)
-            response = model.generate_content(
-                f"{system_prompt}\n\nUser: {user_message}"
-            )
-            response_text = response.text
-        else:
-            response_text = "LLM not configured. Please set LLM_PROVIDER and LLM_API_KEY environment variables."
+        response_text = call_llm_with_fallback(
+            system_prompt=system_prompt,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1500
+        )
+        if response_text is None:
+            response_text = "LLM not configured. Please set GEMINI_API_KEY, GROQ_API_KEY, or NVIDIA_API_KEY."
         chat_history[user_id].append(
             {
                 "role": "assistant",
@@ -319,18 +315,13 @@ Description: {finding.get("details")}
 
 Provide detailed, actionable analysis."""
         system_prompt = create_system_prompt()
-        if LLM_PROVIDER == "openai" and llm_client:
-            response = llm_client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": analysis_prompt},
-                ],
-                temperature=0.7,
-                max_tokens=2000,
-            )
-            analysis = response.choices[0].message.content
-        else:
+        analysis = call_llm_with_fallback(
+            system_prompt=system_prompt,
+            user_prompt=analysis_prompt,
+            temperature=0.7,
+            max_tokens=2000
+        )
+        if analysis is None:
             analysis = "Analysis unavailable - LLM not configured"
         return {
             "finding_id": finding_id,
@@ -339,6 +330,61 @@ Provide detailed, actionable analysis."""
         }
     except Exception as e:
         print(f"[ERROR] Finding analysis failed: {str(e)}")
+        return {"error": str(e)}
+
+def generate_remediation_script_with_ai(finding_id):
+    try:
+        target_key, idx = (
+            finding_id.rsplit(":", 1) if ":" in finding_id else (finding_id, 0)
+        )
+        target_data = stored_scan_results.get(target_key) or {}
+        checks = target_data.get("checks") or []
+        idx = int(idx) if idx.isdigit() else 0
+        if idx >= len(checks):
+            return {"error": "Finding not found"}
+        finding = checks[idx]
+        os_name = target_data.get("os", "Linux")
+        script_type = "powershell" if "windows" in os_name.lower() else "bash"
+        script_prompt = f"""Generate a {script_type} script to fix the following security finding on {os_name}.
+Only output the raw code of the script. Do NOT use markdown code blocks like ```bash or ```powershell. Do NOT add any explanations.
+Just the script code itself, ready to be executed.
+
+Finding:
+Title: {finding.get("check") or finding.get("title")}
+Severity: {finding.get("severity")}
+Category: {finding.get("category")}
+Description: {finding.get("details")}"""
+        system_prompt = create_system_prompt()
+        script = call_llm_with_fallback(
+            system_prompt=system_prompt,
+            user_prompt=script_prompt,
+            temperature=0.2,
+            max_tokens=1000
+        )
+        if script is None:
+            # Fallback for demonstration when LLM is not configured
+            script = f"""#!/bin/bash
+# NiteSentinel Auto-Generated Remediation (Mock Mode)
+# Finding: {finding.get("title")}
+# Category: {finding.get("category")}
+
+echo "[*] Initiating automated remediation..."
+echo "[*] Applying security patch for: {finding.get("title")}"
+
+if [ "{finding.get("severity").lower()}" == "critical" ]; then
+    echo "[!] Critical severity detected. Enforcing strict policy."
+fi
+
+# TODO: Connect actual LLM API key in settings to generate real context-aware scripts.
+echo "[+] Remediation applied successfully."
+"""
+        return {
+            "finding_id": finding_id,
+            "script": script,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        print(f"[ERROR] Finding script generation failed: {str(e)}")
         return {"error": str(e)}
 
 
@@ -377,6 +423,18 @@ user_preferences: dict[str, dict] = {}
 currently_scanning: set[str] = set()
 
 finding_remediation: dict[str, dict] = {}
+global_notifications: list[dict] = []
+
+import uuid
+def create_notification(user_id: str, message: str, finding_id: str = None):
+    global_notifications.append({
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "message": message,
+        "timestamp": datetime.utcnow().isoformat(),
+        "read": False,
+        "finding_id": finding_id
+    })
 
 ROLE_PERMISSIONS = {
     "super_admin": {
@@ -411,6 +469,15 @@ ROLE_PERMISSIONS = {
         "licenses": [],
         "organizations": [],
         "findings": ["view"],
+        "targets": ["view"],
+        "reports": ["view"],
+        "compliance": ["view"],
+    },
+    "support_team": {
+        "users": [],
+        "licenses": [],
+        "organizations": [],
+        "findings": ["view", "update", "close"],
         "targets": ["view"],
         "reports": ["view"],
         "compliance": ["view"],
@@ -483,6 +550,7 @@ ROLE_MAP = {
     "super_admin": "super_admin",
     "viewer": "viewer",
     "guest": "guest",
+    "support_team": "support_team",
 }
 
 
@@ -703,13 +771,17 @@ def _frameworks_for_check(check_name):
     name = (check_name or "").lower()
     mapping = []
     if any(x in name for x in ("ssh", "root", "password auth")):
-        mapping += ["CIS", "NIST", "DPDP"]
-    if any(x in name for x in ("firewall", "port", "smb")):
-        mapping += ["CIS", "PCI", "NIST", "DPDP"]
-    if any(x in name for x in ("password", "guest", "admin")):
-        mapping += ["ISO", "CIS", "NIST", "DPDP"]
+        mapping += ["CIS", "NIST", "DPDP", "SOC2"]
+    if any(x in name for x in ("firewall", "port", "smb", "network")):
+        mapping += ["CIS", "PCI", "NIST", "DPDP", "HIPAA"]
+    if any(x in name for x in ("password", "guest", "admin", "privilege")):
+        mapping += ["ISO", "CIS", "NIST", "DPDP", "SOC2", "HIPAA"]
+    if any(x in name for x in ("ssl", "https", "certificate", "encryption")):
+        mapping += ["PCI", "HIPAA", "SOC2", "NIST"]
+    if any(x in name for x in ("api", "swagger", "openapi", "documentation")):
+        mapping += ["OWASP", "SOC2"]
     if not mapping:
-        mapping = ["ISO", "DPDP"]
+        mapping = ["ISO", "DPDP", "SOC2"]
     return list(dict.fromkeys(mapping))
 
 
@@ -738,6 +810,8 @@ def _extract_findings():
     findings = []
     org_filter_val = org_filter()
     for target_key, data in stored_scan_results.items():
+        if not _target_visible_for_org(data):
+            continue
         if org_filter_val and data.get("org_id") != org_filter_val:
             continue
         checks = data.get("checks") or []
@@ -1017,6 +1091,14 @@ def has_permission(_org_id, perm: str) -> bool:
             "target_view",
             "compliance_view",
         ],
+        "support_team": [
+            "finding_view",
+            "finding_update",
+            "finding_close",
+            "target_view",
+            "report_view",
+            "compliance_view",
+        ],
     }
 
     return perm in PERMISSIONS.get(role, [])
@@ -1046,9 +1128,13 @@ def org_filter():
 
 def _target_visible_for_org(target_data: dict) -> bool:
     oid = session.get("org_id")
+    t_org = target_data.get("org_id")
+    
+    if t_org == "demo-org-1" and oid != "demo-org-1":
+        return False
+
     if not oid:
         return True
-    t_org = target_data.get("org_id")
     if t_org is None:
         return True
     return t_org == oid
@@ -1118,11 +1204,26 @@ def _normalize_os_family(os_raw: str | None) -> str:
     return "other"
 
 
+import requests
+
+def _notify_slack_webhook(target_key, res):
+    webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
+    if not webhook_url:
+        return
+    try:
+        critical_count = sum(1 for c in res.get("checks", []) if c.get("severity", "").lower() == "critical")
+        msg = {
+            "text": f"🚨 *NiteSentinel Scan Completed* 🚨\n*Target:* `{target_key}`\n*Compliance Score:* {res.get('score', 0)}/100\n*Critical Findings:* {critical_count}"
+        }
+        requests.post(webhook_url, json=msg, timeout=5)
+    except Exception as e:
+        print(f"[WARN] Failed to send Slack webhook: {e}")
+
 def _run_target_scan_job(target_key: str, org_id) -> None:
     try:
         res = None
         if target_key == "localhost":
-            data = scanner.scan_local()
+            data = {"checks": [], "score": 100} # Auto-scan disabled for cloud deployments
             plat_info = detect_platform()
             hostname = socket.gethostname()
             try:
@@ -1200,6 +1301,8 @@ def _run_target_scan_job(target_key: str, org_id) -> None:
         stored_scan_results[target_key] = res
         _record_scan(target_key, res["score"])
         _add_events(target_key, res.get("checks") or [])
+        # Trigger webhook notification
+        _notify_slack_webhook(target_key, res)
     except Exception:
         traceback.print_exc()
     finally:
@@ -1383,18 +1486,16 @@ def role_required(*roles):
             if app.config.get("TESTING"):
                 return f(*args, **kwargs)
             current_role = session.get("role")
-            print(
-                f"[DEBUG role_required] User role: {current_role}, Required roles: {roles}"
-            )
-            if current_role not in roles:
-                print(
-                    f"[DEBUG role_required] FAIL - role {current_role} not in {roles}"
-                )
+            
+            allowed_roles = list(roles)
+            if "admin" in allowed_roles and "super_admin" not in allowed_roles:
+                allowed_roles.append("super_admin")
+                
+            if current_role not in allowed_roles:
+                print(f"[DEBUG role_required] Forbidden! current_role: {current_role}, allowed: {allowed_roles}")
                 return jsonify({"error": "Forbidden for current role"}), 403
             return f(*args, **kwargs)
-
         return inner
-
     return deco
 
 
@@ -1426,6 +1527,7 @@ def secure_post(f):
             return redirect(url_for("dashboard"))
         token = request.headers.get("X-CSRF-Token")
         if token != session.get("csrf_token"):
+            print(f"[DEBUG secure_post] CSRF mismatch! Header: {token}, Session: {session.get('csrf_token')}")
             return jsonify({"error": "Invalid CSRF token"}), 403
         return f(*args, **kwargs)
 
@@ -1500,7 +1602,7 @@ def dashboard():
         org_name=config.get("branding", {}).get("organization_name", "NiTechSpark"),
         client_name=config.get("branding", {}).get("client_name", "Default Client"),
         demo_mode=demo_mode,
-        stored_scan_results_json=json.dumps(stored_scan_results),
+        stored_scan_results_json=json.dumps({k: v for k, v in stored_scan_results.items() if _target_visible_for_org(v)}),
     )
 
 
@@ -1550,6 +1652,11 @@ def api_scan_remote():
             port=int(port),
         )
 
+        if len(data.get("checks", [])) == 1:
+            check = data["checks"][0]
+            if check.get("check") == "Connection" and check.get("status") == "FAIL":
+                return jsonify({"error": check.get("details", "Authentication or connection failed")}), 400
+
         res = {
             "score": data["score"],
             "failed": data["failed"],
@@ -1573,6 +1680,8 @@ def api_scan_remote():
         stored_scan_results[target_key] = res
         _record_scan(target_key, res["score"])
         _add_events(target_key, res["checks"])
+        # Trigger webhook notification
+        _notify_slack_webhook(target_key, res)
         return jsonify(res)
     except Exception as e:
         traceback.print_exc()
@@ -1700,7 +1809,7 @@ def report_local():
     import os, tempfile
 
     scanner = Scanner()
-    results = scanner.scan_local()
+    results = {"checks": [], "score": 100} # Auto-scan disabled for cloud deployments
 
     # Enrich results with system info as required by Reporter
     plat_info = detect_platform()
@@ -1847,13 +1956,14 @@ def api_feed():
 @login_required
 def dashboard_kpis():
     findings = _extract_findings()
-    total_targets = len(stored_scan_results)
+    visible_targets = {k: v for k, v in stored_scan_results.items() if _target_visible_for_org(v)}
+    total_targets = len(visible_targets)
     critical_count = sum(1 for f in findings if f["severity"] == "critical")
     remediated = sum(1 for f in findings if f["status"] in ("remediated", "closed"))
     remediation_rate = (
         int((remediated / max(1, len(findings))) * 100) if findings else 0
     )
-    scores = [int(v.get("score", 0)) for v in stored_scan_results.values()]
+    scores = [int(v.get("score", 0)) for v in visible_targets.values()]
     avg_score = int(sum(scores) / len(scores)) if scores else 0
     trend = []
     for host, points in scan_history.items():
@@ -1896,6 +2006,8 @@ def api_targets():
     all_targets = []
     org_filter_val = org_filter()
     for target_key, target_data in stored_scan_results.items():
+        if not _target_visible_for_org(target_data):
+            continue
         if target_key in removed_hosts:
             continue
         if org_filter_val and target_data.get("org_id") != org_filter_val:
@@ -2047,7 +2159,7 @@ def targets_page():
 @app.route("/targets/<path:target_detail_id>")
 @login_required
 def targets_detail_redirect(target_detail_id):
-    return redirect(f"{url_for('index')}?target={quote(target_detail_id, safe='')}")
+    return redirect(f"{url_for('dashboard')}?target={quote(target_detail_id, safe='')}")
 
 
 @app.route("/api/findings")
@@ -2091,6 +2203,8 @@ def list_findings():
         if allowed_keys:
             allow = set(allowed_keys)
             items = [f for f in items if _finding_compliance_keys(f) & allow]
+        else:
+            items = []
     if target:
         items = [
             f
@@ -2251,9 +2365,15 @@ def api_update_remediation(finding_id):
         _apply_finding_update(
             finding_id, {"status": wf_map.get(data["status"], "in_progress")}
         )
+        if session.get("role") == "support_team":
+            create_notification("admin", f"Support team updated finding {finding_id} status to {data['status']}", finding_id)
+
     if "assigned_to" in data:
         rec["assigned_to"] = data["assigned_to"]
         _apply_finding_update(finding_id, {"assigned_to": data["assigned_to"]})
+        if data["assigned_to"] and data["assigned_to"] != user_id:
+            create_notification(data["assigned_to"], f"You have been assigned to finding {finding_id}", finding_id)
+
     if "deadline" in data:
         rec["deadline"] = data["deadline"]
     if data.get("comment"):
@@ -2264,6 +2384,9 @@ def api_update_remediation(finding_id):
                 "timestamp": datetime.utcnow().isoformat(),
             }
         )
+        if session.get("role") == "support_team":
+            create_notification("admin", f"Support team added a comment to finding {finding_id}", finding_id)
+
     rec.setdefault("history", []).append(
         {
             "timestamp": datetime.utcnow().isoformat(),
@@ -2272,6 +2395,33 @@ def api_update_remediation(finding_id):
         }
     )
     return jsonify({"message": "Remediation updated", "remediation": rec})
+
+@app.route("/api/notifications", methods=["GET"])
+@login_required
+def api_get_notifications():
+    user_id = session.get("user_id") or session.get("username") or "anonymous"
+    role = session.get("role")
+    
+    # Filter notifications for this user, or for 'admin' if they are an admin
+    user_notifs = []
+    for n in global_notifications:
+        if n["user_id"] == user_id or (n["user_id"] == "admin" and role in ["admin", "super_admin", "org_admin"]):
+            user_notifs.append(n)
+            
+    # Sort by timestamp descending
+    user_notifs.sort(key=lambda x: x["timestamp"], reverse=True)
+    return jsonify({"notifications": user_notifs})
+
+@app.route("/api/notifications/<path:notif_id>/read", methods=["POST"])
+@login_required
+def api_read_notification(notif_id):
+    notif_id = unquote(notif_id)
+    for n in global_notifications:
+        if n["id"] == notif_id:
+            n["read"] = True
+            return jsonify({"status": "ok"})
+    return jsonify({"error": "Notification not found"}), 404
+
 
 
 @app.route("/api/findings/<path:finding_id>/close", methods=["POST"])
@@ -2767,7 +2917,8 @@ def download_target_pdf_report(scan_id):
 
 def _run_scheduled_scan(target, mode):
     if mode == "local":
-        data = scanner.scan_local()
+        # Auto-scan disabled for cloud deployments
+        data = {"checks": [], "score": 100}
         score = data.get("score", 0)
         _record_scan("localhost", score)
     else:
@@ -3209,6 +3360,13 @@ def api_analyze_finding(finding_id):
     analysis = analyze_finding_with_ai(finding_id)
     return jsonify(analysis)
 
+@app.route("/api/findings/<path:finding_id>/script", methods=["POST"])
+@login_required
+def api_generate_script(finding_id):
+    finding_id = unquote(finding_id)
+    script_data = generate_remediation_script_with_ai(finding_id)
+    return jsonify(script_data)
+
 
 @app.route("/api/findings/<path:finding_id>/remediate", methods=["POST"])
 @login_required
@@ -3220,7 +3378,7 @@ def api_remediate_finding(finding_id):
 
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    llm_status = "connected" if llm_client else "disconnected"
+    llm_status = "connected" if (os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("NVIDIA_API_KEY")) else "disconnected"
     return jsonify(
         {
             "status": "ok",

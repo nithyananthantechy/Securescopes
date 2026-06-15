@@ -65,6 +65,9 @@ def get_platform_name():
         
     return platform.system()
 
+import functools
+
+@functools.lru_cache(maxsize=1)
 def detect_platform():
     """Detect the current operating system and environment (WSL)."""
     plat_name = get_platform_name()
@@ -118,7 +121,7 @@ def run_command(command, shell=True, timeout=30, ssh=None):
 def get_banner(plat_info):
     """Generate the NiteSentinel startup banner."""
     banner_content = [
-        "[bold cyan]NiteSentinel v1.1.0 by NITECHSPARK[/bold cyan]",
+        "[bold cyan]NiteSentinel v1.2.0 by NITECHSPARK[/bold cyan]",
         f"[yellow]Platform: {plat_info['os']}[/yellow]",
         "[green]Mode: Local + Remote Scan Ready[/green]"
     ]

@@ -6,6 +6,7 @@ from securescope.scanners.network_scanner import NetworkScanner
 from securescope.scanners.firewall_scanner import FirewallScanner
 from securescope.scanners.web_scanner import WebScanner
 from securescope.scanners.port_scanner import PortScanner
+from securescope.scanners.docker_scanner import DockerScanner
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
@@ -44,6 +45,8 @@ class Scanner:
                     ex.submit(LinuxScanner().run_all_checks),
                     ex.submit(FirewallScanner(self.plat_info).run_all_checks),
                     ex.submit(WebScanner(self.plat_info).run_all_checks),
+                    ex.submit(PortScanner("127.0.0.1").run_all_checks),
+                    ex.submit(DockerScanner().run_all_checks),
                 ]
                 for f in futures:
                     checks.extend(f.result())
@@ -62,6 +65,17 @@ class Scanner:
 
     def scan_remote(self, host, user, password=None, key_path=None, target_type="linux", port=22):
         """Perform a clean remote scan isolated by target type."""
+        import socket
+        local_ips = ["127.0.0.1", "localhost", "::1"]
+        try:
+            hostname = socket.gethostname()
+            _, _, ips = socket.gethostbyname_ex(hostname)
+            local_ips.extend(ips)
+        except Exception:
+            pass
+        if host in local_ips:
+            return self.scan_local()
+            
         logger.info(f"Starting remote {target_type} scan on {host}:{port}...")
         checks = []
         
@@ -79,12 +93,35 @@ class Scanner:
                     banner_timeout=8,
                     auth_timeout=8,
                 )
-                checks.extend(LinuxScanner(target_host=host).scan_remote(ssh))
+                checks.extend(LinuxScanner(target_host=host, ssh_client=ssh).run_all_checks())
+                ssh.close()
+            elif target_type == "docker":
+                import paramiko
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(
+                    host,
+                    port=int(port),
+                    username=user,
+                    password=password,
+                    timeout=8,
+                    banner_timeout=8,
+                    auth_timeout=8,
+                )
+                from securescope.scanners.docker_scanner import DockerScanner
+                checks.extend(DockerScanner().scan_remote(ssh))
                 ssh.close()
             elif target_type == "network":
                 checks.extend(NetworkScanner(host, user, password).run_all_checks())
             elif target_type == "windows":
-                checks.extend(WindowsScanner(target_host=host).run_all_checks())
+                import winrm
+                session = winrm.Session(
+                    f'http://{host}:{port}/wsman',
+                    auth=(user, password),
+                    transport='ntlm',
+                    server_cert_validation='ignore'
+                )
+                checks.extend(WindowsScanner(target_host=host, winrm_client=session).run_all_checks())
         except Exception as e:
             logger.error(f"Remote scan failed: {str(e)}")
             checks.append({
@@ -155,7 +192,7 @@ class Scanner:
 
         # 2. Security Headers Check
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "NiteSentinel/1.1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "NiteSentinel/1.2.0"})
             resp = urllib.request.urlopen(req, timeout=10)
             headers = dict(resp.headers)
 
@@ -180,6 +217,31 @@ class Scanner:
                 checks.append({"category": "Web Security", "check": "Server Banner Hidden", "status": "WARNING", "severity": "Medium", "details": f"Server header exposes: {server}"})
             else:
                 checks.append({"category": "Web Security", "check": "Server Banner Hidden", "status": "PASS", "severity": "Medium", "details": "Server header not disclosed"})
+
+            # 4. API Security Checks (OWASP)
+            api_endpoints = ["/api/docs", "/swagger-ui.html", "/openapi.json", "/v1/api-docs"]
+            api_exposed = False
+            for endpoint in api_endpoints:
+                try:
+                    test_url = url.rstrip("/") + endpoint
+                    req_api = urllib.request.Request(test_url, headers={"User-Agent": "NiteSentinel/1.2.0"})
+                    resp_api = urllib.request.urlopen(req_api, timeout=3)
+                    if resp_api.status == 200:
+                        checks.append({
+                            "category": "API Security", "check": "Exposed API Documentation",
+                            "status": "WARNING", "severity": "Medium",
+                            "details": f"API Documentation publicly accessible at {endpoint}"
+                        })
+                        api_exposed = True
+                except Exception:
+                    pass
+            
+            if not api_exposed:
+                checks.append({
+                    "category": "API Security", "check": "Exposed API Documentation",
+                    "status": "PASS", "severity": "Low",
+                    "details": "No common API documentation endpoints found exposed"
+                })
 
         except Exception as e:
             checks.append({"category": "Web Security", "check": "HTTP Response", "status": "FAIL", "severity": "Critical", "details": f"Could not reach {url}: {str(e)}"})
