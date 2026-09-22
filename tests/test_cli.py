@@ -12,7 +12,7 @@ def test_cli_group_help(runner):
     """CLI group should display help text."""
     result = runner.invoke(cli, ['--help'])
     assert result.exit_code == 0
-    assert 'SecureScope' in result.output
+    assert 'NiteSentinel' in result.output
 
 
 def test_cli_scan_command_exists(runner):

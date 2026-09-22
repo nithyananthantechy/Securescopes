@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Compliance Framework Alignment · NiteSentinel Enterprise{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Breadcrumb -->
+  <div class="mb-3">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none"><i class="bi bi-shield-lock-fill text-info me-1"></i> NITECHSPARK</a></li>
+        <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none">PLATFORM HUB</a></li>
+        <li class="breadcrumb-item active text-info" aria-current="page">COMPLIANCE</li>
+      </ol>
+    </nav>
+  </div>
+
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">📜</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Compliance Framework Alignment</h1>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">NITECHSPARK</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Multi-standard control mappings, baseline audits, and cybersecurity gap analysis</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/engagements" class="btn btn-primary-enterprise d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-folder2-open"></i> Client Assessments
+      </a>
+      <a href="/security-dashboard?tab=compliance" class="btn btn-outline-info d-flex align-items-center gap-1">
+        <i class="bi bi-speedometer2"></i> Host Compliance Matrix
+      </a>
+    </div>
+  </div>
+
+  <!-- Mandatory Notice -->
+  <div class="alert alert-dark border-secondary border-opacity-50 text-light p-3 mb-4 rounded-3 shadow-sm" style="background: rgba(13, 202, 240, 0.05); border-left: 4px solid #0dcaf0 !important;">
+    <div class="d-flex align-items-start gap-2">
+      <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+      <div>
+        <strong class="text-white">Informational Alignment Notice:</strong>
+        <p class="text-secondary small mb-0 mt-1">
+          The mappings, control gap evaluations, and readiness indicators presented in this module are for <strong>informational alignment and technical baseline posture only — not certification</strong>. Formal certification requires an accredited external third-party registrar or certified audit authority.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Framework Cards Grid -->
+  <div class="row g-4 mb-4">
+    <!-- NIST CSF 2.0 -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card-scope p-4 h-100 d-flex flex-column justify-content-between border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.8);">
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">NIST Benchmark</span>
+            <i class="bi bi-shield-lock text-primary fs-4"></i>
+          </div>
+          <h5 class="fw-bold text-light mb-2">NIST CSF 2.0</h5>
+          <p class="text-secondary small mb-3">
+            National Institute of Standards and Technology Cybersecurity Framework 2.0. Spans Govern (GV), Identify (ID), Protect (PR), Detect (DE), Respond (RS), and Recover (RC) functions.
+          </p>
+          <ul class="list-unstyled text-secondary small mb-0">
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Organizational Governance & Risk</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Asset Management & Access Controls</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Continuous Monitoring & Incident Response</li>
+          </ul>
+        </div>
+        <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+          <span class="text-muted small">6 Functions / 22 Categories</span>
+          <a href="/engagements" class="btn btn-sm btn-outline-primary">Assess In Engagements</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ISO 27001:2022 -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card-scope p-4 h-100 d-flex flex-column justify-content-between border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.8);">
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">ISO/IEC Standard</span>
+            <i class="bi bi-globe text-info fs-4"></i>
+          </div>
+          <h5 class="fw-bold text-light mb-2">ISO/IEC 27001:2022</h5>
+          <p class="text-secondary small mb-3">
+            International standard for Information Security Management Systems (ISMS). Focuses on Annex A controls categorized into 4 themes: Organizational, People, Physical, and Technological.
+          </p>
+          <ul class="list-unstyled text-secondary small mb-0">
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Clause 4–10 ISMS Requirements</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> A.5 Organizational & A.6 People Controls</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> A.8 Technological Cybersecurity Controls</li>
+          </ul>
+        </div>
+        <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+          <span class="text-muted small">93 Controls / 4 Themes</span>
+          <a href="/engagements" class="btn btn-sm btn-outline-info">Assess In Engagements</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- CIS Controls v8 -->
+    <div class="col-lg-4 col-md-6">
+      <div class="card-scope p-4 h-100 d-flex flex-column justify-content-between border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.8);">
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">CIS Benchmarks</span>
+            <i class="bi bi-sliders text-warning fs-4"></i>
+          </div>
+          <h5 class="fw-bold text-light mb-2">CIS Controls v8</h5>
+          <p class="text-secondary small mb-3">
+            Center for Internet Security Critical Security Controls. Prioritized, prescriptive actions for cyber defense grouped into Implementation Groups (IG1 for MSMEs, IG2, IG3).
+          </p>
+          <ul class="list-unstyled text-secondary small mb-0">
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Control 1 & 2: Inventory of Enterprise & Software Assets</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Control 3 & 4: Data Protection & Secure Configuration</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Control 5 & 6: Account Management & Access Control</li>
+          </ul>
+        </div>
+        <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+          <span class="text-muted small">18 Controls / 153 Safeguards</span>
+          <a href="/engagements" class="btn btn-sm btn-outline-warning">Assess In Engagements</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- PCI DSS v4.0 -->
+    <div class="col-lg-6 col-md-6">
+      <div class="card-scope p-4 h-100 d-flex flex-column justify-content-between border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.8);">
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Payment Security</span>
+            <i class="bi bi-credit-card-2-front text-success fs-4"></i>
+          </div>
+          <h5 class="fw-bold text-light mb-2">PCI DSS v4.0</h5>
+          <p class="text-secondary small mb-3">
+            Payment Card Industry Data Security Standard. Technical and operational requirements designed to protect account data, cardholder data environments (CDE), and payment systems.
+          </p>
+          <ul class="list-unstyled text-secondary small mb-0">
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Req 1 & 2: Network Security Controls & System Hardening</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Req 3 & 4: Protect Stored Account Data & Transmission Encryption</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Req 7 & 8: Access Restrictions & MFA for Privileged Accounts</li>
+          </ul>
+        </div>
+        <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+          <span class="text-muted small">12 Core Requirements</span>
+          <a href="/engagements" class="btn btn-sm btn-outline-success">Assess In Engagements</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- DPDP Act 2023 -->
+    <div class="col-lg-6 col-md-12">
+      <div class="card-scope p-4 h-100 d-flex flex-column justify-content-between border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.8);">
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Privacy Law</span>
+            <i class="bi bi-file-earmark-lock text-danger fs-4"></i>
+          </div>
+          <h5 class="fw-bold text-light mb-2">DPDP Act 2023</h5>
+          <p class="text-secondary small mb-3">
+            India's Digital Personal Data Protection Act 2023. Compliance requirements for Data Fiduciaries handling personal data, including consent management, security safeguards, and breach notification obligations.
+          </p>
+          <ul class="list-unstyled text-secondary small mb-0">
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Reasonable Security Safeguards to Prevent Personal Data Breach</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Mandatory Reporting of Data Breaches to Board and Affected Principals</li>
+            <li class="mb-1"><i class="bi bi-check2 text-info me-1"></i> Data Retention & Purpose Limitation Controls</li>
+          </ul>
+        </div>
+        <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+          <span class="text-muted small">Statutory Fiduciary Standards</span>
+          <a href="/engagements" class="btn btn-sm btn-outline-danger">Assess In Engagements</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Chain of Custody · Hardware Asset Management · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🤝</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Chain of Custody &amp; Handover Log</h1>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Audit Trail</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Immutable ledger tracking hardware custody transfers, employee sign-offs, department reallocations, and returns.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-info d-flex align-items-center gap-1" onclick="window.print()">
+        <i class="bi bi-printer"></i> Print Custody Log
+      </button>
+      <a href="/ham/assets" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        <i class="bi bi-hdd-network"></i> Assets Inventory
+      </a>
+    </div>
+  </div>
+
+  <!-- Custody Table Card -->
+  <div class="card-scope p-0 overflow-hidden shadow-sm mb-4">
+    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h2 class="h6 fw-bold text-light mb-0"><i class="bi bi-clock-history text-info me-2"></i>Global Custody Handover Events</h2>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRefreshCustody"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0 small">
+        <thead class="text-secondary bg-dark">
+          <tr>
+            <th>Timestamp</th>
+            <th>Asset Tag</th>
+            <th>Action</th>
+            <th>Custodian (Employee)</th>
+            <th>Department</th>
+            <th>Authorized By</th>
+            <th>Notes / Handover Purpose</th>
+          </tr>
+        </thead>
+        <tbody id="globalCustodyBody">
+          <tr>
+            <td colspan="7" class="text-center py-5 text-secondary">
+              <div class="spinner-border spinner-border-sm text-info me-2"></div> Loading custody events…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Highlight sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  loadGlobalCustody();
+  document.getElementById("btnRefreshCustody")?.addEventListener("click", loadGlobalCustody);
+
+  async function loadGlobalCustody() {
+    const tbody = document.getElementById("globalCustodyBody");
+    try {
+      const res = await fetch("/api/ham/reports/inventory");
+      if (!res.ok) throw new Error("Failed to load inventory for custody");
+      const d = await res.json();
+      const assets = d.assets || [];
+
+      // Collect all custody items
+      let custodyItems = [];
+      assets.forEach(a => {
+        if (a.assigned_to) {
+          custodyItems.push({
+            timestamp: a.assignment_date || a.updated_at || "—",
+            asset_id: a.id,
+            asset_tag: a.asset_tag || a.id.substring(0,8),
+            action: a.lifecycle_status === "in_service" ? "active_assignment" : "pool_assignment",
+            custodian: a.assigned_to,
+            department: a.department || "General",
+            authorized_by: "Administrator",
+            notes: a.notes || "Recorded during hardware inventory"
+          });
+        }
+      });
+
+      if (!custodyItems.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-secondary">No custody handover events logged yet. Assign assets to see chain of custody.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = custodyItems.map(c => `
+        <tr>
+          <td class="font-monospace text-secondary">${escapeHtml(c.timestamp)}</td>
+          <td><a href="/ham/assets/${c.asset_id}" class="text-info text-decoration-none fw-bold">${escapeHtml(c.asset_tag)}</a></td>
+          <td><span class="badge bg-info-subtle text-info text-uppercase">${escapeHtml(c.action)}</span></td>
+          <td class="fw-bold text-light">${escapeHtml(c.custodian)}</td>
+          <td>${escapeHtml(c.department)}</td>
+          <td class="text-secondary">${escapeHtml(c.authorized_by)}</td>
+          <td class="text-secondary">${escapeHtml(c.notes)}</td>
+        </tr>
+      `).join("");
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-secondary">Error loading custody log.</td></tr>`;
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+});
+</script>
+{% endblock %}

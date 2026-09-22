@@ -15,7 +15,7 @@ def test_login_route(client):
 
 
 def test_scan_local_route(client, monkeypatch):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -76,7 +76,7 @@ def test_logo_route(client):
 
 def test_report_local_route(client, monkeypatch):
     """Report local should generate HTML report."""
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -123,7 +123,7 @@ def test_harden_route(client):
 
 def test_scan_local_returns_all_expected_keys(client, monkeypatch):
     """API response should contain all dashboard-required keys."""
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -145,7 +145,7 @@ def test_scan_local_returns_all_expected_keys(client, monkeypatch):
 
 def test_scan_local_error_handling(client, monkeypatch):
     """If scanner raises an exception, API should return 500 with error."""
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def broken_scan():
         raise RuntimeError("Scan engine failure")
@@ -159,7 +159,7 @@ def test_scan_local_error_handling(client, monkeypatch):
 
 
 def test_dashboard_kpis_endpoint(client, monkeypatch):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -188,7 +188,7 @@ def test_dashboard_kpis_endpoint(client, monkeypatch):
 
 
 def test_targets_list_endpoint(client, monkeypatch):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -214,7 +214,7 @@ def test_targets_list_endpoint(client, monkeypatch):
 
 
 def test_api_targets_filter(client, monkeypatch):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -266,7 +266,7 @@ def test_targets_page_renders(client):
 
 
 def test_api_scan_target_localhost(client, monkeypatch):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -290,7 +290,7 @@ def test_api_scan_target_localhost(client, monkeypatch):
 
 
 def test_findings_list_and_bulk_action(client, monkeypatch):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -323,7 +323,7 @@ def test_findings_list_and_bulk_action(client, monkeypatch):
 
 
 def test_findings_filter_target_key(client, monkeypatch):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     def fake_scan_local():
         return {
@@ -347,7 +347,7 @@ def test_findings_filter_target_key(client, monkeypatch):
 
 def test_findings_bulk_with_colon_in_target_key(client):
     """Finding IDs use rsplit so target keys containing ':' (e.g. URLs) work."""
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
 
     key = 'web-https://example.com'
     sec_app.stored_scan_results[key] = {
@@ -520,7 +520,7 @@ def test_org_admin_cannot_see_other_org_findings(client):
             sess['org_id'] = 'org1'
         
         # Add finding from org2 (mock)
-        from securescope.web import app as sec_app
+        from nitesentinels.web import app as sec_app
         sec_app.stored_scan_results['target2'] = {
             'org_id': 'org2',
             'checks': [{'category': 'Test', 'check': 'Test', 'status': 'FAIL', 'severity': 'high'}]
@@ -542,7 +542,7 @@ def test_super_admin_sees_all_orgs(client):
             sess['org_id'] = None  # Super admin has no org
         
         # Add targets from multiple orgs
-        from securescope.web import app as sec_app
+        from nitesentinels.web import app as sec_app
         sec_app.stored_scan_results['target-org1'] = {'org_id': 'org1', 'name': 'Target 1'}
         sec_app.stored_scan_results['target-org2'] = {'org_id': 'org2', 'name': 'Target 2'}
         

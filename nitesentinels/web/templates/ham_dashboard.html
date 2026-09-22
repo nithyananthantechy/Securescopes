@@ -1,0 +1,572 @@
+{% extends "base.html" %}
+
+{% block title %}Hardware Asset Management · Dashboard · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Breadcrumb -->
+  <div class="mb-3">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none"><i class="bi bi-shield-lock-fill text-info me-1"></i> NITECHSPARK</a></li>
+        <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none">PLATFORM HUB</a></li>
+        <li class="breadcrumb-item active text-info" aria-current="page">HARDWARE ASSETS</li>
+      </ol>
+    </nav>
+  </div>
+
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🌐</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Hardware Asset Management</h1>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Enterprise HAM</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Overview of physical, virtual, and network hardware inventory, lifecycle, health &amp; risk posture</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/ham/assets?action=create" class="btn btn-primary-enterprise d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-plus-circle"></i> Add Asset
+      </a>
+      <a href="/ham/discover" class="btn btn-outline-info d-flex align-items-center gap-1">
+        <i class="bi bi-radar"></i> Discover Network
+      </a>
+      <a href="/ham/audit" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        <i class="bi bi-clipboard-check"></i> Audit Campaign
+      </a>
+      <a href="/api/ham/assets/export/csv" class="btn btn-outline-success d-flex align-items-center gap-1" download="ham_assets.csv">
+        <i class="bi bi-download"></i> Export CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards Grid -->
+  <div class="row g-3 mb-4" id="kpiContainer">
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card-scope h-100 p-3">
+        <div class="text-secondary small text-uppercase fw-semibold">Total Assets</div>
+        <div class="fs-2 fw-bold text-light my-1" id="kpiTotalAssets">—</div>
+        <div class="small text-secondary"><i class="bi bi-hdd-network text-info"></i> Tracked items</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card-scope h-100 p-3">
+        <div class="text-secondary small text-uppercase fw-semibold">In Service</div>
+        <div class="fs-2 fw-bold text-success my-1" id="kpiActiveAssets">—</div>
+        <div class="small text-secondary"><i class="bi bi-check-circle-fill text-success"></i> Operational</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card-scope h-100 p-3">
+        <div class="text-secondary small text-uppercase fw-semibold">In Stock / Pool</div>
+        <div class="fs-2 fw-bold text-info my-1" id="kpiInStock">—</div>
+        <div class="small text-secondary"><i class="bi bi-box-seam text-info"></i> Available</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card-scope h-100 p-3">
+        <div class="text-secondary small text-uppercase fw-semibold">High / Critical Risk</div>
+        <div class="fs-2 fw-bold text-danger my-1" id="kpiHighRisk">—</div>
+        <div class="small text-secondary"><i class="bi bi-exclamation-triangle-fill text-danger"></i> Needs triage</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card-scope h-100 p-3">
+        <div class="text-secondary small text-uppercase fw-semibold">Unhealthy State</div>
+        <div class="fs-2 fw-bold text-warning my-1" id="kpiUnhealthy">—</div>
+        <div class="small text-secondary"><i class="bi bi-heart-pulse-fill text-warning"></i> Telemetry issues</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card-scope h-100 p-3">
+        <div class="text-secondary small text-uppercase fw-semibold">Expiring Warranty (90d)</div>
+        <div class="fs-2 fw-bold text-orange my-1" id="kpiWarrantyExpiring" style="color: #ff9800;">—</div>
+        <div class="small text-secondary"><i class="bi bi-shield-exclamation" style="color: #ff9800;"></i> Review support</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secondary Metrics Bar -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="card-scope p-3 d-flex align-items-center justify-content-between">
+        <div>
+          <div class="small text-secondary text-uppercase fw-semibold">Active Agents</div>
+          <div class="fs-4 fw-bold text-light" id="kpiAgents">—</div>
+        </div>
+        <a href="/ham/agents" class="btn btn-sm btn-outline-info">Manage Agents &rarr;</a>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card-scope p-3 d-flex align-items-center justify-content-between">
+        <div>
+          <div class="small text-secondary text-uppercase fw-semibold">Ghost Assets (&gt;30d offline)</div>
+          <div class="fs-4 fw-bold text-warning" id="kpiGhostAssets">—</div>
+        </div>
+        <a href="/ham/health" class="btn btn-sm btn-outline-warning">View Ghost List &rarr;</a>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card-scope p-3 d-flex align-items-center justify-content-between">
+        <div>
+          <div class="small text-secondary text-uppercase fw-semibold">Active Audit Campaigns</div>
+          <div class="fs-4 fw-bold text-light" id="kpiAuditCampaigns">—</div>
+        </div>
+        <a href="/ham/audit" class="btn btn-sm btn-outline-secondary">Audit Status &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-4 mb-4">
+    <div class="col-12 col-lg-4">
+      <div class="card-scope p-3 h-100">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex justify-content-between align-items-center">
+          <span>Asset Types</span>
+          <span class="badge bg-secondary-subtle text-secondary small">Inventory</span>
+        </h2>
+        <div style="height: 240px; position: relative;">
+          <canvas id="chartAssetTypes"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card-scope p-3 h-100">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex justify-content-between align-items-center">
+          <span>Lifecycle Status</span>
+          <span class="badge bg-secondary-subtle text-secondary small">Pipeline</span>
+        </h2>
+        <div style="height: 240px; position: relative;">
+          <canvas id="chartLifecycle"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card-scope p-3 h-100">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex justify-content-between align-items-center">
+          <span>Risk Level Distribution</span>
+          <span class="badge bg-secondary-subtle text-secondary small">Security</span>
+        </h2>
+        <div style="height: 240px; position: relative;">
+          <canvas id="chartRiskLevels"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Department & Health Row -->
+  <div class="row g-4 mb-4">
+    <div class="col-12 col-lg-6">
+      <div class="card-scope p-3">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex justify-content-between align-items-center">
+          <span>Assets by Department</span>
+          <span class="badge bg-secondary-subtle text-secondary small">Allocation</span>
+        </h2>
+        <div style="height: 220px; position: relative;">
+          <canvas id="chartDepartments"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card-scope p-3">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex justify-content-between align-items-center">
+          <span>Asset Health Breakdown</span>
+          <span class="badge bg-secondary-subtle text-secondary small">Telemetry &amp; Findings</span>
+        </h2>
+        <div style="height: 220px; position: relative;">
+          <canvas id="chartHealthStatus"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Assets & Quick Navigation -->
+  <div class="row g-4">
+    <div class="col-12 col-xl-8">
+      <div class="card-scope p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold text-light mb-0">Recently Updated Assets</h2>
+          <a href="/ham/assets" class="small text-info text-decoration-none">View all &rarr;</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-dark table-hover align-middle mb-0 small" id="tableRecentAssets">
+            <thead class="text-secondary">
+              <tr>
+                <th>Tag</th>
+                <th>Name / Model</th>
+                <th>Type</th>
+                <th>Assigned To</th>
+                <th>Status</th>
+                <th>Health</th>
+                <th>Risk</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody id="recentAssetsBody">
+              <tr>
+                <td colspan="8" class="text-center py-4 text-secondary">
+                  <div class="spinner-border spinner-border-sm text-info me-2" role="status"></div> Loading assets…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="card-scope p-3">
+        <h2 class="h6 fw-bold text-light mb-3">HAM Module Quick Links</h2>
+        <div class="list-group list-group-flush bg-transparent">
+          <a href="/ham/assets" class="list-group-item list-group-item-action bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-pc-display text-info me-2"></i> All Hardware Assets</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+          <a href="/ham/discover" class="list-group-item list-group-item-action bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-search text-primary me-2"></i> Agentless Discovery</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+          <a href="/ham/agents" class="list-group-item list-group-item-action bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-cpu text-success me-2"></i> Client Agent Management</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+          <a href="/ham/warranty" class="list-group-item list-group-item-action bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-shield-check text-warning me-2"></i> Warranty &amp; Contracts</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+          <a href="/ham/custody" class="list-group-item list-group-item-action bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-person-badge text-info me-2"></i> Chain of Custody</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+          <a href="/ham/audit" class="list-group-item list-group-item-action bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-qr-code-scan text-purple me-2"></i> Physical Audit &amp; QR</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+          <a href="/ham/reports" class="list-group-item list-group-item-action bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-file-earmark-bar-graph text-danger me-2"></i> HAM Reports</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+          <a href="/ham/settings" class="list-group-item list-group-item-action bg-transparent text-light border-0 d-flex justify-content-between align-items-center py-2 px-1">
+            <span><i class="bi bi-sliders text-secondary me-2"></i> HAM Settings</span>
+            <i class="bi bi-chevron-right text-secondary small"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+.badge-healthy { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+.badge-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
+.badge-critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+.badge-unknown { background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.4); }
+.badge-low { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.badge-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  // Highlight HAM accordion in sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  let charts = {};
+
+  async function loadDashboard() {
+    try {
+      const res = await fetch("/api/ham/dashboard");
+      if (!res.ok) throw new Error("Failed to load HAM dashboard metrics");
+      const d = await res.json();
+
+      // KPIs
+      document.getElementById("kpiTotalAssets").textContent = d.total_assets ?? 0;
+      document.getElementById("kpiActiveAssets").textContent = d.active_assets ?? 0;
+      document.getElementById("kpiInStock").textContent = d.in_stock ?? 0;
+      document.getElementById("kpiHighRisk").textContent = (d.high_risk ?? 0) + (d.critical_risk ?? 0);
+      document.getElementById("kpiUnhealthy").textContent = d.unhealthy_assets ?? 0;
+      document.getElementById("kpiWarrantyExpiring").textContent = d.warranty_expiring_soon ?? 0;
+      document.getElementById("kpiAgents").textContent = `${d.agents_online ?? 0} / ${d.agents_total ?? 0}`;
+      document.getElementById("kpiGhostAssets").textContent = d.ghost_assets_count ?? 0;
+      document.getElementById("kpiAuditCampaigns").textContent = d.active_audits ?? 0;
+
+      // Render Charts
+      renderAssetTypesChart(d.by_type || {});
+      renderLifecycleChart(d.by_status || {});
+      renderRiskChart(d.by_risk_level || {});
+      renderDepartmentChart(d.by_department || {});
+      renderHealthChart(d.by_health || {});
+
+      // Recent Assets
+      loadRecentAssets();
+    } catch (err) {
+      console.error("HAM Dashboard error:", err);
+    }
+  }
+
+  function renderAssetTypesChart(dataMap) {
+    const ctx = document.getElementById("chartAssetTypes")?.getContext("2d");
+    if (!ctx) return;
+    const labels = Object.keys(dataMap).map(k => k.charAt(0).toUpperCase() + k.slice(1));
+    const values = Object.values(dataMap);
+    const colors = ["#00d4ff", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#6366f1", "#14b8a6", "#f97316"];
+
+    if (charts.assetTypes) charts.assetTypes.destroy();
+    charts.assetTypes = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels.length ? labels : ["No data"],
+        datasets: [{
+          data: values.length ? values : [1],
+          backgroundColor: values.length ? colors.slice(0, labels.length) : ["#334155"],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "right", labels: { color: "#94a3b8", boxWidth: 12, font: { size: 11 } } }
+        },
+        cutout: "68%"
+      }
+    });
+  }
+
+  function renderLifecycleChart(dataMap) {
+    const ctx = document.getElementById("chartLifecycle")?.getContext("2d");
+    if (!ctx) return;
+    const labels = Object.keys(dataMap).map(k => k.replace("_", " ").toUpperCase());
+    const values = Object.values(dataMap);
+    const statusColors = {
+      "IN SERVICE": "#10b981",
+      "IN STOCK": "#00d4ff",
+      "IN REPAIR": "#f59e0b",
+      "PENDING DISPOSAL": "#f97316",
+      "RETIRED": "#64748b",
+      "DISPOSED": "#ef4444",
+      "ORDERED": "#8b5cf6"
+    };
+    const colors = labels.map(l => statusColors[l] || "#3b82f6");
+
+    if (charts.lifecycle) charts.lifecycle.destroy();
+    charts.lifecycle = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: labels.length ? labels : ["No data"],
+        datasets: [{
+          data: values.length ? values : [1],
+          backgroundColor: values.length ? colors : ["#334155"],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "right", labels: { color: "#94a3b8", boxWidth: 12, font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  function renderRiskChart(dataMap) {
+    const ctx = document.getElementById("chartRiskLevels")?.getContext("2d");
+    if (!ctx) return;
+    const order = ["low", "medium", "high", "critical"];
+    const labels = ["Low", "Medium", "High", "Critical"];
+    const values = order.map(k => dataMap[k] || 0);
+    const colors = ["#3b82f6", "#f59e0b", "#f97316", "#ef4444"];
+
+    if (charts.risk) charts.risk.destroy();
+    charts.risk = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: "Assets",
+          data: values,
+          backgroundColor: colors,
+          borderRadius: 6,
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#94a3b8" }, grid: { display: false } },
+          y: { ticks: { color: "#94a3b8", stepSize: 1 }, grid: { color: "rgba(255,255,255,0.05)" } }
+        }
+      }
+    });
+  }
+
+  function renderDepartmentChart(dataMap) {
+    const ctx = document.getElementById("chartDepartments")?.getContext("2d");
+    if (!ctx) return;
+    const labels = Object.keys(dataMap);
+    const values = Object.values(dataMap);
+
+    if (charts.dept) charts.dept.destroy();
+    charts.dept = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels.length ? labels : ["Unassigned"],
+        datasets: [{
+          data: values.length ? values : [0],
+          backgroundColor: "rgba(0, 212, 255, 0.75)",
+          borderRadius: 4,
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#94a3b8", stepSize: 1 }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#94a3b8" }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderHealthChart(dataMap) {
+    const ctx = document.getElementById("chartHealthStatus")?.getContext("2d");
+    if (!ctx) return;
+    const labels = ["Healthy", "Warning", "Critical", "Unknown"];
+    const values = [dataMap.healthy || 0, dataMap.warning || 0, dataMap.critical || 0, dataMap.unknown || 0];
+    const colors = ["#10b981", "#f59e0b", "#ef4444", "#64748b"];
+
+    if (charts.health) charts.health.destroy();
+    charts.health = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [{
+          data: values.some(v => v > 0) ? values : [1],
+          backgroundColor: values.some(v => v > 0) ? colors : ["#334155"],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "right", labels: { color: "#94a3b8", boxWidth: 12, font: { size: 11 } } }
+        },
+        cutout: "60%"
+      }
+    });
+  }
+
+  async function loadRecentAssets() {
+    const tbody = document.getElementById("recentAssetsBody");
+    try {
+      const res = await fetch("/api/ham/assets?limit=6&sort_by=updated_at&sort_dir=desc");
+      if (!res.ok) throw new Error("Failed to load recent assets");
+      const d = await res.json();
+      const assets = d.assets || [];
+
+      if (!assets.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-secondary">No hardware assets registered yet. <a href="/ham/assets?action=create" class="text-info">Add your first asset</a> or <a href="/ham/discover" class="text-info">discover network</a>.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = assets.map(a => {
+        const healthBadge = getHealthBadge(a.health_status);
+        const riskBadge = getRiskBadge(a.risk_level, a.risk_score);
+        const statusBadge = getStatusBadge(a.lifecycle_status);
+        return `
+          <tr>
+            <td class="fw-semibold text-info"><a href="/ham/assets/${a.id}" class="text-info text-decoration-none">${escapeHtml(a.asset_tag || a.id.substring(0,8))}</a></td>
+            <td>
+              <div class="fw-medium text-light">${escapeHtml(a.name || "Unnamed Asset")}</div>
+              <div class="small text-secondary">${escapeHtml(a.manufacturer || "")} ${escapeHtml(a.model || "")}</div>
+            </td>
+            <td><span class="badge bg-dark border border-secondary text-secondary">${escapeHtml(a.asset_type || "other")}</span></td>
+            <td>${escapeHtml(a.assigned_to || "—")}</td>
+            <td>${statusBadge}</td>
+            <td>${healthBadge}</td>
+            <td>${riskBadge}</td>
+            <td class="text-end">
+              <a href="/ham/assets/${a.id}" class="btn btn-sm btn-outline-primary" title="View details"><i class="bi bi-eye"></i></a>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-3 text-danger">Error loading recent assets</td></tr>`;
+    }
+  }
+
+  function getHealthBadge(status) {
+    const s = (status || "unknown").toLowerCase();
+    const map = {
+      healthy: '<span class="badge badge-healthy"><i class="bi bi-check-circle me-1"></i>Healthy</span>',
+      warning: '<span class="badge badge-warning"><i class="bi bi-exclamation-triangle me-1"></i>Warning</span>',
+      critical: '<span class="badge badge-critical"><i class="bi bi-x-circle me-1"></i>Critical</span>',
+      unknown: '<span class="badge badge-unknown">Unknown</span>'
+    };
+    return map[s] || map.unknown;
+  }
+
+  function getRiskBadge(level, score) {
+    const l = (level || "low").toLowerCase();
+    const sc = score !== undefined ? `(${Math.round(score)})` : "";
+    const map = {
+      low: `<span class="badge badge-low">Low ${sc}</span>`,
+      medium: `<span class="badge badge-medium">Med ${sc}</span>`,
+      high: `<span class="badge badge-high">High ${sc}</span>`,
+      critical: `<span class="badge badge-critical">Crit ${sc}</span>`
+    };
+    return map[l] || map.low;
+  }
+
+  function getStatusBadge(status) {
+    const s = (status || "in_stock").toLowerCase();
+    const map = {
+      in_service: '<span class="badge bg-success-subtle text-success border border-success-subtle">In Service</span>',
+      in_stock: '<span class="badge bg-info-subtle text-info border border-info-subtle">In Stock</span>',
+      in_repair: '<span class="badge bg-warning-subtle text-warning border border-warning-subtle">In Repair</span>',
+      pending_disposal: '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">Pending Disposal</span>',
+      retired: '<span class="badge bg-secondary border border-secondary text-light">Retired</span>',
+      disposed: '<span class="badge bg-danger text-white">Disposed</span>',
+      ordered: '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Ordered</span>'
+    };
+    return map[s] || `<span class="badge bg-secondary">${s}</span>`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  // Load initial data
+  loadDashboard();
+});
+</script>
+{% endblock %}

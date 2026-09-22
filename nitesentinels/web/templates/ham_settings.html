@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}HAM Module Configuration &amp; Preferences · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">⚙️</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Hardware Asset Management Settings</h1>
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">Preferences</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Configure asset tag barcode auto-generation, health metric thresholds, warranty alert windows, and network discovery defaults.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-primary-enterprise d-flex align-items-center gap-1 shadow-sm" id="btnSaveSettings">
+        <i class="bi bi-check2-circle"></i> Save Settings
+      </button>
+      <a href="/ham/" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        <i class="bi bi-speedometer2"></i> HAM Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Asset Tagging Settings -->
+    <div class="col-12 col-lg-6">
+      <div class="card-scope p-4 h-100 shadow-sm">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-tag text-info"></i> Asset Tagging &amp; Numbering Scheme
+        </h2>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Asset Tag Prefix</label>
+          <input type="text" id="settingTagPrefix" class="form-control form-control-sm bg-dark border-secondary text-light font-monospace" value="NS-HW-">
+          <div class="form-text small text-secondary">Prefix prepended to automatically generated hardware asset tags.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Sequence Number Padding</label>
+          <select id="settingTagPadding" class="form-select form-select-sm bg-dark border-secondary text-light">
+            <option value="4" selected>4 digits (e.g. NS-HW-0001)</option>
+            <option value="5">5 digits (e.g. NS-HW-00001)</option>
+            <option value="6">6 digits (e.g. NS-HW-000001)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">QR Code Base Landing URL</label>
+          <input type="text" id="settingQrBaseUrl" class="form-control form-control-sm bg-dark border-secondary text-light font-monospace" value="/api/ham/public/asset/">
+          <div class="form-text small text-secondary">Endpoint targeted when an asset's physical QR label is scanned by a camera.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Engine Thresholds -->
+    <div class="col-12 col-lg-6">
+      <div class="card-scope p-4 h-100 shadow-sm">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-heart-pulse text-danger"></i> Asset Health Engine Thresholds
+        </h2>
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label small text-secondary">CPU Warning (%)</label>
+            <input type="number" id="threshCpuWarn" class="form-control form-control-sm bg-dark border-secondary text-light" value="75">
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-secondary">CPU Critical (%)</label>
+            <input type="number" id="threshCpuCrit" class="form-control form-control-sm bg-dark border-secondary text-light" value="90">
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-secondary">Memory Warning (%)</label>
+            <input type="number" id="threshMemWarn" class="form-control form-control-sm bg-dark border-secondary text-light" value="80">
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-secondary">Memory Critical (%)</label>
+            <input type="number" id="threshMemCrit" class="form-control form-control-sm bg-dark border-secondary text-light" value="92">
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-secondary">Disk Saturation Warning (%)</label>
+            <input type="number" id="threshDiskWarn" class="form-control form-control-sm bg-dark border-secondary text-light" value="80">
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-secondary">Disk Saturation Critical (%)</label>
+            <input type="number" id="threshDiskCrit" class="form-control form-control-sm bg-dark border-secondary text-light" value="95">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Warranty & Ghost Assets Settings -->
+    <div class="col-12 col-lg-6">
+      <div class="card-scope p-4 h-100 shadow-sm">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-shield-exclamation text-warning"></i> Warranty &amp; Ghost Asset Rules
+        </h2>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Warranty Expiration Warning Window (Days)</label>
+          <input type="number" id="settingWarrantyDays" class="form-control form-control-sm bg-dark border-secondary text-light" value="90">
+          <div class="form-text small text-secondary">Number of days before expiration to alert administrators.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Ghost Asset Inactivity Threshold (Days)</label>
+          <input type="number" id="settingGhostDays" class="form-control form-control-sm bg-dark border-secondary text-light" value="30">
+          <div class="form-text small text-secondary">Mark hardware as a "Ghost Asset" if no agent heartbeat or scan detected for this many days.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discovery Defaults -->
+    <div class="col-12 col-lg-6">
+      <div class="card-scope p-4 h-100 shadow-sm">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-radar text-primary"></i> Agentless Discovery Scan Defaults
+        </h2>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Default Corporate Subnet</label>
+          <input type="text" id="settingDefaultSubnet" class="form-control form-control-sm bg-dark border-secondary text-light font-monospace" value="192.168.1.0/24">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Default Discovery Port Profile</label>
+          <input type="text" id="settingDefaultPorts" class="form-control form-control-sm bg-dark border-secondary text-light font-monospace" value="22,80,443,445,3389,8080,8443">
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Highlight sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  // Load from localStorage if present
+  const saved = localStorage.getItem("nitesentinel_ham_settings");
+  if (saved) {
+    try {
+      const cfg = JSON.parse(saved);
+      if (cfg.tagPrefix) document.getElementById("settingTagPrefix").value = cfg.tagPrefix;
+      if (cfg.warrantyDays) document.getElementById("settingWarrantyDays").value = cfg.warrantyDays;
+      if (cfg.ghostDays) document.getElementById("settingGhostDays").value = cfg.ghostDays;
+      if (cfg.defaultSubnet) document.getElementById("settingDefaultSubnet").value = cfg.defaultSubnet;
+    } catch(e) {}
+  }
+
+  document.getElementById("btnSaveSettings")?.addEventListener("click", () => {
+    const cfg = {
+      tagPrefix: document.getElementById("settingTagPrefix").value.trim(),
+      warrantyDays: document.getElementById("settingWarrantyDays").value,
+      ghostDays: document.getElementById("settingGhostDays").value,
+      defaultSubnet: document.getElementById("settingDefaultSubnet").value.trim()
+    };
+    localStorage.setItem("nitesentinel_ham_settings", JSON.stringify(cfg));
+    alert("HAM Settings successfully saved!");
+  });
+});
+</script>
+{% endblock %}

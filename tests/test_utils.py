@@ -1,5 +1,5 @@
 import pytest
-from securescope.core.utils import detect_platform, run_command, get_banner, get_platform_name
+from nitesentinels.core.utils import detect_platform, run_command, get_banner, get_platform_name
 
 
 def test_detect_platform_returns_expected_keys():

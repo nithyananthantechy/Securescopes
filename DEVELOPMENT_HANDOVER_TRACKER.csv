@@ -1,0 +1,17 @@
+Feature_ID,Feature_Name,Subsystem,Assigned_Dev,QA_Tester,Status,Percent_Complete,Priority,Target_Sprint,Primary_Files
+FEAT-01,Local Host Security Audit (Win/Linux/WSL),Core Scanners,Person 1,Person 4 (QA),Completed,95%,P0,Sprint 1,nitesentinels/scanners/windows_scanner.py; nitesentinels/scanners/linux_scanner.py
+FEAT-02,Remote Agentless Audit (SSH/WinRM/SNMP),Core Scanners,Person 1,Person 4 (QA),In Progress,85%,P1,Sprint 1,nitesentinels/core/scanner.py; nitesentinels/scanners/firewall_scanner.py
+FEAT-03,Sonic Recon & Async Port Scanner,Network Scanners,Person 1,Person 4 (QA),Completed,95%,P0,Sprint 1,nitesentinels/scanners/port_scanner_async.py; nitesentinels/scanners/sonic_recon.py
+FEAT-04,AI / LLM Application Security,AI Security,Person 1,Person 4 (QA),Completed,90%,P1,Sprint 2,nitesentinels/scanners/llm_scanner.py; nitesentinels/web/llm_store.py
+FEAT-05,Scope-Gated Ethical OffSec Engine,Offensive Security,Person 1,Person 4 (QA),Completed,90%,P1,Sprint 2,nitesentinels/offsec/engine.py; nitesentinels/offsec/scope.py
+FEAT-06,Platform Hub & Unified Navigation,Web Frontend,Person 2,Person 4 (QA),Completed,95%,P0,Sprint 1,nitesentinels/web/templates/platform_hub.html; nitesentinels/web/app.py
+FEAT-07,Client Multi-Tenant Directory,Client Engagement,Person 2,Person 4 (QA),Completed,90%,P0,Sprint 1,nitesentinels/web/templates/clients.html; nitesentinels/web/app.py
+FEAT-08,Engagement Lifecycle & Scope Control,Client Engagement,Person 2,Person 4 (QA),Completed,95%,P0,Sprint 2,nitesentinels/web/templates/engagements.html; nitesentinels/web/templates/engagement_scope.html
+FEAT-09,Vulnerability Findings & Retest Workflow,Findings & Workflow,Person 2,Person 4 (QA),Completed,95%,P0,Sprint 2,nitesentinels/web/templates/engagement_findings.html; nitesentinels/web/templates/engagement_retest.html
+FEAT-10,Evidence Locker & Cryptographic Hashing,Storage & Evidence,Person 2,Person 4 (QA),Completed,90%,P1,Sprint 2,nitesentinels/web/templates/engagement_evidence.html; data/evidence/
+FEAT-11,Hardware Asset Management (HAM) Core,HAM Subsystem,Person 3,Person 4 (QA),Completed,95%,P0,Sprint 1,nitesentinels/web/ham_store.py; nitesentinels/web/ham_routes.py
+FEAT-12,HAM Endpoint Agent & Heartbeat Service,HAM Subsystem,Person 3,Person 4 (QA),Completed,90%,P0,Sprint 2,nitesentinels/ham/agent/nitesentinel_agent.py
+FEAT-13,Automated OS Hardening Engine,Remediation,Person 3,Person 4 (QA),Completed,90%,P1,Sprint 2,nitesentinels/core/hardener.py; nitesentinels/hardeners/windows_hardener.py
+FEAT-14,Regulatory Compliance Frameworks (CIS/DPDP/ISO),Compliance,Person 1 & Person 2,Person 4 (QA),Completed,90%,P1,Sprint 3,nitesentinels/core/compliance/dpdp_2023.py; nitesentinels/web/templates/compliance.html
+FEAT-15,Executive & Technical Reporting (PDF/HTML),Reporting,Person 2 & Person 3,Person 4 (QA),Completed,95%,P0,Sprint 2,nitesentinels/core/reporter.py; nitesentinels/web/templates/engagement_reports.html
+FEAT-16,Database Migrations & DevOps CI/CD,Infrastructure,Person 3,Person 4 (QA),In Progress,80%,P1,Sprint 3,alembic/; main.py; run.bat; run.sh

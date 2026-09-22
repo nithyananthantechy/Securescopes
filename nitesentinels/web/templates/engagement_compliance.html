@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Compliance Framework Alignment · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">📜</span>
+        <h3 class="fw-bold text-light mb-0">Compliance Framework Mappings</h3>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Cross-reference assessment controls and findings against major cybersecurity benchmarks</p>
+    </div>
+  </div>
+
+  <div class="alert alert-dark border-secondary text-secondary small mb-4">
+    <i class="bi bi-info-circle text-info me-2"></i>
+    <strong>Informational Mapping Notice:</strong> Framework references shown below (NIST CSF 2.0, ISO 27001, CIS Controls, PCI DSS, DPDP 2023) are provided for technical gap analysis and baseline guidance only. They do not constitute formal certification, accredited compliance audits, or legal opinions.
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="card-scope p-4 h-100">
+        <h5 class="fw-bold text-light mb-2"><i class="bi bi-shield text-primary me-2"></i>NIST CSF 2.0</h5>
+        <p class="text-secondary small">Identify, Protect, Detect, Respond, Recover, and Govern (GV) functions mapped across IAM, Network, and Backup controls.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-scope p-4 h-100">
+        <h5 class="fw-bold text-light mb-2"><i class="bi bi-globe text-info me-2"></i>ISO/IEC 27001:2022</h5>
+        <p class="text-secondary small">Annex A security controls: A.5 Organizational, A.6 People, A.7 Physical, and A.8 Technological controls cross-referenced.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-scope p-4 h-100">
+        <h5 class="fw-bold text-light mb-2"><i class="bi bi-sliders text-warning me-2"></i>CIS Controls v8</h5>
+        <p class="text-secondary small">Implementation Groups IG1 (Basic hygiene for MSMEs), IG2, and IG3 control mappings for asset and access management.</p>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

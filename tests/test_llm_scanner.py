@@ -1,4 +1,4 @@
-from securescope.scanners.llm_scanner import LLMSecurityScanner
+from nitesentinels.scanners.llm_scanner import LLMSecurityScanner
 
 
 def test_llm_scanner_baseline_without_endpoint():

@@ -1,5 +1,5 @@
 import pytest
-from securescope.core.reporter import Reporter, get_report_os
+from nitesentinels.core.reporter import Reporter, get_report_os
 
 
 def test_report_generate_html_contains_summary():

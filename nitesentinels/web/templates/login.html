@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiteSentinel — Enterprise Cyber Defense & IT Infrastructure Assessment</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        :root {
+            --bg-base: #040711;
+            --card-bg: rgba(9, 14, 26, 0.78);
+            --accent-cyan: #00e5ff;
+            --accent-glow: rgba(0, 229, 255, 0.35);
+            --accent-indigo: #6366f1;
+            --border-glow: rgba(0, 229, 255, 0.22);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow-x: hidden;
+            padding: 24px;
+        }
+
+        /* Cyber background textures & ambient gradients */
+        .cyber-bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center center;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .ambient-glow-1 {
+            position: fixed;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 650px;
+            height: 450px;
+            background: radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, rgba(99, 102, 241, 0.08) 45%, transparent 70%);
+            filter: blur(60px);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .ambient-glow-2 {
+            position: fixed;
+            bottom: 5%;
+            right: 15%;
+            width: 400px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 65%);
+            filter: blur(70px);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Main Login Container */
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 460px;
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 20px;
+            padding: 2.75rem 2.25rem 2.25rem;
+            box-shadow: 
+                0 30px 80px rgba(0, 0, 0, 0.85),
+                0 0 40px rgba(0, 229, 255, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-indigo), transparent);
+        }
+
+        .login-card:hover {
+            border-color: rgba(0, 229, 255, 0.38);
+            box-shadow: 
+                0 35px 90px rgba(0, 0, 0, 0.9),
+                0 0 50px rgba(0, 229, 255, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        /* Brand & Logo */
+        .brand-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .brand-logo-wrapper {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .brand-logo {
+            height: 66px;
+            width: auto;
+            filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.45));
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .brand-logo:hover {
+            transform: scale(1.03);
+            filter: drop-shadow(0 0 26px rgba(0, 229, 255, 0.65));
+        }
+
+        .portal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            background: rgba(0, 229, 255, 0.08);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            color: var(--accent-cyan);
+            margin-bottom: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+
+        .brand-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            line-height: 1.4;
+        }
+
+        /* Form Inputs */
+        .form-group {
+            margin-bottom: 1.35rem;
+        }
+
+        .form-label-custom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .input-group-custom {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            color: #64748b;
+            font-size: 1.05rem;
+            pointer-events: none;
+            transition: color 0.2s ease;
+            z-index: 5;
+        }
+
+        .form-control-custom {
+            width: 100%;
+            background: #060a14;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            border-radius: 10px;
+            padding: 0.8rem 1rem 0.8rem 2.75rem;
+            font-size: 0.95rem;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.25s ease;
+        }
+
+        .form-control-custom:focus {
+            background: #060a14;
+            color: #ffffff;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.22);
+            outline: none;
+        }
+
+        .form-control-custom:focus + .input-icon,
+        .input-group-custom:focus-within .input-icon {
+            color: var(--accent-cyan);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            transition: color 0.2s ease;
+            z-index: 5;
+        }
+
+        .password-toggle:hover {
+            color: var(--accent-cyan);
+        }
+
+        /* Action Button */
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #00e5ff 0%, #0284c7 100%);
+            color: #040914;
+            border: none;
+            border-radius: 10px;
+            padding: 0.85rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 18px rgba(0, 229, 255, 0.35);
+            margin-top: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            background: linear-gradient(135deg, #26ebff 0%, #0396e3 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 229, 255, 0.5);
+            color: #020610;
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        /* Alert Notification */
+        .alert-error {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        /* Notice & Security Footer */
+        .security-notice {
+            margin-top: 1.75rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.5;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .security-notice i {
+            color: #00e5ff;
+            margin-right: 4px;
+        }
+
+        .portal-meta {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        .portal-meta strong {
+            color: #00e5ff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="cyber-bg-grid"></div>
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="brand-section">
+                <div class="brand-logo-wrapper">
+                    <img src="{{ url_for('static', filename='img/nitesentinel_logo.svg') }}" alt="NiteSentinel Enterprise Logo" class="brand-logo">
+                </div>
+                <div>
+                    <span class="portal-badge"><i class="bi bi-shield-lock-fill"></i> NITECHSPARK CYBER DEFENSE</span>
+                </div>
+                <p class="brand-subtitle">IT Infrastructure Assessment &amp; Cybersecurity Operations Console</p>
+            </div>
+
+            {% if error %}
+            <div class="alert-error" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="/login" id="loginForm">
+                <div class="form-group">
+                    <label class="form-label-custom" for="usernameInput">
+                        <span>Username / Operator ID</span>
+                    </label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-person-fill input-icon"></i>
+                        <input type="text" id="usernameInput" name="username" class="form-control-custom" placeholder="e.g. nitechspark_admin" required autofocus autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label-custom" for="passwordInput">
+                        <span>Access Key / Password</span>
+                    </label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-key-fill input-icon"></i>
+                        <input type="password" id="passwordInput" name="password" class="form-control-custom" placeholder="••••••••••••" required autocomplete="current-password">
+                        <button type="button" class="password-toggle" id="togglePasswordBtn" aria-label="Toggle password visibility">
+                            <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit" id="btnSubmit">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Authorize &amp; Access Portal</span>
+                </button>
+            </form>
+
+            <div class="security-notice">
+                <i class="bi bi-shield-exclamation"></i>
+                <strong>Restricted Operational Network:</strong> Authorized NITECHSPARK Team Personnel Only. Unauthorized access attempts are monitored and recorded.
+            </div>
+        </div>
+
+        <div class="portal-meta">
+            <span>NiteSentinel Platform v1.1.0 · Powered by <strong>NITECHSPARK</strong></span>
+        </div>
+    </div>
+
+    <script>
+        // Toggle Password Visibility
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passwordInput = document.getElementById('passwordInput');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+
+        if (toggleBtn && passwordInput && toggleIcon) {
+            toggleBtn.addEventListener('click', () => {
+                const isPassword = passwordInput.type === 'password';
+                passwordInput.type = isPassword ? 'text' : 'password';
+                toggleIcon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+            });
+        }
+    </script>
+</body>
+</html>

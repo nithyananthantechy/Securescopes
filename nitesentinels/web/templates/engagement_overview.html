@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Engagement Overview · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <!-- Posture & Status Banner -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card-scope h-100 p-3 text-center">
+        <div class="text-secondary small text-uppercase fw-semibold">Overall Risk Posture</div>
+        <div class="fs-2 fw-bold text-danger my-1" id="kpiPosture">—</div>
+        <div class="small text-secondary" id="kpiPostureDesc">Calculated from open findings</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card-scope h-100 p-3 text-center">
+        <div class="text-secondary small text-uppercase fw-semibold">Assessment Completion</div>
+        <div class="fs-2 fw-bold text-info my-1" id="kpiCompletion">—%</div>
+        <div class="small text-secondary" id="kpiCompletionDesc">Controls evaluated</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card-scope h-100 p-3 text-center">
+        <div class="text-secondary small text-uppercase fw-semibold">Total Findings</div>
+        <div class="fs-2 fw-bold text-warning my-1" id="kpiFindings">—</div>
+        <div class="small text-secondary"><span id="kpiCritHigh" class="text-danger">0 Critical / 0 High</span></div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card-scope h-100 p-3 text-center">
+        <div class="text-secondary small text-uppercase fw-semibold">Assets in Scope</div>
+        <div class="fs-2 fw-bold text-light my-1" id="kpiAssets">—</div>
+        <div class="small text-secondary" id="kpiScopeCount">0 Scope items</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sections Progress Grid -->
+  <div class="card-scope p-4 mb-4">
+    <h5 class="fw-bold text-light mb-3"><i class="bi bi-grid text-primary me-2"></i>Assessment Control Domains</h5>
+    <div class="row g-3" id="sectionCardsContainer">
+      <p class="text-secondary">Loading domain statuses...</p>
+    </div>
+  </div>
+
+  <!-- Quick Action & Details -->
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="card-scope p-4 h-100">
+        <h5 class="fw-bold text-light mb-3"><i class="bi bi-file-earmark-text text-info me-2"></i>Engagement Details</h5>
+        <table class="table table-dark table-sm mb-0">
+          <tr><td class="text-secondary" style="width:140px">Client:</td><td><strong>{{ engagement.client_name or 'N/A' }}</strong></td></tr>
+          <tr><td class="text-secondary">Assessment Type:</td><td>{{ engagement.assessment_type or 'Comprehensive' }}</td></tr>
+          <tr><td class="text-secondary">Lead Assessor:</td><td>{{ engagement.assessor or 'Security Team' }}</td></tr>
+          <tr><td class="text-secondary">Status:</td><td><span class="badge bg-primary">{{ engagement.status }}</span></td></tr>
+          <tr><td class="text-secondary">Start Date:</td><td>{{ (engagement.start_date or '')[:10] or '-' }}</td></tr>
+          <tr><td class="text-secondary">Created At:</td><td>{{ (engagement.created_at or '')[:10] }}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card-scope p-4 h-100">
+        <h5 class="fw-bold text-light mb-3"><i class="bi bi-lightning-charge text-warning me-2"></i>Quick Actions</h5>
+        <div class="d-grid gap-2">
+          <a href="/engagements/{{ engagement_id }}/scope" class="btn btn-outline-info text-start"><i class="bi bi-bounding-box-circles me-2"></i>Define / Validate Target Scope</a>
+          <a href="/engagements/{{ engagement_id }}/section/iam" class="btn btn-outline-light text-start"><i class="bi bi-person-badge me-2"></i>Begin Questionnaire Assessment (IAM)</a>
+          <a href="/engagements/{{ engagement_id }}/dlp" class="btn btn-outline-warning text-start"><i class="bi bi-shield-lock me-2"></i>Evaluate Data Loss Prevention (DLP)</a>
+          <a href="/engagements/{{ engagement_id }}/reports" class="btn btn-outline-success text-start"><i class="bi bi-file-earmark-bar-graph me-2"></i>Generate Assessment Deliverables</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+{% block scripts_extra %}
+<script>
+async function loadOverview() {
+  try {
+    const res = await fetch('/api/engagements/{{ engagement_id }}/overview');
+    const data = await res.json();
+    const ov = data.overview || {};
+    const risk = data.risk_summary || {};
+    const sections = data.sections || {};
+
+    // KPIs
+    document.getElementById('kpiPosture').textContent = data.overall_posture || 'ELEVATED';
+    document.getElementById('kpiPosture').style.color = (data.overall_posture === 'CRITICAL' ? '#dc2626' : (data.overall_posture === 'HIGH' ? '#ea580c' : '#16a34a'));
+    document.getElementById('kpiCompletion').textContent = (ov.completion_percentage || 0) + '%';
+    document.getElementById('kpiFindings').textContent = ov.findings_count || 0;
+    document.getElementById('kpiCritHigh').textContent = `${risk.critical || 0} Critical / ${risk.high || 0} High`;
+    document.getElementById('kpiAssets').textContent = ov.assets_count || 0;
+    document.getElementById('kpiScopeCount').textContent = `${ov.scope_count || 0} Scope items`;
+
+    // Sections
+    const container = document.getElementById('sectionCardsContainer');
+    const domainNames = {
+      'IAM': 'Identity & Access (IAM)',
+      'BACKUP': 'Backup & Disaster Recovery',
+      'NETWORK': 'Network & Perimeter Security',
+      'SERVERS': 'Server & Workstation Hardening',
+      'ENDPOINTS': 'Endpoint Security & Antivirus',
+      'WEB': 'Web Application Security',
+      'DLP': 'Data Loss Prevention (DLP)'
+    };
+    const domainLinks = {
+      'IAM': '/engagements/{{ engagement_id }}/section/iam',
+      'BACKUP': '/engagements/{{ engagement_id }}/section/backup',
+      'NETWORK': '/engagements/{{ engagement_id }}/section/network',
+      'SERVERS': '/engagements/{{ engagement_id }}/section/servers',
+      'ENDPOINTS': '/engagements/{{ engagement_id }}/section/endpoints',
+      'WEB': '/engagements/{{ engagement_id }}/section/web',
+      'DLP': '/engagements/{{ engagement_id }}/dlp'
+    };
+
+    container.innerHTML = Object.keys(domainNames).map(k => {
+      const s = sections[k] || { total: 0, assessed: 0, passed: 0, failed: 0 };
+      const pct = s.total ? Math.round((s.assessed / s.total) * 100) : 0;
+      return `
+        <div class="col-md-4 col-sm-6">
+          <div class="card-scope p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong class="text-light small">${domainNames[k]}</strong>
+              <span class="badge ${pct === 100 ? 'bg-success' : (pct > 0 ? 'bg-info' : 'bg-secondary')}">${pct}%</span>
+            </div>
+            <div class="progress mb-2" style="height: 6px; background:#1e293b">
+              <div class="progress-bar ${pct === 100 ? 'bg-success' : 'bg-primary'}" style="width: ${pct}%"></div>
+            </div>
+            <div class="d-flex justify-content-between small text-secondary">
+              <span>${s.assessed}/${s.total} Evaluated</span>
+              <span class="text-danger">${s.failed} Fail</span>
+            </div>
+            <div class="mt-2 text-end">
+              <a href="${domainLinks[k]}" class="btn btn-sm btn-outline-light py-0 px-2" style="font-size:11px">Open Domain</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Failed to load overview', err);
+  }
+}
+document.addEventListener('DOMContentLoaded', loadOverview);
+</script>
+{% endblock %}
+{% endblock %}

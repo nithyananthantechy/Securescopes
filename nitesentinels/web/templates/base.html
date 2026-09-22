@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NiteSentinel Enterprise{% endblock %}</title>
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.8">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- Ionicons for CyberScan network recon icons -->
+  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+  <!-- Helper classes for inline styles removal -->
+  <style>
+    .base-style-1 { background: #fbbf24; color: #000; padding: 10px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 1050; }
+    .base-style-2 { color: #000; text-decoration: underline; font-weight: bold; }
+    .base-style-3 { padding:12px;text-align:center;font-size:10px;color:#8892a4;border-top:1px solid #1e2d4a;margin-top:auto;white-space:nowrap; }
+  </style>
+</head>
+<body>
+  {% if session.get('demo_session') %}
+  <div class="base-style-1">
+      You are viewing a 3-day free trial of NiteSentinel. Access is limited to Dashboard, Targets, and Compliance. Contact NITECHSPARK Sales to license NiteSentinel for your organization: <a href="mailto:nitechspark@gmail.com" class="base-style-2">nitechspark@gmail.com</a> / +91 6385576354
+  </div>
+  {% endif %}
+  <div class="progress-top"><div id="progressTop" class="progress-bar-top"></div></div>
+  <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+  {% set path = request.path %}
+  {% set is_assessments = workspace == 'assessments' or path.startswith('/engagements') or path.startswith('/clients') %}
+  {% set is_ham = workspace == 'ham' or path.startswith('/ham') %}
+  {% set is_recon = workspace == 'recon' or path.startswith('/port-scan') %}
+  {% set is_compliance = workspace == 'compliance' or path.startswith('/compliance') %}
+  {% set is_reports = workspace == 'reports' or path.startswith('/reports') %}
+  {% set is_admin = workspace == 'admin' or path.startswith('/admin') %}
+  {% set is_system = workspace == 'system' or path.startswith('/system') %}
+
+  <header class="app-header">
+    <div class="header-inner header-top-bar">
+      <div class="header-top-left d-flex align-items-center gap-3">
+        <a href="/platform" class="header-brand d-flex align-items-center gap-2 text-decoration-none" title="Return to Platform Hub">
+          <img src="{{ url_for('static', filename='img/nitesentinel_logo.svg') }}" alt="NiteSentinel Enterprise" class="brand-logo-svg" style="height: 38px; width: auto;">
+        </a>
+        <div class="workspace-header-title d-none d-md-flex flex-column border-start border-secondary ps-3 ms-1">
+          {% if is_assessments %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">CLIENT ASSESSMENT WORKSPACE</span>
+            <span class="text-primary" style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Cybersecurity &amp; IT Infrastructure Assessment</span>
+          {% elif is_ham %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">HARDWARE ASSET MANAGEMENT</span>
+            <span class="text-success" style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Asset Inventory, Discovery &amp; Telemetry</span>
+          {% elif is_recon %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">NETWORK RECONNAISSANCE</span>
+            <span class="text-warning" style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Port Scanning &amp; Service Detection</span>
+          {% elif is_compliance %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">COMPLIANCE &amp; FRAMEWORKS</span>
+            <span class="text-info" style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Informational Alignment &amp; Gap Analysis</span>
+          {% elif is_reports %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">REPORTS &amp; AI INTELLIGENCE</span>
+            <span style="color: #c084fc; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Audit Deliverables &amp; LLM Posture</span>
+          {% elif is_admin %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">PLATFORM ADMINISTRATION</span>
+            <span class="text-secondary" style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Users, Roles &amp; Enterprise Licenses</span>
+          {% elif is_system %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">SYSTEM &amp; CONFIGURATION</span>
+            <span class="text-secondary" style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Platform Settings &amp; Daemon Status</span>
+          {% else %}
+            <span class="fw-bold text-light" style="font-size: 13px; letter-spacing: 0.5px;">NITECHSPARK WORKSPACE</span>
+            <span class="text-secondary" style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">NiteSentinel Enterprise Platform</span>
+          {% endif %}
+        </div>
+        <div class="header-mobile-toggle">
+          <button type="button" id="mobileMenuToggle" class="btn-hamburger" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </div>
+      <div class="header-right">
+        <a href="/platform" class="btn btn-sm btn-outline-info d-flex align-items-center gap-1 me-2" style="font-size: 11px; padding: 4px 10px;">
+          <i class="bi bi-grid-fill"></i> Platform Hub
+        </a>
+        <div class="pill" id="liveClock"><i class="bi bi-clock"></i></div>
+        <div class="pill"><i class="bi bi-person-badge"></i> {{ username }} ({{ role }})</div>
+        <div class="pill user-role-badge" data-user-role="{{ role }}">{{ role.upper() }}</div>
+        <a href="/logout" class="btn btn-sm btn-outline-danger" title="Logout" aria-label="Logout"><i class="bi bi-box-arrow-right"></i></a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── HORIZONTAL CONTEXTUAL TOP NAVIGATION BAR ── -->
+  <nav class="enterprise-top-nav" id="appTopNav" aria-label="Module Context Navigation">
+    <div class="top-nav-inner">
+      <div class="top-nav-items">
+        <!-- Persistent Platform Hub Button -->
+        <a href="/platform" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2 px-3 me-2 shadow-sm" style="font-weight: 700; font-size: 12px; letter-spacing: 0.5px; background: linear-gradient(135deg, #0d6efd, #00d4ff); border: none;">
+          <i class="bi bi-arrow-left"></i> PLATFORM HUB
+        </a>
+
+        {% block module_nav %}
+          {% if is_assessments %}
+            <span class="text-secondary opacity-50 me-2">|</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-3 px-2 py-1" style="font-size: 11px; letter-spacing: 0.5px;">
+              <i class="bi bi-shield-check me-1"></i> CLIENT ASSESSMENTS
+            </span>
+            <a href="/clients" class="top-nav-item {% if path.startswith('/clients') %}active{% endif %}">
+              <i class="bi bi-buildings"></i> Clients
+            </a>
+            <a href="/engagements" class="top-nav-item {% if path.startswith('/engagements') and not 'reports' in path and not 'risk' in path %}active{% endif %}">
+              <i class="bi bi-folder2-open"></i> Engagements
+            </a>
+            <a href="/engagements" class="top-nav-item {% if 'risk' in path %}active{% endif %}">
+              <i class="bi bi-table"></i> Risk Register
+            </a>
+            <a href="/reports" class="top-nav-item {% if 'reports' in path %}active{% endif %}">
+              <i class="bi bi-file-earmark-bar-graph"></i> Reports
+            </a>
+
+          {% elif is_ham %}
+            <span class="text-secondary opacity-50 me-2">|</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle me-3 px-2 py-1" style="font-size: 11px; letter-spacing: 0.5px;">
+              <i class="bi bi-cpu me-1"></i> HARDWARE ASSETS
+            </span>
+            <a href="/ham" class="top-nav-item {% if path == '/ham' or path == '/ham/' %}active{% endif %}">
+              <i class="bi bi-grid-fill"></i> Asset Overview
+            </a>
+            <a href="/ham/assets" class="top-nav-item {% if path.startswith('/ham/assets') %}active{% endif %}">
+              <i class="bi bi-pc-display-horizontal"></i> Assets Registry
+            </a>
+            <a href="/ham/discover" class="top-nav-item {% if path.startswith('/ham/discover') %}active{% endif %}">
+              <i class="bi bi-radar"></i> Network Discovery
+            </a>
+            <a href="/ham/agents" class="top-nav-item {% if path.startswith('/ham/agents') %}active{% endif %}">
+              <i class="bi bi-terminal"></i> Sentinel Agents
+            </a>
+            <a href="/ham/lifecycle" class="top-nav-item {% if path.startswith('/ham/lifecycle') %}active{% endif %}">
+              <i class="bi bi-recycle"></i> Lifecycle
+            </a>
+            <a href="/ham/health" class="top-nav-item {% if path.startswith('/ham/health') %}active{% endif %}">
+              <i class="bi bi-heart-pulse"></i> Health
+            </a>
+            <a href="/ham/warranty" class="top-nav-item {% if path.startswith('/ham/warranty') %}active{% endif %}">
+              <i class="bi bi-shield-check"></i> Warranty
+            </a>
+
+          {% elif is_recon %}
+            <span class="text-secondary opacity-50 me-2">|</span>
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle me-3 px-2 py-1" style="font-size: 11px; letter-spacing: 0.5px;">
+              <i class="bi bi-radar me-1"></i> NETWORK RECON
+            </span>
+            <a href="/port-scan/quick-scan" class="top-nav-item active">
+              <i class="bi bi-lightning-charge"></i> Quick Scan
+            </a>
+            <a href="/port-scan/quick-scan" class="top-nav-item">
+              <i class="bi bi-diagram-3"></i> Port Scanner
+            </a>
+            <a href="/ham/discover" class="top-nav-item">
+              <i class="bi bi-search"></i> Network Discovery
+            </a>
+            <a href="/security-dashboard?tab=scanner" class="top-nav-item">
+              <i class="bi bi-hdd-network"></i> Service Detection
+            </a>
+
+          {% elif is_compliance %}
+            <span class="text-secondary opacity-50 me-2">|</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle me-3 px-2 py-1" style="font-size: 11px; letter-spacing: 0.5px;">
+              <i class="bi bi-award me-1"></i> COMPLIANCE
+            </span>
+            <a href="/compliance" class="top-nav-item active">
+              <i class="bi bi-grid-fill"></i> Framework Overview
+            </a>
+            <a href="/compliance" class="top-nav-item">
+              <i class="bi bi-shield"></i> NIST CSF 2.0
+            </a>
+            <a href="/compliance" class="top-nav-item">
+              <i class="bi bi-globe"></i> ISO 27001
+            </a>
+            <a href="/compliance" class="top-nav-item">
+              <i class="bi bi-sliders"></i> CIS Controls
+            </a>
+            <a href="/compliance" class="top-nav-item">
+              <i class="bi bi-credit-card"></i> PCI DSS
+            </a>
+            <a href="/compliance" class="top-nav-item">
+              <i class="bi bi-file-earmark-lock"></i> DPDP 2023
+            </a>
+
+          {% elif is_reports %}
+            <span class="text-secondary opacity-50 me-2">|</span>
+            <span class="badge bg-purple-subtle text-info border border-secondary me-3 px-2 py-1" style="color: #c084fc !important; font-size: 11px; letter-spacing: 0.5px;">
+              <i class="bi bi-file-earmark-bar-graph me-1"></i> REPORTS &amp; AI
+            </span>
+            <a href="/reports" class="top-nav-item active">
+              <i class="bi bi-file-text"></i> Reports Overview
+            </a>
+            <a href="/reports?type=executive" class="top-nav-item">
+              <i class="bi bi-file-earmark-pdf"></i> Executive Reports
+            </a>
+            <a href="/reports?type=technical" class="top-nav-item">
+              <i class="bi bi-file-earmark-code"></i> Technical Reports
+            </a>
+            <a href="/engagements" class="top-nav-item">
+              <i class="bi bi-journal-check"></i> Assessment Deliverables
+            </a>
+            <a href="/security-dashboard?tab=reports" class="top-nav-item">
+              <i class="bi bi-shield-check"></i> Security Reports
+            </a>
+            <a href="/security-dashboard?tab=llm" class="top-nav-item">
+              <i class="bi bi-robot"></i> LLM Security
+            </a>
+
+          {% elif is_admin %}
+            <span class="text-secondary opacity-50 me-2">|</span>
+            <span class="badge bg-secondary-subtle text-light border border-secondary me-3 px-2 py-1" style="font-size: 11px; letter-spacing: 0.5px;">
+              <i class="bi bi-person-gear me-1"></i> ADMINISTRATION
+            </span>
+            <a href="/admin" class="top-nav-item active">
+              <i class="bi bi-people"></i> Users
+            </a>
+            <a href="/admin?tab=roles" class="top-nav-item">
+              <i class="bi bi-shield-lock"></i> Roles &amp; Permissions
+            </a>
+            <a href="/admin?tab=audit" class="top-nav-item">
+              <i class="bi bi-journal-text"></i> Audit Logs
+            </a>
+            <a href="/admin?tab=licenses" class="top-nav-item">
+              <i class="bi bi-key"></i> Licenses
+            </a>
+            <a href="/admin?tab=organizations" class="top-nav-item">
+              <i class="bi bi-building"></i> Organizations
+            </a>
+
+          {% elif is_system %}
+            <span class="text-secondary opacity-50 me-2">|</span>
+            <span class="badge bg-secondary-subtle text-light border border-secondary me-3 px-2 py-1" style="font-size: 11px; letter-spacing: 0.5px;">
+              <i class="bi bi-sliders me-1"></i> SYSTEM
+            </span>
+            <a href="/system" class="top-nav-item active">
+              <i class="bi bi-gear-wide-connected"></i> Platform Settings
+            </a>
+            <a href="/system?tab=status" class="top-nav-item">
+              <i class="bi bi-activity"></i> System Status
+            </a>
+            <a href="/system?tab=integrations" class="top-nav-item">
+              <i class="bi bi-plug"></i> Integrations
+            </a>
+            <a href="/system?tab=executive" class="top-nav-item">
+              <i class="bi bi-bar-chart-line"></i> Executive Summary
+            </a>
+
+          {% else %}
+            <a href="/engagements" class="top-nav-item"><i class="bi bi-folder2-open"></i> Assessments</a>
+            <a href="/security-dashboard" class="top-nav-item"><i class="bi bi-speedometer2"></i> Security</a>
+            <a href="/ham" class="top-nav-item"><i class="bi bi-cpu"></i> Hardware Assets</a>
+            <a href="/port-scan/quick-scan" class="top-nav-item"><i class="bi bi-radar"></i> Network Recon</a>
+          {% endif %}
+        {% endblock %}
+      </div>
+
+      <!-- Quick status indicator right side of navbar -->
+      <div class="d-none d-lg-flex align-items-center gap-2">
+        <span class="badge bg-dark border border-secondary text-secondary font-monospace" style="font-size: 11px;">
+          NiteSentinel Enterprise
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  {% if demo_mode %}<div class="demo-watermark">LIVE DEMO</div>{% endif %}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Top navigation dropdown click/touch support
+    document.querySelectorAll('.top-nav-trigger').forEach(trigger => {
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const group = trigger.closest('.top-nav-group');
+        const wasOpen = group.classList.contains('is-open');
+        document.querySelectorAll('.top-nav-group.is-open').forEach(g => {
+          if (g !== group) g.classList.remove('is-open');
+        });
+        group.classList.toggle('is-open', !wasOpen);
+      });
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.top-nav-group')) {
+        document.querySelectorAll('.top-nav-group.is-open').forEach(g => g.classList.remove('is-open'));
+      }
+    });
+
+    // Live clock
+    const nowStr = () => new Date().toLocaleString("en-GB");
+    const clockEl = document.getElementById("liveClock");
+    if (clockEl) { clockEl.textContent = nowStr(); setInterval(() => clockEl.textContent = nowStr(), 1000); }
+
+    // Highlight current page in top nav
+    const curPath = window.location.pathname;
+    document.querySelectorAll('.top-nav-item[href]').forEach(item => {
+      const href = item.getAttribute('href');
+      if (href && (href === curPath || (href !== '/' && curPath.startsWith(href) && href !== '/dashboard'))) {
+        item.classList.add('active');
+        const group = item.closest('.top-nav-group');
+        if (group) {
+          const trigger = group.querySelector('.top-nav-trigger');
+          if (trigger) trigger.classList.add('active');
+        }
+      }
+    });
+
+    // Role-based item visibility - ensure all modules and recon tools are properly accessible
+    const userRole = (document.querySelector('[data-user-role]')?.dataset.userRole || 'viewer').toLowerCase();
+    const RECON_TOOLS = ['tab-scanner','tab-ssl','tab-dns','tab-whois','tab-ping','tab-headers','tab-subdomains','tab-geo','tab-cve','tab-breach','tab-schedules'];
+    const HAM_ADMIN = ['tab-ham-dashboard','tab-ham-assets','tab-ham-discover','tab-ham-agents','tab-ham-assignments','tab-ham-lifecycle','tab-ham-warranty','tab-ham-health','tab-ham-audit','tab-ham-custody','tab-ham-retired','tab-ham-reports','tab-ham-settings'];
+    const HAM_SEC = ['tab-ham-dashboard','tab-ham-assets','tab-ham-assignments','tab-ham-warranty','tab-ham-health','tab-ham-reports'];
+    const HAM_VIEW = ['tab-ham-dashboard','tab-ham-assets','tab-ham-reports'];
+
+    const ALL_CORE = ['tab-dashboard','tab-compliance','tab-targets','tab-engagements','tab-clients','tab-reports','tab-llm','tab-users','tab-licenses','tab-organizations','tab-settings','tab-executive'];
+
+    const TAB_ACCESS = {
+      'super_admin': [...ALL_CORE, ...RECON_TOOLS, ...HAM_ADMIN],
+      'admin': [...ALL_CORE, ...RECON_TOOLS, ...HAM_ADMIN],
+      'org_admin': [...ALL_CORE, ...RECON_TOOLS, ...HAM_ADMIN],
+      'security_manager': ['tab-dashboard','tab-compliance','tab-targets','tab-reports','tab-llm','tab-settings','tab-executive', ...RECON_TOOLS, ...HAM_SEC],
+      'normal_user': ['tab-dashboard','tab-targets','tab-reports','tab-settings','tab-executive', ...RECON_TOOLS, ...HAM_VIEW],
+      'viewer': ['tab-dashboard','tab-compliance','tab-reports','tab-settings','tab-executive', ...RECON_TOOLS, ...HAM_VIEW],
+      'normal': ['tab-dashboard','tab-targets','tab-reports','tab-settings','tab-executive', ...RECON_TOOLS, ...HAM_VIEW]
+    };
+    const allowed = TAB_ACCESS[userRole] || TAB_ACCESS['viewer'];
+    document.querySelectorAll('.top-nav-item[id]').forEach(item => {
+      const tid = item.id;
+      if (tid && !allowed.includes(tid)) {
+        item.style.display = 'none';
+      }
+    });
+  </script>
+  {% block scripts_extra %}{% endblock %}
+</body>
+</html>

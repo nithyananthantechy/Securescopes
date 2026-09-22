@@ -1,0 +1,47 @@
+<div class="card-scope p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pb-2 mb-2 border-bottom border-secondary">
+    <div>
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-2">ENGAGEMENT</span>
+      <strong class="text-light fs-5">{{ engagement.assessment_name or engagement.title or 'Assessment' }}</strong>
+      <span class="text-secondary small ms-2">({{ engagement.client_name or 'Client' }})</span>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <span class="badge bg-info text-dark">{{ engagement.status or 'ASSESSMENT' }}</span>
+      <a href="/engagements" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> All Engagements</a>
+      <a href="/api/engagements/{{ engagement_id }}/reports/executive" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-pdf"></i> Executive PDF</a>
+      <a href="/api/engagements/{{ engagement_id }}/reports/technical" target="_blank" class="btn btn-sm btn-outline-info"><i class="bi bi-file-earmark-text"></i> Technical Report</a>
+    </div>
+  </div>
+  
+  <!-- Navigation tabs -->
+  <div class="nav nav-pills flex-wrap gap-1 small" id="engagementTabs">
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}"><i class="bi bi-speedometer2"></i> Overview</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/scope"><i class="bi bi-bounding-box-circles"></i> Scope</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/assets"><i class="bi bi-hdd-network"></i> Assets</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/section/iam"><i class="bi bi-person-badge"></i> IAM</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/section/backup"><i class="bi bi-cloud-arrow-up"></i> Backup</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/section/network"><i class="bi bi-diagram-3"></i> Network</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/section/servers"><i class="bi bi-server"></i> Servers</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/section/endpoints"><i class="bi bi-laptop"></i> Endpoints</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/section/web"><i class="bi bi-globe"></i> Web Apps</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/dlp"><i class="bi bi-shield-lock"></i> DLP</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/findings"><i class="bi bi-exclamation-triangle"></i> Findings</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/evidence"><i class="bi bi-paperclip"></i> Evidence</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/risk-register"><i class="bi bi-table"></i> Risk Register</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/remediation"><i class="bi bi-tools"></i> Remediation</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/retest"><i class="bi bi-arrow-repeat"></i> Retest</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/reports"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+    <a class="nav-link text-light py-1 px-2" href="/engagements/{{ engagement_id }}/compliance"><i class="bi bi-check2-circle"></i> Compliance</a>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cur = window.location.pathname;
+  document.querySelectorAll('#engagementTabs a').forEach(a => {
+    if (a.getAttribute('href') === cur) {
+      a.classList.add('active', 'bg-primary');
+    }
+  });
+});
+</script>

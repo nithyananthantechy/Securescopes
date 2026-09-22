@@ -1,5 +1,5 @@
 @echo off
-echo Starting SecureScope by NiTechSpark...
+echo Starting NiteSentinel by NiTechSpark...
 cd /d "%~dp0"
 python main.py web --port 8080
 pause

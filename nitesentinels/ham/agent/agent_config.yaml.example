@@ -1,0 +1,10 @@
+# NiteSentinel Client Agent Configuration Example
+server: "https://sentinel.corp.local:8080"
+token: "YOUR_ENROLLMENT_TOKEN_OR_API_KEY"
+agent_id: "optional-preassigned-agent-uuid"
+interval: 300 # seconds between heartbeats
+insecure_ssl: false # set true only for self-signed development certificates
+tags:
+  department: "Engineering"
+  location: "Building 4, Lab 2"
+  environment: "production"

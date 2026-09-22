@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Remediation Tracker · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🛠️</span>
+        <h3 class="fw-bold text-light mb-0">Remediation Roadmap & Action Tracker</h3>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Assign corrective actions, track remediation milestones, and organize 30 / 60 / 90 day roadmaps</p>
+    </div>
+  </div>
+
+  <!-- 30/60/90 Days Roadmap Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card-scope p-3 h-100 border-danger">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong class="text-danger small text-uppercase">⚡ 30-Day Critical Window</strong>
+          <span class="badge bg-danger" id="badge30">0</span>
+        </div>
+        <div class="small text-secondary mb-2">Immediate mitigation of critical severity findings and active egress exposures.</div>
+        <div id="list30" class="small text-light">Loading...</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-scope p-3 h-100 border-warning">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong class="text-warning small text-uppercase">🔶 60-Day High Priority</strong>
+          <span class="badge bg-warning text-dark" id="badge60">0</span>
+        </div>
+        <div class="small text-secondary mb-2">High severity infrastructure hardening, MFA rollout, and DLP policies.</div>
+        <div id="list60" class="small text-light">Loading...</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-scope p-3 h-100 border-info">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong class="text-info small text-uppercase">🔷 90-Day Baseline</strong>
+          <span class="badge bg-info text-dark" id="badge90">0</span>
+        </div>
+        <div class="small text-secondary mb-2">Medium/Low items, policy formalization, periodic reviews, and training.</div>
+        <div id="list90" class="small text-light">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remediation Action Log -->
+  <div class="card-scope p-4 mb-4">
+    <h5 class="fw-bold text-light mb-3"><i class="bi bi-list-check text-primary me-2"></i>Remediation Action Items</h5>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead>
+          <tr class="text-secondary small text-uppercase">
+            <th>Finding</th>
+            <th>Planned Action</th>
+            <th>Assigned To</th>
+            <th>Target Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="remTableBody">
+          <tr><td colspan="5" class="text-center text-secondary py-4">Loading actions...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+{% block scripts_extra %}
+<script>
+const ENGAGEMENT_ID = "{{ engagement_id }}";
+
+async function loadRemediation() {
+  try {
+    const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/remediation`);
+    const data = await res.json();
+    const actions = data.actions || [];
+    const tbody = document.getElementById('remTableBody');
+    if (!actions.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4">No specific remediation actions tracked yet.</td></tr>';
+    } else {
+      tbody.innerHTML = actions.map(a => `
+        <tr>
+          <td class="fw-bold text-light">${a.finding_title || a.finding_id}</td>
+          <td>${a.action_taken || a.plan || '-'}</td>
+          <td>${a.assigned_to || '-'}</td>
+          <td class="small text-secondary">${a.target_date || '-'}</td>
+          <td><span class="badge ${a.status === 'RESOLVED' ? 'bg-success' : 'bg-warning'}">${a.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Load roadmap items
+    const fRes = await fetch(`/api/engagements/${ENGAGEMENT_ID}/findings`);
+    const fData = await fRes.json();
+    const findings = fData.findings || [];
+    const crit = findings.filter(f => (f.severity || '').toUpperCase() === 'CRITICAL');
+    const high = findings.filter(f => (f.severity || '').toUpperCase() === 'HIGH');
+    const med = findings.filter(f => !['CRITICAL', 'HIGH'].includes((f.severity || '').toUpperCase()));
+
+    document.getElementById('badge30').textContent = crit.length;
+    document.getElementById('list30').innerHTML = crit.length ? crit.map(f => `<div class="mb-1">• ${f.title}</div>`).join('') : '<span class="text-secondary">No 30-day items</span>';
+
+    document.getElementById('badge60').textContent = high.length;
+    document.getElementById('list60').innerHTML = high.length ? high.map(f => `<div class="mb-1">• ${f.title}</div>`).join('') : '<span class="text-secondary">No 60-day items</span>';
+
+    document.getElementById('badge90').textContent = med.length;
+    document.getElementById('list90').innerHTML = med.length ? med.map(f => `<div class="mb-1">• ${f.title}</div>`).join('') : '<span class="text-secondary">No 90-day items</span>';
+  } catch (err) {
+    console.error('Error loading remediation', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadRemediation);
+</script>
+{% endblock %}
+{% endblock %}

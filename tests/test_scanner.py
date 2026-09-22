@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from securescope.core.scanner import Scanner
+from nitesentinels.core.scanner import Scanner
 
 
 def test_calculate_stats_empty():

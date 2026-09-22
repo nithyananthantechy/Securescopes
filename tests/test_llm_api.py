@@ -1,5 +1,5 @@
 def test_llm_model_create_list_and_scan(client, tmp_path):
-    from securescope.web import app as sec_app
+    from nitesentinels.web import app as sec_app
     import time
 
     test_db = tmp_path / "llm_test.db"

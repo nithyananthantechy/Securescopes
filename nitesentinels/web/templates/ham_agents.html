@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Client Agents · Hardware Asset Management · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🤖</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Client Agent Management</h1>
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">Optional Telemetry</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Lightweight endpoint telemetry agent for automated hardware inventory, CPU/RAM/Disk metrics, and continuous health tracking.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-primary-enterprise d-flex align-items-center gap-1 shadow-sm" id="btnEnrollAgent">
+        <i class="bi bi-key"></i> Generate Enrollment Token
+      </button>
+      <a href="/ham/assets" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        <i class="bi bi-hdd-network"></i> Assets List
+      </a>
+    </div>
+  </div>
+
+  <!-- Agent Summary Metrics -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="card-scope p-3">
+        <div class="small text-secondary text-uppercase fw-semibold">Online Agents</div>
+        <div class="fs-2 fw-bold text-success my-1" id="metricOnlineAgents">—</div>
+        <div class="small text-secondary"><i class="bi bi-broadcast text-success me-1"></i> Checked in within 15 min</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card-scope p-3">
+        <div class="small text-secondary text-uppercase fw-semibold">Total Enrolled</div>
+        <div class="fs-2 fw-bold text-light my-1" id="metricTotalAgents">—</div>
+        <div class="small text-secondary"><i class="bi bi-cpu text-info me-1"></i> Registered hosts</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card-scope p-3">
+        <div class="small text-secondary text-uppercase fw-semibold">Agent Architecture</div>
+        <div class="fs-4 fw-bold text-info my-1">Standalone Python</div>
+        <div class="small text-secondary">Zero-dependency, optional, cross-platform</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enrolled Agents Table -->
+  <div class="card-scope p-0 overflow-hidden shadow-sm mb-4">
+    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+      <h2 class="h6 fw-bold text-light mb-0"><i class="bi bi-hdd-stack text-info me-2"></i>Enrolled Endpoints</h2>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRefreshAgents"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0 small">
+        <thead class="text-secondary bg-dark">
+          <tr>
+            <th>Agent ID</th>
+            <th>Hostname</th>
+            <th>Platform / OS</th>
+            <th>IP Address</th>
+            <th>Last Heartbeat</th>
+            <th>Status</th>
+            <th class="text-end" style="width: 150px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="agentsTableBody">
+          <tr>
+            <td colspan="7" class="text-center py-5 text-secondary">
+              <div class="spinner-border spinner-border-sm text-info me-2"></div> Loading enrolled agents…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: Enrollment Token & Quick Install -->
+<div class="modal fade" id="modalEnrollToken" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold"><i class="bi bi-key text-info me-2"></i>Agent Enrollment Token</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-secondary mb-3">
+          Use this single-use enrollment token to register a new host. The token is valid for 24 hours.
+        </p>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Enrollment Token</label>
+          <div class="input-group input-group-sm">
+            <input type="text" id="tokenField" class="form-control bg-dark border-secondary text-info font-monospace" readonly>
+            <button class="btn btn-outline-info" type="button" id="btnCopyToken"><i class="bi bi-clipboard"></i> Copy</button>
+          </div>
+        </div>
+
+        <h6 class="fw-bold text-light mt-4 mb-2">One-Line Quick Setup</h6>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Linux / macOS (Bash)</label>
+          <pre class="p-3 bg-black rounded border border-secondary text-success small font-monospace" id="bashInstallCmd"># Generating command…</pre>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Windows (PowerShell)</label>
+          <pre class="p-3 bg-black rounded border border-secondary text-info small font-monospace" id="psInstallCmd"># Generating command…</pre>
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const CSRF_TOKEN = "{{ csrf_token }}";
+  const modalToken = new bootstrap.Modal(document.getElementById("modalEnrollToken"));
+
+  // Highlight sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  loadAgents();
+  document.getElementById("btnRefreshAgents")?.addEventListener("click", loadAgents);
+
+  // Generate token button
+  document.getElementById("btnEnrollAgent")?.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/ham/agents/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      const tokenVal = data.token || data.raw_token;
+      if (res.ok && tokenVal) {
+        document.getElementById("tokenField").value = tokenVal;
+        const host = window.location.origin;
+        document.getElementById("bashInstallCmd").textContent = `curl -sSL "${host}/ham/agent/download" | python3 - --server "${host}" --token "${tokenVal}"`;
+        document.getElementById("psInstallCmd").textContent = `Invoke-RestMethod "${host}/ham/agent/download" | python - --server "${host}" --token "${tokenVal}"`;
+        modalToken.show();
+      } else {
+        alert("Failed to generate token: " + (data.error || "Unknown error"));
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  });
+
+  document.getElementById("btnCopyToken")?.addEventListener("click", () => {
+    const fld = document.getElementById("tokenField");
+    fld.select();
+    navigator.clipboard.writeText(fld.value);
+    alert("Token copied to clipboard!");
+  });
+
+  async function loadAgents() {
+    const tbody = document.getElementById("agentsTableBody");
+    try {
+      const res = await fetch("/api/ham/agents");
+      if (!res.ok) throw new Error("Failed to load agents");
+      const d = await res.json();
+      const agents = d.agents || [];
+
+      let onlineCount = 0;
+      agents.forEach(a => {
+        if (a.is_online) onlineCount++;
+      });
+
+      document.getElementById("metricOnlineAgents").textContent = onlineCount;
+      document.getElementById("metricTotalAgents").textContent = agents.length;
+
+      if (!agents.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-secondary">No agents enrolled. Click "Generate Enrollment Token" above to register an endpoint.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = agents.map(a => {
+        const isOnline = a.is_online;
+        const statusBadge = isOnline
+          ? '<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill me-1 small"></i>Online</span>'
+          : '<span class="badge bg-secondary text-light">Offline</span>';
+
+        return `
+          <tr>
+            <td class="font-monospace text-info">${escapeHtml((a.id || "").substring(0,8))}</td>
+            <td class="fw-bold text-light">${escapeHtml(a.hostname || "—")}</td>
+            <td>${escapeHtml(a.platform || "—")}</td>
+            <td class="font-monospace text-secondary">${escapeHtml(a.ip_address || "—")}</td>
+            <td class="text-secondary font-monospace">${escapeHtml(a.last_checkin || "Never")}</td>
+            <td>${statusBadge}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2 btn-rotate-token" data-id="${a.id}" title="Rotate Agent Token">Rotate</button>
+              <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-delete-agent" data-id="${a.id}" title="Revoke & Delete"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      // Rotate token handler
+      document.querySelectorAll(".btn-rotate-token").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.id;
+          if (!confirm("Rotate security credentials for this agent?")) return;
+          try {
+            const res = await fetch(`/api/ham/agents/${id}/rotate`, {
+              method: "POST",
+              headers: { "X-CSRF-Token": CSRF_TOKEN }
+            });
+            if (res.ok) {
+              const resData = await res.json();
+              prompt("New agent token (copy this):", resData.new_token);
+              loadAgents();
+            } else {
+              alert("Failed to rotate token");
+            }
+          } catch (e) {
+            alert("Error: " + e.message);
+          }
+        });
+      });
+
+      // Delete agent handler
+      document.querySelectorAll(".btn-delete-agent").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.id;
+          if (!confirm("Revoke and remove this agent?")) return;
+          try {
+            const res = await fetch(`/api/ham/agents/${id}`, {
+              method: "DELETE",
+              headers: { "X-CSRF-Token": CSRF_TOKEN }
+            });
+            if (res.ok) loadAgents();
+            else alert("Failed to delete agent");
+          } catch (e) {
+            alert("Error: " + e.message);
+          }
+        });
+      });
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-secondary">Could not load agents list.</td></tr>`;
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+});
+</script>
+{% endblock %}

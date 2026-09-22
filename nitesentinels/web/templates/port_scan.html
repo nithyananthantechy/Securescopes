@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Port Scanner - NiteSentinel{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="mb-3">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0 small">
+          <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none"><i class="bi bi-shield-lock-fill text-info me-1"></i> NITECHSPARK</a></li>
+          <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none">PLATFORM HUB</a></li>
+          <li class="breadcrumb-item active text-info" aria-current="page">NETWORK RECON</li>
+        </ol>
+      </nav>
+    </div>
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="fs-4">📡</span>
+              <h1 class="h3 mb-0 fw-bold text-light">Network &amp; Port Scanner</h1>
+            </div>
+            <p class="text-secondary small">Authorized fast, asynchronous network reconnaissance and service detection</p>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Quick Scan</h5>
+                </div>
+                <div class="card-body">
+                    <form id="scanForm">
+                        <div class="form-group mb-3">
+                            <label for="target" class="form-label">Target (Hostname or IP)</label>
+                            <input type="text" class="form-control" id="target" name="target" 
+                                   placeholder="example.com or 192.168.1.1" required>
+                            <small class="text-muted">Note: Private IP ranges are blocked for security</small>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="ports" class="form-label">Ports to Scan</label>
+                            <input type="text" class="form-control" id="ports" name="ports" 
+                                   placeholder="1-1024 or 80,443,8080" value="1-1024">
+                            <small class="form-text">Supports ranges (1-1024) and comma-separated values</small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <span id="scanBtnText">Start Scan</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Results -->
+            <div id="resultsContainer" style="display: none;" class="mt-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Scan Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="scanProgress" class="mb-3">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     id="progressBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small id="progressText" class="text-muted">Scanning in progress...</small>
+                        </div>
+                        
+                        <table class="table table-striped" id="resultsTable">
+                            <thead>
+                                <tr>
+                                    <th>Port</th>
+                                    <th>Service</th>
+                                    <th>Banner</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsList">
+                            </tbody>
+                        </table>
+                        
+                        <div id="analysisResults" class="mt-4" style="display: none;">
+                            <h5>Risk Analysis</h5>
+                            <div id="analysisContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('scanForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const target = document.getElementById('target').value;
+    const ports = document.getElementById('ports').value;
+    
+    // Validate target
+    try {
+        const response = await fetch('/port-scan/api/validate-target', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({target})
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            alert('Validation failed: ' + error.reason);
+            return;
+        }
+    } catch (err) {
+        console.error('Validation error:', err);
+    }
+    
+    // Show results container
+    document.getElementById('resultsContainer').style.display = 'block';
+    document.getElementById('resultsList').innerHTML = '';
+    document.getElementById('scanBtnText').textContent = 'Scanning...';
+    document.getElementById('scanForm').style.opacity = '0.5';
+    document.getElementById('scanForm').querySelector('button').disabled = true;
+    
+    let openCount = 0;
+    
+    // Start streaming scan
+    const eventSource = new EventSource(
+        `/port-scan/stream-quick-scan?target=${encodeURIComponent(target)}&ports=${encodeURIComponent(ports)}`
+    );
+    
+    eventSource.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            
+            if (data.error) {
+                alert('Error: ' + data.error);
+                eventSource.close();
+                resetForm();
+                return;
+            }
+            
+            if (data.status === 'open') {
+                openCount++;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${data.port}</td>
+                    <td>${data.service}</td>
+                    <td><small>${data.banner || 'N/A'}</small></td>
+                    <td><span class="badge bg-danger">OPEN</span></td>
+                `;
+                document.getElementById('resultsList').appendChild(row);
+                
+                // Update progress
+                const progress = (data.scanned / 1024) * 100;
+                document.getElementById('progressBar').style.width = Math.min(progress, 99) + '%';
+                document.getElementById('progressText').textContent = 
+                    `Scanned: ${data.scanned} ports | Open: ${openCount}`;
+            }
+            
+            if (data.analysis) {
+                eventSource.close();
+                // Show analysis
+                const analysis = data.analysis;
+                const analysisDiv = document.getElementById('analysisResults');
+                analysisDiv.style.display = 'block';
+                
+                let html = `
+                    <div class="alert alert-warning">
+                        <strong>Risk Score: ${analysis.score}/100</strong> - ${analysis.risk_level}
+                    </div>
+                `;
+                
+                if (analysis.findings && analysis.findings.length > 0) {
+                    html += '<h6>Key Findings:</h6><ul>';
+                    analysis.findings.slice(0, 5).forEach(finding => {
+                        html += `<li><strong>[${finding.severity}]</strong> ${finding.text}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                
+                document.getElementById('analysisContent').innerHTML = html;
+                resetForm();
+            }
+        } catch (err) {
+            console.error('Parse error:', err);
+        }
+    };
+    
+    eventSource.onerror = () => {
+        eventSource.close();
+        resetForm();
+    };
+});
+
+function resetForm() {
+    document.getElementById('scanBtnText').textContent = 'Start Scan';
+    document.getElementById('scanForm').style.opacity = '1';
+    document.getElementById('scanForm').querySelector('button').disabled = false;
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressText').textContent = 'Scan complete';
+}
+</script>
+{% endblock %}

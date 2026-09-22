@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Hardware Warranty &amp; Service Contracts · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🛡️</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Warranty &amp; Service Contracts</h1>
+        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Lifecycle Governance</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Track hardware maintenance coverage, OEM warranty expiration, support agreement numbers, and vendor renewal deadlines.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/api/ham/reports/warranty" class="btn btn-outline-success d-flex align-items-center gap-1" download="warranty_report.json">
+        <i class="bi bi-download"></i> Export Warranty Report
+      </a>
+      <a href="/ham/assets" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        <i class="bi bi-hdd-network"></i> Assets Inventory
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card-scope p-3">
+        <div class="small text-secondary text-uppercase fw-semibold">Already Expired</div>
+        <div class="fs-2 fw-bold text-danger my-1" id="statExpired">—</div>
+        <div class="small text-secondary"><i class="bi bi-x-circle-fill text-danger me-1"></i> Out of coverage</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-scope p-3">
+        <div class="small text-secondary text-uppercase fw-semibold">Expiring &le; 30 Days</div>
+        <div class="fs-2 fw-bold text-warning my-1" id="stat30Days">—</div>
+        <div class="small text-secondary"><i class="bi bi-exclamation-circle-fill text-warning me-1"></i> Urgent renewal</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-scope p-3">
+        <div class="small text-secondary text-uppercase fw-semibold">Expiring 31–90 Days</div>
+        <div class="fs-2 fw-bold text-info my-1" id="stat90Days">—</div>
+        <div class="small text-secondary"><i class="bi bi-clock-history text-info me-1"></i> Plan budget</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-scope p-3">
+        <div class="small text-secondary text-uppercase fw-semibold">Active &amp; Covered</div>
+        <div class="fs-2 fw-bold text-success my-1" id="statActive">—</div>
+        <div class="small text-secondary"><i class="bi bi-shield-check text-success me-1"></i> Protected</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Warranty Table -->
+  <div class="card-scope p-0 overflow-hidden shadow-sm mb-4">
+    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h2 class="h6 fw-bold text-light mb-0"><i class="bi bi-file-earmark-medical text-info me-2"></i>Hardware Maintenance Coverage</h2>
+      <div class="d-flex gap-2">
+        <select id="warrantyFilterWindow" class="form-select form-select-sm bg-dark border-secondary text-light" style="max-width: 180px;">
+          <option value="all" selected>All Records</option>
+          <option value="expired">Expired Only</option>
+          <option value="expiring_soon">Expiring within 90 Days</option>
+        </select>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRefreshWarranty"><i class="bi bi-arrow-clockwise"></i></button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0 small">
+        <thead class="text-secondary bg-dark">
+          <tr>
+            <th>Asset Tag</th>
+            <th>Name / Model</th>
+            <th>Type</th>
+            <th>Vendor</th>
+            <th>Support Agreement #</th>
+            <th>Warranty Expiration</th>
+            <th>Status</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody id="warrantyTableBody">
+          <tr>
+            <td colspan="8" class="text-center py-5 text-secondary">
+              <div class="spinner-border spinner-border-sm text-info me-2"></div> Loading warranty records…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Highlight sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  loadWarrantyData();
+  document.getElementById("btnRefreshWarranty")?.addEventListener("click", loadWarrantyData);
+  document.getElementById("warrantyFilterWindow")?.addEventListener("change", loadWarrantyData);
+
+  async function loadWarrantyData() {
+    const tbody = document.getElementById("warrantyTableBody");
+    const filter = document.getElementById("warrantyFilterWindow").value;
+
+    try {
+      const res = await fetch("/api/ham/warranty?days_ahead=90");
+      if (!res.ok) throw new Error("Failed to load warranty data");
+      const d = await res.json();
+
+      const expiredList = d.expired || [];
+      const expiringSoonList = d.expiring_soon || [];
+      
+      document.getElementById("statExpired").textContent = d.expired_count ?? expiredList.length;
+      document.getElementById("stat90Days").textContent = d.expiring_soon_count ?? expiringSoonList.length;
+      document.getElementById("stat30Days").textContent = d.expiring_30_days_count ?? 0;
+      document.getElementById("statActive").textContent = d.active_warranty_count ?? 0;
+
+      let displayAssets = [];
+      if (filter === "expired") displayAssets = expiredList;
+      else if (filter === "expiring_soon") displayAssets = expiringSoonList;
+      else displayAssets = [...expiringSoonList, ...expiredList, ...(d.other || [])];
+
+      if (!displayAssets.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-secondary">No assets found for the selected warranty filter.</td></tr>`;
+        return;
+      }
+
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      tbody.innerHTML = displayAssets.map(a => {
+        const isExp = a.warranty_expiration && a.warranty_expiration < todayStr;
+        const statusBadge = isExp
+          ? '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired</span>'
+          : (a.warranty_expiration ? '<span class="badge bg-warning-subtle text-warning border border-warning-subtle">Expiring Soon</span>' : '<span class="badge bg-secondary">Unknown</span>');
+
+        return `
+          <tr>
+            <td class="fw-bold text-info"><a href="/ham/assets/${a.id}" class="text-info text-decoration-none">${escapeHtml(a.asset_tag || a.id.substring(0,8))}</a></td>
+            <td>
+              <div class="fw-medium text-light">${escapeHtml(a.name || "Asset")}</div>
+              <div class="small text-secondary">${escapeHtml(a.manufacturer || "")} ${escapeHtml(a.model || "")}</div>
+            </td>
+            <td><span class="badge bg-dark border border-secondary text-secondary">${escapeHtml(a.asset_type || "other")}</span></td>
+            <td>${escapeHtml(a.vendor || "—")}</td>
+            <td class="font-monospace text-light">${escapeHtml(a.support_contract || "—")}</td>
+            <td class="fw-bold ${isExp ? 'text-danger' : 'text-warning'} font-monospace">${escapeHtml(a.warranty_expiration || "None")}</td>
+            <td>${statusBadge}</td>
+            <td class="text-end">
+              <a href="/ham/assets/${a.id}" class="btn btn-sm btn-outline-primary py-0 px-2">View</a>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-secondary">Error loading warranty report.</td></tr>`;
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+});
+</script>
+{% endblock %}

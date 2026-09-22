@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}System &amp; Configuration Workspace · NiteSentinel Enterprise{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Breadcrumb Hierarchy -->
+  <div class="mb-3">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none"><i class="bi bi-shield-lock-fill text-info me-1"></i> NITECHSPARK</a></li>
+        <li class="breadcrumb-item"><a href="/platform" class="text-secondary text-decoration-none">PLATFORM HUB</a></li>
+        <li class="breadcrumb-item active text-light" aria-current="page">SYSTEM</li>
+      </ol>
+    </nav>
+  </div>
+
+  <!-- Workspace Header Hero -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">⚙️</span>
+        <h1 class="h3 mb-0 fw-bold text-light">System &amp; Configuration Workspace</h1>
+        <span class="badge border border-secondary px-2 py-1" style="background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3) !important;">
+          ENGINEERING &amp; OPS
+        </span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Daemon process monitors, core engine configuration, third-party webhook integrations, and telemetry health</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/platform" class="btn btn-sm btn-outline-info d-flex align-items-center gap-1">
+        <i class="bi bi-grid-fill"></i> Platform Hub
+      </a>
+      <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" onclick="location.reload();">
+        <i class="bi bi-arrow-clockwise"></i> Refresh Status
+      </button>
+    </div>
+  </div>
+
+  <!-- Daemon & Engine Health Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="card-scope p-3 border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.7);">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-secondary small text-uppercase fw-semibold">Web Server Engine</span>
+          <span class="badge bg-success-subtle text-success">ONLINE</span>
+        </div>
+        <div class="h4 fw-bold text-light mb-0">Flask / WSGI</div>
+        <div class="text-secondary small mt-1"><i class="bi bi-check2-circle text-success me-1"></i>Port 8080 Active</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="card-scope p-3 border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.7);">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-secondary small text-uppercase fw-semibold">Scheduler Daemon</span>
+          <span class="badge bg-success-subtle text-success">HEALTHY</span>
+        </div>
+        <div class="h4 fw-bold text-light mb-0">APScheduler</div>
+        <div class="text-secondary small mt-1">Background jobs active</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="card-scope p-3 border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.7);">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-secondary small text-uppercase fw-semibold">Telemetry Database</span>
+          <span class="badge bg-info-subtle text-info">READY</span>
+        </div>
+        <div class="h4 fw-bold text-light mb-0">SQLite Enterprise</div>
+        <div class="text-secondary small mt-1">WAL Mode &bull; Synchronous</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="card-scope p-3 border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.7);">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-secondary small text-uppercase fw-semibold">Scan Automation</span>
+          <span class="badge bg-secondary-subtle text-light">MANUAL ONLY</span>
+        </div>
+        <div class="h4 fw-bold text-warning mb-0">Guarded</div>
+        <div class="text-secondary small mt-1">Auto-scan permanently off</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings & Integrations Grid -->
+  <div class="row g-4">
+    <!-- Platform Settings -->
+    <div class="col-lg-6">
+      <div class="card-scope p-4 h-100 border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.8);">
+        <h5 class="fw-bold text-light mb-3"><i class="bi bi-sliders text-info me-2"></i>Global Platform Settings</h5>
+        
+        <div class="mb-3 pb-3 border-bottom border-secondary border-opacity-25">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-light">Organization Scope</div>
+              <div class="text-secondary small">Default organizational workspace tag</div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">{{ org_name }}</span>
+          </div>
+        </div>
+
+        <div class="mb-3 pb-3 border-bottom border-secondary border-opacity-25">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-light">Session Timeout</div>
+              <div class="text-secondary small">Automatic operator logout after inactivity</div>
+            </div>
+            <span class="text-light small font-monospace">8 Hours</span>
+          </div>
+        </div>
+
+        <div class="mb-3 pb-3 border-bottom border-secondary border-opacity-25">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-light">CSRF &amp; Rate Limiting</div>
+              <div class="text-secondary small">Anti-tampering tokens on state-changing requests</div>
+            </div>
+            <span class="badge bg-success-subtle text-success">ENFORCED</span>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-light">Local Auto-Scan Guard</div>
+              <div class="text-secondary small">Prohibits scanning local target upon login</div>
+            </div>
+            <span class="badge bg-success-subtle text-success"><i class="bi bi-shield-check me-1"></i>PROTECTED</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrations Status -->
+    <div class="col-lg-6">
+      <div class="card-scope p-4 h-100 border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.8);">
+        <h5 class="fw-bold text-light mb-3"><i class="bi bi-plug-fill text-warning me-2"></i>Integrations &amp; Connectors</h5>
+        
+        <div class="mb-3 pb-3 border-bottom border-secondary border-opacity-25">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-slack text-light fs-5"></i>
+              <div>
+                <div class="fw-bold text-light">Slack Security Alerts</div>
+                <div class="text-secondary small">Critical vulnerability webhooks</div>
+              </div>
+            </div>
+            <span class="badge bg-secondary-subtle text-secondary">Configured via YAML</span>
+          </div>
+        </div>
+
+        <div class="mb-3 pb-3 border-bottom border-secondary border-opacity-25">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-envelope-at text-light fs-5"></i>
+              <div>
+                <div class="fw-bold text-light">SMTP Assessment Dispatch</div>
+                <div class="text-secondary small">Automated report delivery to client CISO</div>
+              </div>
+            </div>
+            <span class="badge bg-secondary-subtle text-secondary">Optional</span>
+          </div>
+        </div>
+
+        <div class="mb-3 pb-3 border-bottom border-secondary border-opacity-25">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-cpu text-light fs-5"></i>
+              <div>
+                <div class="fw-bold text-light">LLM / AI Model Provider</div>
+                <div class="text-secondary small">Local Ollama / OpenAI / Claude integration</div>
+              </div>
+            </div>
+            <span class="badge bg-info-subtle text-info">Local Fallback</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-shield-shaded text-light fs-5"></i>
+              <div>
+                <div class="fw-bold text-light">HAM Agent Key Vault</div>
+                <div class="text-secondary small">Telemetry HMAC validation tokens</div>
+              </div>
+            </div>
+            <span class="badge bg-success-subtle text-success">ACTIVE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

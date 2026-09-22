@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Retest & Verification · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🔄</span>
+        <h3 class="fw-bold text-light mb-0">Retest & Validation Verification</h3>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Verify that client remediations actually eliminated the vulnerability or control deficiency</p>
+    </div>
+  </div>
+
+  <div class="card-scope p-4 mb-4">
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead>
+          <tr class="text-secondary small text-uppercase">
+            <th>Ref</th>
+            <th>Finding Title</th>
+            <th>Retest By</th>
+            <th>Retest Date</th>
+            <th>Result Status</th>
+            <th>Notes</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody id="retestTableBody">
+          <tr><td colspan="7" class="text-center text-secondary py-4">Loading retests...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+{% block scripts_extra %}
+<script>
+const ENGAGEMENT_ID = "{{ engagement_id }}";
+
+async function loadRetests() {
+  try {
+    const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/retests`);
+    const data = await res.json();
+    const list = data.retests || [];
+    const tbody = document.getElementById('retestTableBody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary py-4">No retest records yet. Log findings to enable retest tracking.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(r => `
+      <tr>
+        <td class="font-monospace small text-secondary">${r.retest_ref || r.id.substring(0,8)}</td>
+        <td class="fw-bold text-light">${r.finding_title || 'Finding ' + r.finding_id}</td>
+        <td>${r.retest_by || '-'}</td>
+        <td class="small text-secondary">${(r.retest_date || '').substring(0,10) || '-'}</td>
+        <td>
+          <span class="badge ${r.result === 'REMEDIATED' ? 'bg-success' : (r.result === 'PARTIALLY_REMEDIATED' ? 'bg-warning text-dark' : 'bg-danger')}">
+            ${r.result || 'NOT_RETESTED'}
+          </span>
+        </td>
+        <td class="small text-secondary">${r.notes || '-'}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-info" onclick="updateRetestResult('${r.id}')"><i class="bi bi-pencil"></i></button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    document.getElementById('retestTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger">${err.message}</td></tr>`;
+  }
+}
+
+async function updateRetestResult(rid) {
+  const result = prompt('Enter new result (REMEDIATED, PARTIALLY_REMEDIATED, NOT_REMEDIATED):', 'REMEDIATED');
+  if (!result) return;
+  const notes = prompt('Enter validation notes:');
+  await fetch(`/api/engagements/${ENGAGEMENT_ID}/retests/${rid}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify({ result: result.trim().toUpperCase(), notes: notes })
+  });
+  loadRetests();
+}
+
+document.addEventListener('DOMContentLoaded', loadRetests);
+</script>
+{% endblock %}
+{% endblock %}

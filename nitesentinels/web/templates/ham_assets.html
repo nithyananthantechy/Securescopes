@@ -1,0 +1,1136 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if filter_mode == 'unassigned' %}Asset Assignments · NiteSentinel
+{% elif filter_mode == 'lifecycle' %}Asset Lifecycle · NiteSentinel
+{% elif filter_mode == 'health' %}Asset Health &amp; Telemetry · NiteSentinel
+{% elif filter_mode == 'retired' %}Retired Hardware Assets · NiteSentinel
+{% else %}Hardware Assets Inventory · NiteSentinel
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">
+          {% if filter_mode == 'unassigned' %}👤
+          {% elif filter_mode == 'lifecycle' %}🔄
+          {% elif filter_mode == 'health' %}💓
+          {% elif filter_mode == 'retired' %}📦
+          {% else %}💻
+          {% endif %}
+        </span>
+        <h1 class="h3 mb-0 fw-bold text-light" id="pageTitle">
+          {% if filter_mode == 'unassigned' %}Asset Assignments
+          {% elif filter_mode == 'lifecycle' %}Lifecycle Management
+          {% elif filter_mode == 'health' %}Asset Health &amp; Telemetry
+          {% elif filter_mode == 'retired' %}Retired &amp; Disposed Assets
+          {% else %}Hardware Assets Inventory
+          {% endif %}
+        </h1>
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" id="totalCountBadge">0 assets</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">
+        {% if filter_mode == 'unassigned' %}Track equipment checkout, assign hardware to staff, or reclaim into inventory pool.
+        {% elif filter_mode == 'lifecycle' %}Track acquisition, staging, in-service, repair, decommissioning, and disposal workflow.
+        {% elif filter_mode == 'health' %}Inspect host telemetry, disk/memory saturation, agent heartbeats, and security findings.
+        {% elif filter_mode == 'retired' %}Audit decommissioned, retired, and sustainably disposed hardware assets.
+        {% else %}Centralized database of all workstations, servers, network switches, and IoT appliances.
+        {% endif %}
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="button" class="btn btn-primary-enterprise d-flex align-items-center gap-1 shadow-sm" id="btnOpenCreateModal">
+        <i class="bi bi-plus-circle"></i> New Asset
+      </button>
+      <button type="button" class="btn btn-outline-info d-flex align-items-center gap-1" id="btnOpenImportModal">
+        <i class="bi bi-upload"></i> Import CSV
+      </button>
+      <a href="/api/ham/assets/export/csv" class="btn btn-outline-success d-flex align-items-center gap-1" id="btnExportCsv" download="ham_assets_export.csv">
+        <i class="bi bi-download"></i> Export CSV
+      </a>
+      <div class="dropdown d-none" id="bulkActionsDropdown">
+        <button class="btn btn-warning dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+          <i class="bi bi-check2-square"></i> <span id="selectedCountText">0 selected</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark">
+          <li><button class="dropdown-item" id="btnBulkInService"><i class="bi bi-play-circle text-success me-2"></i>Set In Service</button></li>
+          <li><button class="dropdown-item" id="btnBulkInStock"><i class="bi bi-box-seam text-info me-2"></i>Set In Stock</button></li>
+          <li><button class="dropdown-item" id="btnBulkRetire"><i class="bi bi-archive text-warning me-2"></i>Retire Selected</button></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><button class="dropdown-item text-danger" id="btnBulkDelete"><i class="bi bi-trash text-danger me-2"></i>Delete Selected</button></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Filters Toolbar -->
+  <div class="card-scope p-3 mb-4">
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-md-4 col-lg-3">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+          <input type="search" id="filterSearch" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="Search tag, name, serial, IP, user…">
+        </div>
+      </div>
+      <div class="col-6 col-md-2 col-lg-2">
+        <select id="filterType" class="form-select form-select-sm bg-dark border-secondary text-light">
+          <option value="">All Types</option>
+          <option value="laptop">Laptop</option>
+          <option value="desktop">Desktop</option>
+          <option value="server">Server</option>
+          <option value="switch">Switch</option>
+          <option value="router">Router</option>
+          <option value="firewall">Firewall</option>
+          <option value="storage">Storage / SAN</option>
+          <option value="iot">IoT Device</option>
+          <option value="printer">Printer</option>
+          <option value="mobile">Mobile / Tablet</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2 col-lg-2">
+        <select id="filterStatus" class="form-select form-select-sm bg-dark border-secondary text-light">
+          <option value="">All Statuses</option>
+          <option value="in_service" {% if filter_mode == 'unassigned' %}{% elif filter_mode == 'lifecycle' %}{% endif %}>In Service</option>
+          <option value="in_stock" {% if filter_mode == 'unassigned' %}selected{% endif %}>In Stock</option>
+          <option value="in_repair">In Repair</option>
+          <option value="pending_disposal">Pending Disposal</option>
+          <option value="retired" {% if filter_mode == 'retired' %}selected{% endif %}>Retired</option>
+          <option value="disposed">Disposed</option>
+          <option value="ordered">Ordered</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2 col-lg-2">
+        <select id="filterHealth" class="form-select form-select-sm bg-dark border-secondary text-light">
+          <option value="">All Health</option>
+          <option value="healthy">Healthy</option>
+          <option value="warning" {% if filter_mode == 'health' %}selected{% endif %}>Warning</option>
+          <option value="critical">Critical</option>
+          <option value="unknown">Unknown</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2 col-lg-1">
+        <select id="filterRisk" class="form-select form-select-sm bg-dark border-secondary text-light">
+          <option value="">All Risk</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-12 col-lg-2 d-flex gap-2 justify-content-end">
+        <select id="sortBy" class="form-select form-select-sm bg-dark border-secondary text-light" style="max-width: 120px;">
+          <option value="updated_at">Sort: Updated</option>
+          <option value="name">Sort: Name</option>
+          <option value="asset_tag">Sort: Tag</option>
+          <option value="risk_score">Sort: Risk</option>
+          <option value="purchase_date">Sort: Age</option>
+        </select>
+        <button type="button" id="btnResetFilters" class="btn btn-sm btn-outline-secondary" title="Reset Filters">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assets Table Card -->
+  <div class="card-scope p-0 overflow-hidden mb-4 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0" id="assetsMainTable">
+        <thead class="text-secondary bg-dark" style="border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem;">
+          <tr>
+            <th style="width: 40px;" class="text-center">
+              <input type="checkbox" id="checkSelectAll" class="form-check-input bg-dark border-secondary">
+            </th>
+            <th>Asset Tag</th>
+            <th>Name / Model</th>
+            <th>Type</th>
+            <th>Serial Number</th>
+            <th>IP / MAC</th>
+            <th>Custodian / Dept</th>
+            <th>Status</th>
+            <th>Health</th>
+            <th>Risk</th>
+            <th class="text-end" style="width: 140px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assetsTableBody" class="small">
+          <tr>
+            <td colspan="11" class="text-center py-5 text-secondary">
+              <div class="spinner-border spinner-border-sm text-info me-2" role="status"></div> Loading hardware assets…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Table Footer / Pagination -->
+    <div class="p-3 bg-dark bg-opacity-50 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="small text-secondary" id="paginationInfo">Showing 0–0 of 0 assets</div>
+      <div class="d-flex gap-1 align-items-center">
+        <select id="pageSize" class="form-select form-select-sm bg-dark border-secondary text-light me-2" style="width: 80px;">
+          <option value="15">15</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnPrevPage" disabled><i class="bi bi-chevron-left"></i> Prev</button>
+        <span class="small px-2 text-light" id="pageIndicator">Page 1</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnNextPage" disabled>Next <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: Create / Edit Asset -->
+<div class="modal fade" id="modalAssetForm" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content bg-dark border-secondary text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold" id="modalAssetTitle"><i class="bi bi-hdd-network text-info me-2"></i>Add Hardware Asset</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formAsset">
+          <input type="hidden" id="assetFormId" value="">
+          
+          <!-- Nav tabs -->
+          <ul class="nav nav-tabs nav-tabs-dark border-secondary mb-3" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabGeneral" type="button"><i class="bi bi-info-circle me-1"></i>General</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabHardware" type="button"><i class="bi bi-cpu me-1"></i>Hardware Specs</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabNetwork" type="button"><i class="bi bi-diagram-3 me-1"></i>Network &amp; Location</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCustody" type="button"><i class="bi bi-person-check me-1"></i>Assignment</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabFinancial" type="button"><i class="bi bi-shield-check me-1"></i>Warranty &amp; Support</button></li>
+          </ul>
+
+          <div class="tab-content pt-2">
+            <!-- General Tab -->
+            <div class="tab-pane fade show active" id="tabGeneral">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Asset Tag <span class="text-danger">*</span></label>
+                  <input type="text" id="assetTag" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. NS-HW-0012" required>
+                  <div class="form-text small text-secondary">Unique inventory barcode or asset identifier.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Asset Name <span class="text-danger">*</span></label>
+                  <input type="text" id="assetName" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Dell Precision 7760" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Asset Type <span class="text-danger">*</span></label>
+                  <select id="assetType" class="form-select form-select-sm bg-dark border-secondary text-light" required>
+                    <option value="laptop">Laptop</option>
+                    <option value="desktop">Desktop</option>
+                    <option value="server">Server</option>
+                    <option value="switch">Switch</option>
+                    <option value="router">Router</option>
+                    <option value="firewall">Firewall</option>
+                    <option value="storage">Storage / SAN</option>
+                    <option value="iot">IoT Device</option>
+                    <option value="printer">Printer</option>
+                    <option value="mobile">Mobile / Tablet</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Lifecycle Status</label>
+                  <select id="assetStatus" class="form-select form-select-sm bg-dark border-secondary text-light">
+                    <option value="in_service">In Service</option>
+                    <option value="in_stock" selected>In Stock</option>
+                    <option value="in_repair">In Repair</option>
+                    <option value="pending_disposal">Pending Disposal</option>
+                    <option value="retired">Retired</option>
+                    <option value="disposed">Disposed</option>
+                    <option value="ordered">Ordered</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Manufacturer</label>
+                  <input type="text" id="assetManufacturer" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Dell, HP, Cisco, Lenovo">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Model</label>
+                  <input type="text" id="assetModel" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. ThinkPad X1 Carbon Gen 11">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Serial Number</label>
+                  <input type="text" id="assetSerial" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. 8CG1234XYZ">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Operating System</label>
+                  <input type="text" id="assetOS" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Ubuntu 22.04 LTS / Windows 11 Pro">
+                </div>
+              </div>
+            </div>
+
+            <!-- Hardware Specs Tab -->
+            <div class="tab-pane fade" id="tabHardware">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">CPU Processor</label>
+                  <input type="text" id="assetCPU" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Intel Core i7-13700H @ 2.4GHz (14 cores)">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">RAM Memory</label>
+                  <input type="text" id="assetRAM" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. 32 GB DDR5">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Storage / Disk</label>
+                  <input type="text" id="assetDisk" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. 1 TB NVMe SSD">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">GPU / Graphics</label>
+                  <input type="text" id="assetGPU" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. NVIDIA RTX A2000 4GB">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small text-secondary">Hardware Notes / Specs Summary</label>
+                  <textarea id="assetNotes" class="form-control form-control-sm bg-dark border-secondary text-light" rows="3" placeholder="Additional specifications, dock accessories, monitor bundle, etc."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Network & Location Tab -->
+            <div class="tab-pane fade" id="tabNetwork">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Primary IP Address</label>
+                  <input type="text" id="assetIP" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. 192.168.1.145">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">MAC Address</label>
+                  <input type="text" id="assetMAC" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. 00:1A:2B:3C:4D:5E">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Subnet / VLAN</label>
+                  <input type="text" id="assetSubnet" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. 192.168.1.0/24 (VLAN 20 Corp)">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Hostname</label>
+                  <input type="text" id="assetHostname" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. eng-ws-042.corp.local">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Location / Site</label>
+                  <input type="text" id="assetLocation" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. HQ Floor 3 - Bay B">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Rack / Position</label>
+                  <input type="text" id="assetRack" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Rack R-02, Unit 14-16">
+                </div>
+              </div>
+            </div>
+
+            <!-- Custody Tab -->
+            <div class="tab-pane fade" id="tabCustody">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Assigned To (Name / User)</label>
+                  <input type="text" id="assetAssignedTo" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Nithyananthan K">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Assignee Email</label>
+                  <input type="email" id="assetAssignedEmail" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. user@nitechspark.com">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Department</label>
+                  <input type="text" id="assetDepartment" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Engineering, IT, Finance, SecOps">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Assignment Date</label>
+                  <input type="date" id="assetAssignedDate" class="form-control form-control-sm bg-dark border-secondary text-light">
+                </div>
+              </div>
+            </div>
+
+            <!-- Financial / Warranty Tab -->
+            <div class="tab-pane fade" id="tabFinancial">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Purchase Date</label>
+                  <input type="date" id="assetPurchaseDate" class="form-control form-control-sm bg-dark border-secondary text-light">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Purchase Cost (USD / Local)</label>
+                  <input type="number" step="0.01" id="assetCost" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. 1499.00">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Warranty Expiration Date</label>
+                  <input type="date" id="assetWarrantyExp" class="form-control form-control-sm bg-dark border-secondary text-light">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Vendor / Supplier</label>
+                  <input type="text" id="assetVendor" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Dell Direct / CDW">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Support Contract / Agreement #</label>
+                  <input type="text" id="assetSupportContract" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. PROSUPPORT-882910">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small text-secondary">Expected EOL (End-of-Life)</label>
+                  <input type="date" id="assetEol" class="form-control form-control-sm bg-dark border-secondary text-light">
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary-enterprise" id="btnSaveAsset">Save Asset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Quick Assign / Transfer -->
+<div class="modal fade" id="modalAssignAsset" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold"><i class="bi bi-person-check text-info me-2"></i>Assign / Transfer Asset</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="assignAssetId" value="">
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Asset</label>
+          <div class="fw-bold text-info" id="assignAssetLabel">—</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Assign To (Custodian Name) <span class="text-danger">*</span></label>
+          <input type="text" id="assignName" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="Staff Name" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Assignee Email</label>
+          <input type="email" id="assignEmail" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="staff@example.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Department</label>
+          <input type="text" id="assignDept" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="Department">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Location</label>
+          <input type="text" id="assignLoc" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="Office / Site">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Handover Notes / Reason</label>
+          <textarea id="assignNotes" class="form-control form-control-sm bg-dark border-secondary text-light" rows="2" placeholder="e.g. New employee onboarding workstation"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="btnConfirmAssign">Confirm Assignment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Quick Lifecycle Transition -->
+<div class="modal fade" id="modalLifecycleAsset" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold"><i class="bi bi-arrow-repeat text-warning me-2"></i>Lifecycle Status Transition</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="lifecycleAssetId" value="">
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Asset</label>
+          <div class="fw-bold text-info" id="lifecycleAssetLabel">—</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">New Lifecycle Status <span class="text-danger">*</span></label>
+          <select id="lifecycleNewStatus" class="form-select form-select-sm bg-dark border-secondary text-light">
+            <option value="in_service">In Service (Active Deployment)</option>
+            <option value="in_stock">In Stock (Available in Pool)</option>
+            <option value="in_repair">In Repair (Hardware Maintenance)</option>
+            <option value="pending_disposal">Pending Disposal (Decommissioned)</option>
+            <option value="retired">Retired (End-of-Life)</option>
+            <option value="disposed">Disposed (E-Waste / Recycled)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Reason / Note</label>
+          <input type="text" id="lifecycleReason" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Returned upon project completion, re-imaged">
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-warning" id="btnConfirmLifecycle">Update Status</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: QR Code Preview -->
+<div class="modal fade" id="modalQrPreview" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-light text-center">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold"><i class="bi bi-qr-code text-info me-2"></i>Asset Tag Label</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body py-4">
+        <div id="qrImageContainer" class="bg-white p-3 rounded d-inline-block shadow">
+          <img id="qrImage" src="" alt="Asset QR Code" style="max-width: 180px; height: auto;">
+        </div>
+        <div class="mt-3">
+          <div class="fw-bold fs-5 text-light" id="qrAssetTag">—</div>
+          <div class="small text-secondary" id="qrAssetName">—</div>
+        </div>
+      </div>
+      <div class="modal-footer border-secondary justify-content-center">
+        <button type="button" class="btn btn-sm btn-outline-info" onclick="window.print()"><i class="bi bi-printer me-1"></i> Print Label</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Import CSV -->
+<div class="modal fade" id="modalImportCsv" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>Import Assets from CSV</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-secondary mb-3">
+          Upload a CSV file containing asset inventory columns (e.g. <code>asset_tag, name, asset_type, manufacturer, model, serial_number, ip_address, assigned_to, department</code>).
+        </p>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Choose CSV File</label>
+          <input type="file" id="csvFileInput" class="form-control form-control-sm bg-dark border-secondary text-light" accept=".csv">
+        </div>
+        <div id="importResultAlert" class="alert alert-info d-none small py-2"></div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="btnUploadCsv">Upload &amp; Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+.badge-healthy { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+.badge-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
+.badge-critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+.badge-unknown { background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.4); }
+.badge-low { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.badge-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.badge-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const CSRF_TOKEN = "{{ csrf_token }}";
+  let currentPage = 1;
+  let totalPages = 1;
+  let selectedAssetIds = new Set();
+  let currentAssetsList = [];
+
+  // Modals
+  const modalAssetForm = new bootstrap.Modal(document.getElementById("modalAssetForm"));
+  const modalAssignAsset = new bootstrap.Modal(document.getElementById("modalAssignAsset"));
+  const modalLifecycleAsset = new bootstrap.Modal(document.getElementById("modalLifecycleAsset"));
+  const modalQrPreview = new bootstrap.Modal(document.getElementById("modalQrPreview"));
+  const modalImportCsv = new bootstrap.Modal(document.getElementById("modalImportCsv"));
+
+  // Highlight HAM accordion in sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  // Check URL params for quick actions (e.g. ?action=create)
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("action") === "create") {
+    openCreateModal();
+  }
+
+  async function loadAssets() {
+    const tbody = document.getElementById("assetsTableBody");
+    const search = document.getElementById("filterSearch").value.trim();
+    const type = document.getElementById("filterType").value;
+    const status = document.getElementById("filterStatus").value;
+    const health = document.getElementById("filterHealth").value;
+    const risk = document.getElementById("filterRisk").value;
+    const sortBy = document.getElementById("sortBy").value;
+    const pageSize = document.getElementById("pageSize").value;
+
+    const query = new URLSearchParams({
+      page: currentPage,
+      limit: pageSize,
+      sort_by: sortBy,
+      sort_dir: (sortBy === "risk_score" || sortBy === "updated_at") ? "desc" : "asc"
+    });
+
+    if (search) query.set("search", search);
+    if (type) query.set("asset_type", type);
+    if (status) query.set("lifecycle_status", status);
+    if (health) query.set("health_status", health);
+    if (risk) query.set("risk_level", risk);
+
+    try {
+      const res = await fetch(`/api/ham/assets?${query.toString()}`);
+      if (!res.ok) throw new Error("Failed to load assets list");
+      const data = await res.json();
+      currentAssetsList = data.assets || [];
+      const total = data.total || 0;
+      totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+      document.getElementById("totalCountBadge").textContent = `${total} assets`;
+      const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+      const end = Math.min(currentPage * pageSize, total);
+      document.getElementById("paginationInfo").textContent = `Showing ${start}–${end} of ${total} assets`;
+      document.getElementById("pageIndicator").textContent = `Page ${currentPage} of ${totalPages}`;
+      document.getElementById("btnPrevPage").disabled = (currentPage <= 1);
+      document.getElementById("btnNextPage").disabled = (currentPage >= totalPages);
+
+      renderTable(currentAssetsList);
+    } catch (e) {
+      console.error("Failed to load assets:", e);
+      tbody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-danger">Error loading assets. Please try again.</td></tr>`;
+    }
+  }
+
+  function renderTable(assets) {
+    const tbody = document.getElementById("assetsTableBody");
+    if (!assets.length) {
+      tbody.innerHTML = `<tr><td colspan="11" class="text-center py-5 text-secondary">No hardware assets found matching the criteria. <a href="#" id="linkAddEmpty" class="text-info">Add asset</a></td></tr>`;
+      document.getElementById("linkAddEmpty")?.addEventListener("click", (e) => { e.preventDefault(); openCreateModal(); });
+      return;
+    }
+
+    tbody.innerHTML = assets.map(a => {
+      const isChecked = selectedAssetIds.has(a.id) ? "checked" : "";
+      const healthBadge = getHealthBadge(a.health_status);
+      const riskBadge = getRiskBadge(a.risk_level, a.risk_score);
+      const statusBadge = getStatusBadge(a.lifecycle_status);
+      const ipMac = [a.ip_address, a.mac_address].filter(Boolean).join(" · ") || "—";
+      const userDept = [a.assigned_to, a.department].filter(Boolean).join(" / ") || "Unassigned";
+
+      return `
+        <tr data-asset-id="${a.id}">
+          <td class="text-center">
+            <input type="checkbox" class="form-check-input bg-dark border-secondary row-checkbox" data-id="${a.id}" ${isChecked}>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-1">
+              <a href="/ham/assets/${a.id}" class="fw-bold text-info text-decoration-none">${escapeHtml(a.asset_tag || a.id.substring(0,8))}</a>
+              <button type="button" class="btn btn-link p-0 text-secondary btn-qr-view" data-id="${a.id}" data-tag="${escapeHtml(a.asset_tag)}" data-name="${escapeHtml(a.name)}" title="Show QR Code">
+                <i class="bi bi-qr-code"></i>
+              </button>
+            </div>
+          </td>
+          <td>
+            <div class="fw-semibold text-light">${escapeHtml(a.name || "Unnamed Asset")}</div>
+            <div class="small text-secondary">${escapeHtml(a.manufacturer || "")} ${escapeHtml(a.model || "")}</div>
+          </td>
+          <td><span class="badge bg-dark border border-secondary text-secondary">${escapeHtml(a.asset_type || "other")}</span></td>
+          <td class="font-monospace text-secondary">${escapeHtml(a.serial_number || "—")}</td>
+          <td class="font-monospace text-secondary">${escapeHtml(ipMac)}</td>
+          <td>${escapeHtml(userDept)}</td>
+          <td>${statusBadge}</td>
+          <td>${healthBadge}</td>
+          <td>${riskBadge}</td>
+          <td class="text-end">
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0 px-2" type="button" data-bs-toggle="dropdown">
+                Actions
+              </button>
+              <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                <li><a class="dropdown-item" href="/ham/assets/${a.id}"><i class="bi bi-eye text-info me-2"></i>View Details</a></li>
+                <li><button class="dropdown-item btn-edit" data-id="${a.id}"><i class="bi bi-pencil text-primary me-2"></i>Edit Asset</button></li>
+                <li><button class="dropdown-item btn-assign" data-id="${a.id}" data-tag="${escapeHtml(a.asset_tag)}" data-name="${escapeHtml(a.name)}"><i class="bi bi-person-check text-success me-2"></i>Assign / Transfer</button></li>
+                <li><button class="dropdown-item btn-lifecycle" data-id="${a.id}" data-tag="${escapeHtml(a.asset_tag)}" data-name="${escapeHtml(a.name)}" data-status="${a.lifecycle_status}"><i class="bi bi-arrow-repeat text-warning me-2"></i>Change Status</button></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item text-danger btn-delete" data-id="${a.id}" data-name="${escapeHtml(a.name)}"><i class="bi bi-trash text-danger me-2"></i>Delete</button></li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    attachRowEvents();
+  }
+
+  function attachRowEvents() {
+    // Checkbox toggles
+    document.querySelectorAll(".row-checkbox").forEach(chk => {
+      chk.addEventListener("change", (e) => {
+        const id = e.target.dataset.id;
+        if (e.target.checked) selectedAssetIds.add(id);
+        else selectedAssetIds.delete(id);
+        updateBulkActionsUI();
+      });
+    });
+
+    // QR Preview button
+    document.querySelectorAll(".btn-qr-view").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.id;
+        const tag = btn.dataset.tag;
+        const name = btn.dataset.name;
+        document.getElementById("qrAssetTag").textContent = tag;
+        document.getElementById("qrAssetName").textContent = name;
+        document.getElementById("qrImage").src = `/api/ham/assets/${id}/qr`;
+        modalQrPreview.show();
+      });
+    });
+
+    // Edit button
+    document.querySelectorAll(".btn-edit").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.id;
+        const asset = currentAssetsList.find(x => x.id === id);
+        if (asset) openEditModal(asset);
+      });
+    });
+
+    // Assign button
+    document.querySelectorAll(".btn-assign").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.getElementById("assignAssetId").value = btn.dataset.id;
+        document.getElementById("assignAssetLabel").textContent = `${btn.dataset.tag} — ${btn.dataset.name}`;
+        const asset = currentAssetsList.find(x => x.id === btn.dataset.id);
+        if (asset) {
+          document.getElementById("assignName").value = asset.assigned_to || "";
+          document.getElementById("assignEmail").value = asset.assigned_email || "";
+          document.getElementById("assignDept").value = asset.department || "";
+          document.getElementById("assignLoc").value = asset.location || "";
+        }
+        modalAssignAsset.show();
+      });
+    });
+
+    // Lifecycle button
+    document.querySelectorAll(".btn-lifecycle").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.getElementById("lifecycleAssetId").value = btn.dataset.id;
+        document.getElementById("lifecycleAssetLabel").textContent = `${btn.dataset.tag} — ${btn.dataset.name}`;
+        document.getElementById("lifecycleNewStatus").value = btn.dataset.status || "in_service";
+        document.getElementById("lifecycleReason").value = "";
+        modalLifecycleAsset.show();
+      });
+    });
+
+    // Delete button
+    document.querySelectorAll(".btn-delete").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        if (!confirm(`Are you sure you want to delete hardware asset "${name}"?`)) return;
+
+        try {
+          const res = await fetch(`/api/ham/assets/${id}`, {
+            method: "DELETE",
+            headers: { "X-CSRF-Token": CSRF_TOKEN }
+          });
+          if (res.ok) {
+            loadAssets();
+          } else {
+            const err = await res.json();
+            alert("Delete failed: " + (err.error || "Unknown error"));
+          }
+        } catch (e) {
+          alert("Error during delete: " + e.message);
+        }
+      });
+    });
+  }
+
+  function updateBulkActionsUI() {
+    const bulkDropdown = document.getElementById("bulkActionsDropdown");
+    const count = selectedAssetIds.size;
+    if (count > 0) {
+      bulkDropdown.classList.remove("d-none");
+      document.getElementById("selectedCountText").textContent = `${count} selected`;
+    } else {
+      bulkDropdown.classList.add("d-none");
+    }
+  }
+
+  // Select all checkbox
+  document.getElementById("checkSelectAll").addEventListener("change", (e) => {
+    const checked = e.target.checked;
+    document.querySelectorAll(".row-checkbox").forEach(c => {
+      c.checked = checked;
+      const id = c.dataset.id;
+      if (checked) selectedAssetIds.add(id);
+      else selectedAssetIds.delete(id);
+    });
+    updateBulkActionsUI();
+  });
+
+  // Filter events
+  ["filterSearch", "filterType", "filterStatus", "filterHealth", "filterRisk", "sortBy", "pageSize"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", () => { currentPage = 1; loadAssets(); });
+  });
+  document.getElementById("filterSearch")?.addEventListener("input", debounce(() => { currentPage = 1; loadAssets(); }, 350));
+
+  document.getElementById("btnResetFilters")?.addEventListener("click", () => {
+    document.getElementById("filterSearch").value = "";
+    document.getElementById("filterType").value = "";
+    document.getElementById("filterStatus").value = "";
+    document.getElementById("filterHealth").value = "";
+    document.getElementById("filterRisk").value = "";
+    document.getElementById("sortBy").value = "updated_at";
+    currentPage = 1;
+    loadAssets();
+  });
+
+  // Pagination events
+  document.getElementById("btnPrevPage")?.addEventListener("click", () => {
+    if (currentPage > 1) { currentPage--; loadAssets(); }
+  });
+  document.getElementById("btnNextPage")?.addEventListener("click", () => {
+    if (currentPage < totalPages) { currentPage++; loadAssets(); }
+  });
+
+  // Open Create Modal
+  document.getElementById("btnOpenCreateModal")?.addEventListener("click", openCreateModal);
+  function openCreateModal() {
+    document.getElementById("formAsset").reset();
+    document.getElementById("assetFormId").value = "";
+    document.getElementById("modalAssetTitle").innerHTML = `<i class="bi bi-hdd-network text-info me-2"></i>Add Hardware Asset`;
+    // Suggest asset tag
+    const rnd = Math.floor(1000 + Math.random() * 9000);
+    document.getElementById("assetTag").value = `NS-HW-${rnd}`;
+    modalAssetForm.show();
+  }
+
+  // Open Edit Modal
+  function openEditModal(a) {
+    document.getElementById("formAsset").reset();
+    document.getElementById("assetFormId").value = a.id;
+    document.getElementById("modalAssetTitle").innerHTML = `<i class="bi bi-pencil text-info me-2"></i>Edit Asset: ${escapeHtml(a.asset_tag || a.name)}`;
+
+    document.getElementById("assetTag").value = a.asset_tag || "";
+    document.getElementById("assetName").value = a.name || "";
+    document.getElementById("assetType").value = a.asset_type || "other";
+    document.getElementById("assetStatus").value = a.lifecycle_status || "in_stock";
+    document.getElementById("assetManufacturer").value = a.manufacturer || "";
+    document.getElementById("assetModel").value = a.model || "";
+    document.getElementById("assetSerial").value = a.serial_number || "";
+    document.getElementById("assetOS").value = a.operating_system || "";
+    document.getElementById("assetCPU").value = a.cpu || "";
+    document.getElementById("assetRAM").value = a.ram || "";
+    document.getElementById("assetDisk").value = a.storage || "";
+    document.getElementById("assetGPU").value = a.gpu || "";
+    document.getElementById("assetNotes").value = a.notes || "";
+    document.getElementById("assetIP").value = a.ip_address || "";
+    document.getElementById("assetMAC").value = a.mac_address || "";
+    document.getElementById("assetSubnet").value = a.subnet || "";
+    document.getElementById("assetHostname").value = a.hostname || "";
+    document.getElementById("assetLocation").value = a.location || "";
+    document.getElementById("assetRack").value = a.rack_position || "";
+    document.getElementById("assetAssignedTo").value = a.assigned_to || "";
+    document.getElementById("assetAssignedEmail").value = a.assigned_email || "";
+    document.getElementById("assetDepartment").value = a.department || "";
+    document.getElementById("assetAssignedDate").value = a.assignment_date || "";
+    document.getElementById("assetPurchaseDate").value = a.purchase_date || "";
+    document.getElementById("assetCost").value = a.purchase_cost || "";
+    document.getElementById("assetWarrantyExp").value = a.warranty_expiration || "";
+    document.getElementById("assetVendor").value = a.vendor || "";
+    document.getElementById("assetSupportContract").value = a.support_contract || "";
+    document.getElementById("assetEol").value = a.end_of_life || "";
+
+    modalAssetForm.show();
+  }
+
+  // Save Asset (Create / Update)
+  document.getElementById("btnSaveAsset")?.addEventListener("click", async () => {
+    const id = document.getElementById("assetFormId").value;
+    const tag = document.getElementById("assetTag").value.trim();
+    const name = document.getElementById("assetName").value.trim();
+    if (!tag || !name) {
+      alert("Asset Tag and Name are required.");
+      return;
+    }
+
+    const payload = {
+      asset_tag: tag,
+      name: name,
+      asset_type: document.getElementById("assetType").value,
+      lifecycle_status: document.getElementById("assetStatus").value,
+      manufacturer: document.getElementById("assetManufacturer").value.trim(),
+      model: document.getElementById("assetModel").value.trim(),
+      serial_number: document.getElementById("assetSerial").value.trim(),
+      operating_system: document.getElementById("assetOS").value.trim(),
+      cpu: document.getElementById("assetCPU").value.trim(),
+      ram: document.getElementById("assetRAM").value.trim(),
+      storage: document.getElementById("assetDisk").value.trim(),
+      gpu: document.getElementById("assetGPU").value.trim(),
+      notes: document.getElementById("assetNotes").value.trim(),
+      ip_address: document.getElementById("assetIP").value.trim(),
+      mac_address: document.getElementById("assetMAC").value.trim(),
+      subnet: document.getElementById("assetSubnet").value.trim(),
+      hostname: document.getElementById("assetHostname").value.trim(),
+      location: document.getElementById("assetLocation").value.trim(),
+      rack_position: document.getElementById("assetRack").value.trim(),
+      assigned_to: document.getElementById("assetAssignedTo").value.trim(),
+      assigned_email: document.getElementById("assetAssignedEmail").value.trim(),
+      department: document.getElementById("assetDepartment").value.trim(),
+      assignment_date: document.getElementById("assetAssignedDate").value,
+      purchase_date: document.getElementById("assetPurchaseDate").value,
+      purchase_cost: parseFloat(document.getElementById("assetCost").value) || null,
+      warranty_expiration: document.getElementById("assetWarrantyExp").value,
+      vendor: document.getElementById("assetVendor").value.trim(),
+      support_contract: document.getElementById("assetSupportContract").value.trim(),
+      end_of_life: document.getElementById("assetEol").value,
+    };
+
+    try {
+      const url = id ? `/api/ham/assets/${id}` : "/api/ham/assets";
+      const method = id ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": CSRF_TOKEN
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        modalAssetForm.hide();
+        loadAssets();
+      } else {
+        const err = await res.json();
+        alert("Failed to save asset: " + (err.error || "Unknown error"));
+      }
+    } catch (e) {
+      alert("Error saving asset: " + e.message);
+    }
+  });
+
+  // Confirm Assignment
+  document.getElementById("btnConfirmAssign")?.addEventListener("click", async () => {
+    const id = document.getElementById("assignAssetId").value;
+    const name = document.getElementById("assignName").value.trim();
+    if (!name) { alert("Assignee Name is required"); return; }
+
+    try {
+      const res = await fetch(`/api/ham/assets/${id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({
+          assigned_to: name,
+          assigned_email: document.getElementById("assignEmail").value.trim(),
+          department: document.getElementById("assignDept").value.trim(),
+          location: document.getElementById("assignLoc").value.trim(),
+          notes: document.getElementById("assignNotes").value.trim()
+        })
+      });
+      if (res.ok) {
+        modalAssignAsset.hide();
+        loadAssets();
+      } else {
+        const err = await res.json();
+        alert("Assignment failed: " + (err.error || "Unknown error"));
+      }
+    } catch (e) {
+      alert("Error during assignment: " + e.message);
+    }
+  });
+
+  // Confirm Lifecycle Transition
+  document.getElementById("btnConfirmLifecycle")?.addEventListener("click", async () => {
+    const id = document.getElementById("lifecycleAssetId").value;
+    const newStatus = document.getElementById("lifecycleNewStatus").value;
+    const reason = document.getElementById("lifecycleReason").value.trim();
+
+    try {
+      const res = await fetch(`/api/ham/assets/${id}/lifecycle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ new_status: newStatus, reason: reason })
+      });
+      if (res.ok) {
+        modalLifecycleAsset.hide();
+        loadAssets();
+      } else {
+        const err = await res.json();
+        alert("Status update failed: " + (err.error || "Unknown error"));
+      }
+    } catch (e) {
+      alert("Error updating status: " + e.message);
+    }
+  });
+
+  // Open CSV Import Modal
+  document.getElementById("btnOpenImportModal")?.addEventListener("click", () => {
+    document.getElementById("csvFileInput").value = "";
+    const alertBox = document.getElementById("importResultAlert");
+    alertBox.classList.add("d-none");
+    modalImportCsv.show();
+  });
+
+  // CSV Upload
+  document.getElementById("btnUploadCsv")?.addEventListener("click", async () => {
+    const fileInput = document.getElementById("csvFileInput");
+    const alertBox = document.getElementById("importResultAlert");
+    if (!fileInput.files.length) {
+      alert("Please select a CSV file first.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    try {
+      alertBox.className = "alert alert-info small py-2";
+      alertBox.textContent = "Uploading and parsing CSV…";
+      alertBox.classList.remove("d-none");
+
+      const res = await fetch("/api/ham/assets/import/csv", {
+        method: "POST",
+        headers: { "X-CSRF-Token": CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alertBox.className = "alert alert-success small py-2";
+        alertBox.textContent = `Successfully imported ${data.imported_count || 0} assets!`;
+        setTimeout(() => { modalImportCsv.hide(); loadAssets(); }, 1200);
+      } else {
+        alertBox.className = "alert alert-danger small py-2";
+        alertBox.textContent = "Import failed: " + (data.error || "CSV parsing error");
+      }
+    } catch (e) {
+      alertBox.className = "alert alert-danger small py-2";
+      alertBox.textContent = "Upload error: " + e.message;
+    }
+  });
+
+  // Bulk actions handlers
+  document.getElementById("btnBulkInService")?.addEventListener("click", () => bulkLifecycle("in_service"));
+  document.getElementById("btnBulkInStock")?.addEventListener("click", () => bulkLifecycle("in_stock"));
+  document.getElementById("btnBulkRetire")?.addEventListener("click", () => bulkLifecycle("retired"));
+
+  async function bulkLifecycle(status) {
+    if (!selectedAssetIds.size) return;
+    try {
+      const res = await fetch("/api/ham/assets/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({
+          action: "lifecycle",
+          asset_ids: Array.from(selectedAssetIds),
+          new_status: status,
+          reason: "Bulk lifecycle update from assets inventory UI"
+        })
+      });
+      if (res.ok) {
+        selectedAssetIds.clear();
+        updateBulkActionsUI();
+        loadAssets();
+      } else {
+        alert("Bulk action failed");
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  }
+
+  document.getElementById("btnBulkDelete")?.addEventListener("click", async () => {
+    const count = selectedAssetIds.size;
+    if (!count || !confirm(`Are you sure you want to delete ${count} selected assets?`)) return;
+
+    try {
+      const res = await fetch("/api/ham/assets/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({
+          action: "delete",
+          asset_ids: Array.from(selectedAssetIds)
+        })
+      });
+      if (res.ok) {
+        selectedAssetIds.clear();
+        updateBulkActionsUI();
+        loadAssets();
+      } else {
+        alert("Bulk delete failed");
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  });
+
+  function getHealthBadge(status) {
+    const s = (status || "unknown").toLowerCase();
+    const map = {
+      healthy: '<span class="badge badge-healthy"><i class="bi bi-check-circle me-1"></i>Healthy</span>',
+      warning: '<span class="badge badge-warning"><i class="bi bi-exclamation-triangle me-1"></i>Warning</span>',
+      critical: '<span class="badge badge-critical"><i class="bi bi-x-circle me-1"></i>Critical</span>',
+      unknown: '<span class="badge badge-unknown">Unknown</span>'
+    };
+    return map[s] || map.unknown;
+  }
+
+  function getRiskBadge(level, score) {
+    const l = (level || "low").toLowerCase();
+    const sc = score !== undefined ? `(${Math.round(score)})` : "";
+    const map = {
+      low: `<span class="badge badge-low">Low ${sc}</span>`,
+      medium: `<span class="badge badge-medium">Med ${sc}</span>`,
+      high: `<span class="badge badge-high">High ${sc}</span>`,
+      critical: `<span class="badge badge-critical">Crit ${sc}</span>`
+    };
+    return map[l] || map.low;
+  }
+
+  function getStatusBadge(status) {
+    const s = (status || "in_stock").toLowerCase();
+    const map = {
+      in_service: '<span class="badge bg-success-subtle text-success border border-success-subtle">In Service</span>',
+      in_stock: '<span class="badge bg-info-subtle text-info border border-info-subtle">In Stock</span>',
+      in_repair: '<span class="badge bg-warning-subtle text-warning border border-warning-subtle">In Repair</span>',
+      pending_disposal: '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">Pending Disposal</span>',
+      retired: '<span class="badge bg-secondary border border-secondary text-light">Retired</span>',
+      disposed: '<span class="badge bg-danger text-white">Disposed</span>',
+      ordered: '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Ordered</span>'
+    };
+    return map[s] || `<span class="badge bg-secondary">${s}</span>`;
+  }
+
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  // Initial load
+  loadAssets();
+});
+</script>
+{% endblock %}

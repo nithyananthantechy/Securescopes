@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment Targets · NiteSentinel Enterprise{% endblock %}
+
+{% block content %}
+<main class="targets-main-layout page-container">
+  <!-- ── Page Header ── -->
+  <div class="targets-page-header">
+    <div class="targets-title-block">
+      <h1><i class="bi bi-bullseye text-info"></i> Assessment Targets</h1>
+      <p class="targets-subtitle">Manage, monitor, and execute continuous compliance &amp; vulnerability audits across connected infrastructure.</p>
+    </div>
+    <button type="button" class="btn-cta-scan" id="btnAddTargetTop" onclick="openAddTargetModal()">
+      <i class="bi bi-plus-lg"></i> Add New Target
+    </button>
+  </div>
+
+  <!-- ── Target Fleet Telemetry KPIs ── -->
+  <div class="targets-kpi-row">
+    <div class="target-kpi-card">
+      <div class="kpi-icon-wrap kpi-icon-cyan"><i class="bi bi-pc-display"></i></div>
+      <div class="kpi-data-block">
+        <span class="kpi-num" id="kpiTotalTargets">1</span>
+        <span class="kpi-lbl">Monitored Targets</span>
+      </div>
+    </div>
+    <div class="target-kpi-card">
+      <div class="kpi-icon-wrap kpi-icon-green"><i class="bi bi-broadcast"></i></div>
+      <div class="kpi-data-block">
+        <span class="kpi-num" id="kpiOnlineTargets">1</span>
+        <span class="kpi-lbl">Active / Online</span>
+      </div>
+    </div>
+    <div class="target-kpi-card">
+      <div class="kpi-icon-wrap kpi-icon-blue"><i class="bi bi-award"></i></div>
+      <div class="kpi-data-block">
+        <span class="kpi-num" id="kpiAvgCompliance">60%</span>
+        <span class="kpi-lbl">Avg Compliance</span>
+      </div>
+    </div>
+    <div class="target-kpi-card">
+      <div class="kpi-icon-wrap kpi-icon-red"><i class="bi bi-exclamation-octagon"></i></div>
+      <div class="kpi-data-block">
+        <span class="kpi-num" id="kpiCriticalFindings">3</span>
+        <span class="kpi-lbl">Critical Findings</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Unified Cyber Toolbar ── -->
+  <div class="targets-cyber-toolbar">
+    <div class="targets-search-group">
+      <i class="bi bi-search search-icon"></i>
+      <input type="search" id="targetsSearch" class="targets-search-input" placeholder="Search targets by hostname, IP address, or OS (Ctrl+K)..." autocomplete="off">
+    </div>
+
+    <div class="targets-filter-controls">
+      <select id="targetsStatus" class="targets-cyber-select" title="Filter by Status" aria-label="Filter by Status">
+        <option value="">Status: All</option>
+        <option value="online">● Online</option>
+        <option value="offline">○ Offline</option>
+        <option value="scanning">⟳ Scanning</option>
+      </select>
+
+      <select id="targetsOS" class="targets-cyber-select" title="Filter by OS" aria-label="Filter by OS">
+        <option value="">Platform: All</option>
+        <option value="windows">Windows</option>
+        <option value="linux">Linux</option>
+        <option value="macos">macOS</option>
+      </select>
+
+      <select id="targetsSort" class="targets-cyber-select" title="Sort Field" aria-label="Sort Field">
+        <option value="name">Sort: Hostname</option>
+        <option value="score">Sort: Compliance Score</option>
+        <option value="last_scan">Sort: Last Audit</option>
+        <option value="status">Sort: Status</option>
+      </select>
+
+      <select id="targetsOrder" class="targets-cyber-select" title="Sort Order" aria-label="Sort Order">
+        <option value="asc">Ascending ↑</option>
+        <option value="desc">Descending ↓</option>
+      </select>
+
+      <select id="targetsPageSize" class="targets-cyber-select" title="Page Size" aria-label="Page Size">
+        <option value="10">10 / page</option>
+        <option value="25" selected>25 / page</option>
+        <option value="50">50 / page</option>
+      </select>
+
+      <button type="button" class="btn-reset-filters" id="btnResetFilters" title="Reset all filters">
+        <i class="bi bi-arrow-counterclockwise"></i> Reset
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Targets Elevated Cyber Table ── -->
+  <div class="targets-table-card">
+    <div class="table-responsive">
+      <table class="targets-table">
+        <thead>
+          <tr>
+            <th>Target Endpoint</th>
+            <th>IP Address</th>
+            <th>Platform OS</th>
+            <th>Agent Status</th>
+            <th>Compliance Score</th>
+            <th>Vulnerabilities</th>
+            <th>Last Security Audit</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="targetsTableBody">
+          <tr><td colspan="8" class="text-center py-5 text-secondary"><div class="spinner-border spinner-border-sm text-info me-2"></div> Loading targets fleet…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Pagination Footer ── -->
+    <div class="targets-pagination-wrap">
+      <button type="button" id="pagePrev" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-chevron-left"></i> Previous
+      </button>
+      <span id="pageInfo" class="page-info small text-secondary">Loading page info...</span>
+      <button type="button" id="pageNext" class="btn btn-sm btn-outline-secondary">
+        Next <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+</main>
+
+{% if demo_mode %}<div class="demo-watermark">LIVE DEMO</div>{% endif %}
+
+<!-- ── Add Target Modal ── -->
+<div id="addTargetModal" class="modal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3><i class="bi bi-plus-circle text-info me-2"></i> Enroll Assessment Target</h3>
+      <button type="button" class="modal-close" onclick="closeAddTargetModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="small text-secondary mb-3">Add a network endpoint, server, or cloud host for automated vulnerability auditing, hardening, and CIS compliance benchmarks.</p>
+      <form id="addTargetForm" onsubmit="return submitAddTarget(event);">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Target Label / Hostname</label>
+          <input type="text" id="targetName" class="form-control" placeholder="e.g. PROD-DB-01, Workstation-Finance" style="background:#070b14;color:#f8fafc;border:1px solid var(--border);">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">IP Address or FQDN *</label>
+          <input type="text" id="targetIP" class="form-control" placeholder="e.g. 192.168.1.100 or server.internal" required style="background:#070b14;color:#f8fafc;border:1px solid var(--border);">
+        </div>
+        <div class="mb-4">
+          <label class="form-label small fw-semibold text-secondary">Operating System Family *</label>
+          <select id="targetOS" class="form-select" required style="background:#070b14;color:#f8fafc;border:1px solid var(--border);">
+            <option value="">Select Platform…</option>
+            <option value="windows">Microsoft Windows (Win 10/11, Server 2019/2022)</option>
+            <option value="linux">Linux (Ubuntu, Debian, RHEL, CentOS)</option>
+            <option value="macos">Apple macOS (Sonoma, Ventura)</option>
+          </select>
+        </div>
+        <div class="d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-secondary btn-sm px-3" onclick="closeAddTargetModal()">Cancel</button>
+          <button type="submit" class="btn-cta-scan" style="font-size:13px;padding:8px 18px;">
+            <i class="bi bi-shield-check"></i> Enroll &amp; Launch Scan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+  const CSRF_TOKEN = "{{ csrf_token }}";
+  const CAN_TRIGGER_SCAN = {{ 'true' if role in ('admin', 'org_admin', 'normal', 'super_admin') else 'false' }};
+  let targetsCurrentPage = 1;
+  let targetsTotalPages = 1;
+  let targetsSearchTimeout = null;
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function getOsIcon(osName) {
+    const s = String(osName || "").toLowerCase();
+    if (s.includes("win")) return '<i class="bi bi-microsoft text-info"></i>';
+    if (s.includes("linux") || s.includes("ubuntu") || s.includes("debian")) return '<i class="bi bi-terminal text-success"></i>';
+    if (s.includes("mac") || s.includes("apple") || s.includes("darwin")) return '<i class="bi bi-apple text-light"></i>';
+    return '<i class="bi bi-hdd-network text-warning"></i>';
+  }
+
+  function scoreClass(score) {
+    const n = Number(score) || 0;
+    if (n >= 70) return "score-good";
+    if (n >= 40) return "score-fair";
+    return "score-poor";
+  }
+
+  async function loadTargets() {
+    const search = document.getElementById("targetsSearch")?.value.trim() || "";
+    const status = document.getElementById("targetsStatus")?.value || "";
+    const os = document.getElementById("targetsOS")?.value || "";
+    const sort = document.getElementById("targetsSort")?.value || "name";
+    const order = document.getElementById("targetsOrder")?.value || "asc";
+    const pageSize = parseInt(document.getElementById("targetsPageSize")?.value || "25", 10) || 25;
+
+    const params = new URLSearchParams({ sort, order, page: String(targetsCurrentPage), page_size: String(pageSize) });
+    if (status) params.set("status", status);
+    if (os) params.set("os", os);
+    if (search) params.set("q", search);
+
+    const tbody = document.getElementById("targetsTableBody");
+    try {
+      const res = await fetch(`/api/targets?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      const rows = data.targets || data.items || [];
+      targetsTotalPages = Math.max(1, Number(data.total_pages) || 1);
+
+      // Update Top Telemetry KPI Cards
+      let totalCount = data.total || rows.length;
+      let onlineCount = rows.filter(r => (r.status || "").toLowerCase() === "online").length;
+      let totalScores = 0;
+      let totalCrits = 0;
+
+      rows.forEach(r => {
+        totalScores += Number(r.compliance_score || 0);
+        totalCrits += Number(r.critical_count || 0);
+      });
+      let avgScore = rows.length ? Math.round(totalScores / rows.length) : 0;
+
+      document.getElementById("kpiTotalTargets").textContent = totalCount;
+      document.getElementById("kpiOnlineTargets").textContent = onlineCount || totalCount;
+      document.getElementById("kpiAvgCompliance").textContent = `${avgScore}%`;
+      document.getElementById("kpiCriticalFindings").textContent = totalCrits;
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-secondary"><i class="bi bi-inbox fs-3 d-block mb-2"></i>No targets match the selected filters.</td></tr>`;
+      } else {
+        tbody.innerHTML = rows.map((t) => {
+          const tidEnc = encodeURIComponent(t.id);
+          const scanBtn = CAN_TRIGGER_SCAN
+            ? `<button type="button" class="btn-target-scan btn-scan-row" data-tid="${tidEnc}" title="Run audit scan on this target"><i class="bi bi-lightning-charge-fill"></i> Scan</button>`
+            : `<span class="small text-secondary">—</span>`;
+          const removeBtn = t.removable !== false
+            ? `<button type="button" class="btn-target-remove btn-remove-target" data-tid="${tidEnc}" title="Remove this target from stored audits"><i class="bi bi-trash"></i></button>`
+            : ``;
+
+          const critBadge = (t.critical_count > 0)
+            ? `<span class="finding-pill-crit">${t.critical_count} Crit</span>`
+            : "";
+          const highBadge = (t.high_count > 0)
+            ? `<span class="finding-pill-high">${t.high_count} High</span>`
+            : "";
+          const totalBadge = `<span class="finding-pill-total">${t.findings_count || 0} checks</span>`;
+
+          const stClass = (t.status || "online").toLowerCase();
+          const stBadge = `<span class="target-status-pill status-${escapeHtml(stClass)}"><span class="status-dot"></span> ${escapeHtml(t.status || "Online")}</span>`;
+          const osIcon = getOsIcon(t.os);
+
+          return `<tr>
+            <td>
+              <div class="target-name-cell">
+                <div class="target-type-icon">${osIcon}</div>
+                <div>
+                  <strong style="font-weight:700; color:#f8fafc; font-size:14px;">${escapeHtml(t.name)}</strong>
+                  <div style="font-size:11.5px; color:#64748b;">ID: ${escapeHtml(t.id)}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="target-ip-badge">${escapeHtml(t.ip || "127.0.0.1")}</span></td>
+            <td><span class="text-secondary fw-semibold">${escapeHtml(t.os || "Unknown")}</span></td>
+            <td>${stBadge}</td>
+            <td>
+              <span class="score-badge ${scoreClass(t.compliance_score)}">
+                <i class="bi bi-shield-shaded"></i> ${Number(t.compliance_score || 0)}%
+              </span>
+            </td>
+            <td>
+              <div class="findings-pill-group">
+                ${critBadge} ${highBadge} ${totalBadge}
+              </div>
+            </td>
+            <td><span class="small text-secondary">${t.last_scan ? escapeHtml(t.last_scan) : "Never scanned"}</span></td>
+            <td>
+              <div class="target-action-group">
+                ${scanBtn}
+                <button type="button" class="btn-target-details btn-details-row" data-tid="${tidEnc}" title="View detailed posture findings">
+                  <i class="bi bi-eye"></i> Details
+                </button>
+                ${removeBtn}
+              </div>
+            </td>
+          </tr>`;
+        }).join("");
+
+        tbody.querySelectorAll(".btn-scan-row").forEach((btn) => {
+          btn.addEventListener("click", () => scanTarget(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+        tbody.querySelectorAll(".btn-details-row").forEach((btn) => {
+          btn.addEventListener("click", () => viewTarget(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+        tbody.querySelectorAll(".btn-remove-target").forEach((btn) => {
+          btn.addEventListener("click", () => removeTargetRow(decodeURIComponent(btn.getAttribute("data-tid") || "")));
+        });
+      }
+
+      document.getElementById("pageInfo").textContent =
+        `Page ${data.page || 1} of ${targetsTotalPages} (${data.total || rows.length} targets total)`;
+      document.getElementById("pagePrev").disabled = (data.page || 1) <= 1;
+      document.getElementById("pageNext").disabled = (data.page || 1) >= targetsTotalPages;
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-danger"><i class="bi bi-exclamation-triangle fs-3 d-block mb-2"></i>Could not load targets fleet: ${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  function debounceTargetsSearch() {
+    clearTimeout(targetsSearchTimeout);
+    targetsCurrentPage = 1;
+    targetsSearchTimeout = setTimeout(loadTargets, 300);
+  }
+
+  function openAddTargetModal() {
+    document.getElementById("addTargetModal")?.classList.add("active");
+  }
+  function closeAddTargetModal() {
+    document.getElementById("addTargetModal")?.classList.remove("active");
+  }
+  function submitAddTarget(e) {
+    e.preventDefault();
+    closeAddTargetModal();
+    const host = document.getElementById("targetIP").value.trim();
+    const type = document.getElementById("targetOS").value || "linux";
+    window.location.href = `/dashboard?openRemote=1&host=${encodeURIComponent(host)}&type=${encodeURIComponent(type)}`;
+    return false;
+  }
+
+  async function scanTarget(targetId) {
+    if (!CAN_TRIGGER_SCAN) return;
+    if (!confirm(`Trigger security assessment scan on target "${targetId}"?`)) return;
+    try {
+      const res = await fetch(`/api/targets/${encodeURIComponent(targetId)}/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: "{}",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || "Scan request failed");
+        return;
+      }
+      alert(data.message || "Scan queued successfully.");
+      loadTargets();
+    } catch (err) {
+      alert("Scan request failed: " + err.message);
+    }
+  }
+
+  function viewTarget(targetId) {
+    window.location.href = `/dashboard?target=${encodeURIComponent(targetId)}`;
+  }
+
+  async function removeTargetRow(targetId) {
+    if (!targetId || targetId === "localhost") {
+      alert("This target is the local machine baseline and cannot be removed.");
+      return;
+    }
+    if (!confirm(`Remove "${targetId}" from monitored targets?`)) return;
+    try {
+      const res = await fetch("/api/targets/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ host: targetId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || "Remove failed");
+        return;
+      }
+      loadTargets();
+    } catch (e) {
+      alert(e.message || "Remove failed");
+    }
+  }
+
+  document.getElementById("targetsSearch")?.addEventListener("input", debounceTargetsSearch);
+  ["targetsStatus", "targetsOS", "targetsSort", "targetsOrder", "targetsPageSize"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => { targetsCurrentPage = 1; loadTargets(); });
+  });
+
+  document.getElementById("btnResetFilters")?.addEventListener("click", () => {
+    document.getElementById("targetsSearch").value = "";
+    document.getElementById("targetsStatus").value = "";
+    document.getElementById("targetsOS").value = "";
+    document.getElementById("targetsSort").value = "name";
+    document.getElementById("targetsOrder").value = "asc";
+    document.getElementById("targetsPageSize").value = "25";
+    targetsCurrentPage = 1;
+    loadTargets();
+  });
+
+  document.getElementById("pagePrev")?.addEventListener("click", () => {
+    if (targetsCurrentPage > 1) {
+      targetsCurrentPage -= 1;
+      loadTargets();
+    }
+  });
+  document.getElementById("pageNext")?.addEventListener("click", () => {
+    if (targetsCurrentPage < targetsTotalPages) {
+      targetsCurrentPage += 1;
+      loadTargets();
+    }
+  });
+  document.getElementById("btnAddTargetTop")?.addEventListener("click", openAddTargetModal);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadTargets();
+  });
+</script>
+{% endblock %}

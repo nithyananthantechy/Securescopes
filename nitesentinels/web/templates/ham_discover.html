@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}Agentless Asset Discovery · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">📡</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Agentless Asset Discovery</h1>
+        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">No Agent Required</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Discover unmanaged hardware, rogue appliances, and active network interfaces across your corporate subnets.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/ham/assets" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        <i class="bi bi-hdd-network"></i> View Assets
+      </a>
+      <a href="/ham/agents" class="btn btn-outline-info d-flex align-items-center gap-1">
+        <i class="bi bi-cpu"></i> Agent Based Discovery
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Left: Discovery Scan Launcher -->
+    <div class="col-12 col-lg-5">
+      <div class="card-scope p-4 h-100 shadow-sm">
+        <h2 class="h6 fw-bold text-light mb-3 d-flex align-items-center gap-2">
+          <i class="bi bi-play-circle text-primary"></i> Launch Network Discovery
+        </h2>
+        
+        <form id="formDiscovery">
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Target Subnet / IP Range <span class="text-danger">*</span></label>
+            <input type="text" id="targetSubnet" class="form-control form-control-sm bg-dark border-secondary text-light font-monospace" placeholder="e.g. 192.168.1.0/24 or 10.0.0.1-50" required value="192.168.1.0/24">
+            <div class="form-text small text-secondary">Supports CIDR notation or IP dash range. Private &amp; corporate subnets only.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Discovery Profile</label>
+            <select id="discoveryProfile" class="form-select form-select-sm bg-dark border-secondary text-light">
+              <option value="quick" selected>Quick Sweep (Ping + Common Ports: 22, 80, 443, 445, 3389)</option>
+              <option value="standard">Standard Scan (Top 100 enterprise hardware ports)</option>
+              <option value="deep">Deep Recon (Service version detection &amp; OS fingerprinting)</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Assigned Department (for newly enrolled assets)</label>
+            <input type="text" id="defaultDept" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. IT Infrastructure">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small text-secondary">Location / Office</label>
+            <input type="text" id="defaultLoc" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Main Datacenter / Branch Office">
+          </div>
+
+          <div class="d-grid mt-4">
+            <button type="button" class="btn btn-primary-enterprise py-2 fw-bold" id="btnStartDiscovery">
+              <i class="bi bi-radar me-1"></i> Start Discovery Scan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right: Active & Recent Discovery Jobs -->
+    <div class="col-12 col-lg-7">
+      <div class="card-scope p-4 h-100 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 fw-bold text-light mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-info"></i> Discovery Scan Jobs
+          </h2>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRefreshJobs"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="table table-dark table-hover align-middle mb-0 small">
+            <thead class="text-secondary">
+              <tr>
+                <th>Target Range</th>
+                <th>Status</th>
+                <th>Devices Found</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="discoveryJobsBody">
+              <tr>
+                <td colspan="4" class="text-center py-4 text-secondary">
+                  <div class="spinner-border spinner-border-sm text-info me-2"></div> Loading jobs…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staging Area: Discovered Devices Pending Review -->
+  <div class="card-scope p-4 shadow-sm mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h2 class="h6 fw-bold text-light mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-inbox text-warning"></i> Staging: Discovered Devices Pending Approval
+        </h2>
+        <div class="small text-secondary mt-1">Review detected network endpoints before enrolling them into the official hardware asset inventory.</div>
+      </div>
+      <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" id="pendingDevicesBadge">0 pending</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0 small">
+        <thead class="text-secondary">
+          <tr>
+            <th>IP Address</th>
+            <th>MAC Address</th>
+            <th>Hostname</th>
+            <th>Detected OS / Hardware</th>
+            <th>Open Ports</th>
+            <th>Discovery Job</th>
+            <th class="text-end" style="width: 180px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="discoveredDevicesBody">
+          <tr>
+            <td colspan="7" class="text-center py-5 text-secondary">
+              <i class="bi bi-check2-circle text-success fs-3 d-block mb-2"></i>
+              No pending discovered devices. Start a discovery scan above to find active network hardware.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const CSRF_TOKEN = "{{ csrf_token }}";
+
+  // Highlight sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  loadJobs();
+
+  // Refresh jobs
+  document.getElementById("btnRefreshJobs")?.addEventListener("click", loadJobs);
+
+  // Start Discovery Scan
+  document.getElementById("btnStartDiscovery")?.addEventListener("click", async () => {
+    const subnet = document.getElementById("targetSubnet").value.trim();
+    if (!subnet) { alert("Please specify a target subnet or IP range."); return; }
+
+    const profile = document.getElementById("discoveryProfile").value;
+    const dept = document.getElementById("defaultDept").value.trim();
+    const loc = document.getElementById("defaultLoc").value.trim();
+
+    const btn = document.getElementById("btnStartDiscovery");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Starting scan…`;
+
+    try {
+      const res = await fetch("/api/ham/discovery/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({
+          subnet: subnet,
+          profile: profile,
+          department: dept,
+          location: loc
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert("Discovery job started! Scanning network subnet asynchronously…");
+        loadJobs();
+      } else {
+        alert("Failed to launch discovery: " + (data.error || "Unknown error"));
+      }
+    } catch (e) {
+      alert("Error starting discovery: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="bi bi-radar me-1"></i> Start Discovery Scan`;
+    }
+  });
+
+  async function loadJobs() {
+    const tbody = document.getElementById("discoveryJobsBody");
+    try {
+      const res = await fetch("/api/ham/discovery/jobs");
+      if (!res.ok) throw new Error("Failed to load discovery jobs");
+      const d = await res.json();
+      const jobs = d.jobs || [];
+
+      if (!jobs.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-secondary">No discovery jobs recorded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = jobs.map(j => {
+        let statusBadge = '<span class="badge bg-secondary">queued</span>';
+        if (j.status === "running") statusBadge = '<span class="badge bg-primary-subtle text-primary"><span class="spinner-border spinner-border-sm me-1"></span>running</span>';
+        else if (j.status === "completed") statusBadge = '<span class="badge bg-success-subtle text-success">completed</span>';
+        else if (j.status === "failed") statusBadge = '<span class="badge bg-danger-subtle text-danger">failed</span>';
+
+        return `
+          <tr>
+            <td class="font-monospace text-info">${escapeHtml(j.subnet || "—")}</td>
+            <td>${statusBadge}</td>
+            <td class="fw-bold text-light">${j.devices_found ?? 0}</td>
+            <td class="text-secondary">${escapeHtml(j.created_at || "—")}</td>
+          </tr>
+        `;
+      }).join("");
+
+      // Collect pending devices from jobs if present
+      renderPendingDevices(jobs);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center py-3 text-secondary">Could not load jobs.</td></tr>`;
+    }
+  }
+
+  function renderPendingDevices(jobs) {
+    const tbody = document.getElementById("discoveredDevicesBody");
+    let allDevices = [];
+    jobs.forEach(j => {
+      if (Array.isArray(j.devices)) {
+        j.devices.forEach(d => {
+          if (!d.approved && !d.rejected) {
+            allDevices.push({ ...d, job_id: j.id });
+          }
+        });
+      }
+    });
+
+    document.getElementById("pendingDevicesBadge").textContent = `${allDevices.length} pending`;
+
+    if (!allDevices.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-secondary"><i class="bi bi-check2-circle text-success fs-3 d-block mb-2"></i>No pending discovered devices. All detected items have been reviewed.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = allDevices.map(d => `
+      <tr>
+        <td class="font-monospace text-info fw-bold">${escapeHtml(d.ip || "—")}</td>
+        <td class="font-monospace text-light">${escapeHtml(d.mac || "—")}</td>
+        <td class="text-light">${escapeHtml(d.hostname || "—")}</td>
+        <td>
+          <div class="text-light">${escapeHtml(d.os || "Unknown")}</div>
+          <div class="small text-secondary">${escapeHtml(d.vendor || "")}</div>
+        </td>
+        <td class="font-monospace text-secondary">${escapeHtml((d.open_ports || []).join(", ") || "—")}</td>
+        <td class="font-monospace text-secondary">${escapeHtml((d.job_id || "").substring(0,8))}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-sm btn-success py-0 px-2 btn-approve-dev" data-id="${d.id}" data-ip="${escapeHtml(d.ip)}">
+            <i class="bi bi-check-lg me-1"></i> Enroll
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 btn-reject-dev" data-id="${d.id}">
+            Ignore
+          </button>
+        </td>
+      </tr>
+    `).join("");
+
+    // Attach approve / reject handlers
+    document.querySelectorAll(".btn-approve-dev").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        try {
+          const res = await fetch(`/api/ham/discovery/approve/${id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+            body: JSON.stringify({ lifecycle_status: "in_stock" })
+          });
+          if (res.ok) {
+            alert("Device approved and enrolled into inventory!");
+            loadJobs();
+          } else {
+            alert("Failed to enroll device");
+          }
+        } catch (e) {
+          alert("Error: " + e.message);
+        }
+      });
+    });
+
+    document.querySelectorAll(".btn-reject-dev").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        try {
+          const res = await fetch(`/api/ham/discovery/reject/${id}`, {
+            method: "POST",
+            headers: { "X-CSRF-Token": CSRF_TOKEN }
+          });
+          if (res.ok) {
+            loadJobs();
+          }
+        } catch (e) {}
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+});
+</script>
+{% endblock %}

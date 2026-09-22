@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment Assets · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <h3 class="fw-bold text-light mb-1"><i class="bi bi-hdd-network text-info me-2"></i>Assets Under Assessment</h3>
+      <p class="text-secondary small mb-0">Record targets, servers, workstations, network appliances, and data classification</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary-enterprise" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+        <i class="bi bi-plus-circle me-1"></i> Add Asset
+      </button>
+      <a href="/ham/assets" class="btn btn-outline-info"><i class="bi bi-boxes me-1"></i> Link HAM Inventory</a>
+    </div>
+  </div>
+
+  <div class="card-scope p-4 mb-4">
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead>
+          <tr class="text-secondary small text-uppercase">
+            <th>Asset / Hostname</th>
+            <th>IP Address</th>
+            <th>Type</th>
+            <th>Operating System</th>
+            <th>Criticality</th>
+            <th>Sensitivity</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assetsTableBody">
+          <tr><td colspan="7" class="text-center text-secondary py-4">Loading assets...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Add Asset Modal -->
+<div class="modal fade" id="addAssetModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light border border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title">Add Assessment Target Asset</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="handleAddAsset(event)">
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Hostname / Name *</label>
+              <input type="text" name="hostname" class="form-control bg-black text-light border-secondary" required placeholder="e.g. srv-prod-db01">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">IP Address</label>
+              <input type="text" name="ip_address" class="form-control bg-black text-light border-secondary" placeholder="e.g. 192.168.1.15">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Asset Type</label>
+              <select name="asset_type" class="form-select bg-black text-light border-secondary">
+                <option value="server">Server</option>
+                <option value="workstation">Workstation / Laptop</option>
+                <option value="network_device">Router / Switch / Firewall</option>
+                <option value="storage">NAS / SAN Storage</option>
+                <option value="cloud_instance">Cloud VM / Container</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Operating System</label>
+              <input type="text" name="os" class="form-control bg-black text-light border-secondary" placeholder="e.g. Ubuntu 22.04 / Windows Server">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Criticality</label>
+              <select name="criticality" class="form-select bg-black text-light border-secondary">
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Data Sensitivity</label>
+              <select name="data_sensitivity" class="form-select bg-black text-light border-secondary">
+                <option value="RESTRICTED">Restricted / Secret</option>
+                <option value="CONFIDENTIAL">Confidential</option>
+                <option value="INTERNAL" selected>Internal</option>
+                <option value="PUBLIC">Public</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary-enterprise">Save Asset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block scripts_extra %}
+<script>
+async function loadAssets() {
+  try {
+    const res = await fetch('/api/engagements/{{ engagement_id }}/assets');
+    const data = await res.json();
+    const list = data.assets || [];
+    const tbody = document.getElementById('assetsTableBody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary py-4">No assets recorded yet. Click "Add Asset".</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(a => `
+      <tr>
+        <td class="fw-bold text-light">${a.hostname || '-'}</td>
+        <td class="font-monospace text-info">${a.ip_address || '-'}</td>
+        <td><span class="badge bg-secondary">${a.asset_type || 'Server'}</span></td>
+        <td>${a.os || '-'}</td>
+        <td><span class="badge ${a.criticality === 'CRITICAL' ? 'bg-danger' : (a.criticality === 'HIGH' ? 'bg-warning text-dark' : 'bg-secondary')}">${a.criticality || 'MEDIUM'}</span></td>
+        <td><span class="badge bg-dark border border-secondary">${a.data_sensitivity || 'INTERNAL'}</span></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteAsset('${a.id}')"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    document.getElementById('assetsTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function handleAddAsset(e) {
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    hostname: form.hostname.value,
+    ip_address: form.ip_address.value,
+    asset_type: form.asset_type.value,
+    os: form.os.value,
+    criticality: form.criticality.value,
+    data_sensitivity: form.data_sensitivity.value
+  };
+  const res = await fetch('/api/engagements/{{ engagement_id }}/assets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify(payload)
+  });
+  if (res.ok) {
+    bootstrap.Modal.getInstance(document.getElementById('addAssetModal')).hide();
+    form.reset();
+    loadAssets();
+  } else {
+    const err = await res.json();
+    alert('Error: ' + (err.error || 'Failed to add asset'));
+  }
+}
+
+async function deleteAsset(aid) {
+  if (!confirm('Remove this asset from assessment?')) return;
+  await fetch(`/api/engagements/{{ engagement_id }}/assets/${aid}`, {
+    method: 'DELETE',
+    headers: { 'X-CSRF-Token': '{{ csrf_token }}' }
+  });
+  loadAssets();
+}
+
+document.addEventListener('DOMContentLoaded', loadAssets);
+</script>
+{% endblock %}
+{% endblock %}

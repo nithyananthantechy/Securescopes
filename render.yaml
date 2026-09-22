@@ -4,13 +4,13 @@ services:
     env: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT securescope.web.app:app
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT nitesentinels.web.app:app
     disk:
       name: nitesentinel-data
       mountPath: /data
       sizeGB: 1
     envVars:
-      - key: SECURESCOPE_DB_PATH
+      - key: NITESENTINELS_DB_PATH
         value: /data/llm_audit.db
       - key: SECRET_KEY
         generateValue: true

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Clients Directory · SecureScope / NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🏢</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Assessment Clients</h1>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">NITECHSPARK</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Manage MSME client organizations, contacts, and active cybersecurity assessment engagements</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="button" class="btn btn-primary-enterprise d-flex align-items-center gap-1 shadow-sm" data-bs-toggle="modal" data-bs-target="#newClientModal">
+        <i class="bi bi-plus-circle"></i> Add Client
+      </button>
+      <a href="/engagements" class="btn btn-outline-info d-flex align-items-center gap-1">
+        <i class="bi bi-journal-check"></i> View All Engagements
+      </a>
+    </div>
+  </div>
+
+  <!-- Clients Table Card -->
+  <div class="card-scope p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold text-light mb-0"><i class="bi bi-building text-info me-2"></i>Client Directory</h5>
+      <input type="text" id="clientSearch" class="form-control form-control-sm bg-dark text-light border-secondary w-auto" placeholder="Search clients..." oninput="filterClients()">
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0" id="clientsTable">
+        <thead>
+          <tr class="text-secondary small text-uppercase">
+            <th>Company Name</th>
+            <th>Industry</th>
+            <th>Contact Person</th>
+            <th>Email</th>
+            <th>Location</th>
+            <th>Engagements</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="clientsTableBody">
+          <tr><td colspan="7" class="text-center text-secondary py-4">Loading clients...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Add Client Modal -->
+<div class="modal fade" id="newClientModal" tabindex="-1" aria-labelledby="newClientModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light border border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="newClientModalLabel"><i class="bi bi-building-add text-primary me-2"></i>Add New Client</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="newClientForm" onsubmit="handleCreateClient(event)">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label text-secondary small">Company Name *</label>
+            <input type="text" name="company_name" class="form-control bg-black text-light border-secondary" required placeholder="e.g. Acme MSME Solutions">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Industry</label>
+              <input type="text" name="industry" class="form-control bg-black text-light border-secondary" placeholder="e.g. Manufacturing, Retail">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Location</label>
+              <input type="text" name="location" class="form-control bg-black text-light border-secondary" placeholder="e.g. Chennai, India">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Contact Person</label>
+              <input type="text" name="contact_person" class="form-control bg-black text-light border-secondary" placeholder="e.g. John Doe">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Contact Email</label>
+              <input type="email" name="email" class="form-control bg-black text-light border-secondary" placeholder="e.g. it@acme.com">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small">Phone / Website</label>
+            <input type="text" name="phone" class="form-control bg-black text-light border-secondary" placeholder="Phone or Website URL">
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary-enterprise">Save Client</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block scripts_extra %}
+<script>
+let clientsData = [];
+
+async function loadClients() {
+  try {
+    const res = await fetch('/api/clients');
+    const data = await res.json();
+    clientsData = data.clients || [];
+    renderClients(clientsData);
+  } catch (err) {
+    document.getElementById('clientsTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Failed to load clients: ${err.message}</td></tr>`;
+  }
+}
+
+function renderClients(list) {
+  const tbody = document.getElementById('clientsTableBody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary py-4">No clients found. Click "Add Client" to register one.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td class="fw-bold text-light"><a href="/clients/${c.id}" class="text-info text-decoration-none">${c.company_name || c.name}</a></td>
+      <td>${c.industry || '-'}</td>
+      <td>${c.contact_person || '-'}</td>
+      <td>${c.email ? `<a href="mailto:${c.email}" class="text-secondary text-decoration-none">${c.email}</a>` : '-'}</td>
+      <td>${c.location || '-'}</td>
+      <td><span class="badge bg-secondary">${c.engagement_count || 0}</span></td>
+      <td class="text-end">
+        <a href="/clients/${c.id}" class="btn btn-sm btn-outline-light me-1" title="View Profile"><i class="bi bi-eye"></i></a>
+        <a href="/engagements?client_id=${c.id}" class="btn btn-sm btn-outline-info" title="Engagements"><i class="bi bi-journal"></i></a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterClients() {
+  const q = document.getElementById('clientSearch').value.toLowerCase();
+  const filtered = clientsData.filter(c => 
+    (c.company_name || c.name || '').toLowerCase().includes(q) ||
+    (c.contact_person || '').toLowerCase().includes(q) ||
+    (c.email || '').toLowerCase().includes(q) ||
+    (c.industry || '').toLowerCase().includes(q)
+  );
+  renderClients(filtered);
+}
+
+async function handleCreateClient(e) {
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    company_name: form.company_name.value,
+    industry: form.industry.value,
+    location: form.location.value,
+    contact_person: form.contact_person.value,
+    email: form.email.value,
+    phone: form.phone.value
+  };
+  try {
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': '{{ csrf_token }}'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.error || 'Failed to create client'));
+      return;
+    }
+    const modalEl = document.getElementById('newClientModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+    form.reset();
+    loadClients();
+  } catch (err) {
+    alert('Request failed: ' + err.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadClients);
+</script>
+{% endblock %}
+{% endblock %}

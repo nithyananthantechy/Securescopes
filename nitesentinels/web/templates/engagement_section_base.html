@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}{{ section_title }} · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">{{ section_icon }}</span>
+        <h3 class="fw-bold text-light mb-0">{{ section_title }}</h3>
+        <span class="badge bg-secondary" id="sectionStatusBadge">IN PROGRESS</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">{{ section_desc }}</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <span class="text-secondary small me-2" id="scoreIndicator">0/0 Assessed</span>
+      <a href="/engagements/{{ engagement_id }}/findings?section={{ section_code|lower }}" class="btn btn-outline-warning btn-sm">
+        <i class="bi bi-exclamation-triangle"></i> View Domain Findings
+      </a>
+    </div>
+  </div>
+
+  <!-- Questions Questionnaire Container -->
+  <div class="card-scope p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold text-light mb-0"><i class="bi bi-ui-checks text-info me-2"></i>Controls & Assessment Questions</h5>
+      <div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-secondary active" onclick="filterStatus('ALL')">All</button>
+        <button class="btn btn-outline-secondary" onclick="filterStatus('PENDING')">Pending</button>
+        <button class="btn btn-outline-danger" onclick="filterStatus('FAIL')">Fails</button>
+        <button class="btn btn-outline-success" onclick="filterStatus('PASS')">Passes</button>
+      </div>
+    </div>
+    <div id="questionsContainer">
+      <p class="text-secondary">Loading domain questionnaire...</p>
+    </div>
+  </div>
+</main>
+
+<!-- Create Finding Modal -->
+<div class="modal fade" id="createFindingModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content bg-dark text-light border border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title"><i class="bi bi-shield-exclamation text-danger me-2"></i>Create Finding from Control Evaluation</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="handleCreateFinding(event)">
+        <input type="hidden" name="question_id" id="findingQuestionId">
+        <input type="hidden" name="section" value="{{ section_code }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label text-secondary small">Finding Title *</label>
+            <input type="text" name="title" id="findingTitle" class="form-control bg-black text-light border-secondary" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Severity Level *</label>
+              <select name="severity" id="findingSeverity" class="form-select bg-black text-light border-secondary">
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="LOW">Low</option>
+                <option value="INFORMATIONAL">Informational</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Affected Asset</label>
+              <input type="text" name="affected_asset" id="findingAsset" class="form-control bg-black text-light border-secondary" placeholder="e.g. Domain Controller, All User Endpoints">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small">Technical Description *</label>
+            <textarea name="description" id="findingDesc" rows="3" class="form-control bg-black text-light border-secondary" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small">Remediation Guidance</label>
+            <textarea name="recommendation" id="findingRemediation" rows="2" class="form-control bg-black text-light border-secondary"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Log Finding & Register Risk</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block scripts_extra %}
+<script>
+const SECTION = "{{ section_code }}";
+const ENGAGEMENT_ID = "{{ engagement_id }}";
+let questionsList = [];
+let responsesMap = {};
+
+async function loadQuestionnaire() {
+  try {
+    const [qRes, rRes] = await Promise.all([
+      fetch(`/api/questions?section=${SECTION.toLowerCase()}`),
+      fetch(`/api/engagements/${ENGAGEMENT_ID}/responses?section=${SECTION.toLowerCase()}`)
+    ]);
+    const qData = await qRes.json();
+    const rData = await rRes.json();
+    questionsList = qData.questions || [];
+    (rData.responses || []).forEach(r => { responsesMap[r.question_id] = r; });
+    renderQuestions(questionsList);
+    updateSummary();
+  } catch (err) {
+    document.getElementById('questionsContainer').innerHTML = `<p class="text-danger">Failed to load: ${err.message}</p>`;
+  }
+}
+
+function renderQuestions(list) {
+  const container = document.getElementById('questionsContainer');
+  if (!list.length) {
+    container.innerHTML = '<p class="text-secondary py-4 text-center">No questions in this section.</p>';
+    return;
+  }
+  container.innerHTML = list.map(q => {
+    const resp = responsesMap[q.id] || { status: 'NOT_ASSESSED', notes: '' };
+    const st = resp.status || 'NOT_ASSESSED';
+    return `
+      <div class="card-scope p-3 mb-3 border-secondary" id="q-card-${q.id}">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+          <div>
+            <span class="badge bg-secondary font-monospace me-2">${q.ref_code || q.id}</span>
+            <strong class="text-light">${q.question_text || q.title}</strong>
+            <div class="text-secondary small mt-1">${q.guidance || ''}</div>
+          </div>
+          <div class="d-flex gap-1 align-items-center">
+            <select class="form-select form-select-sm bg-black text-light border-secondary" style="width:160px" onchange="updateQuestionResponse('${q.id}', this.value)">
+              <option value="NOT_ASSESSED" ${st === 'NOT_ASSESSED' ? 'selected' : ''}>Not Assessed</option>
+              <option value="PASS" ${st === 'PASS' ? 'selected' : ''} class="text-success">PASS</option>
+              <option value="PARTIAL" ${st === 'PARTIAL' ? 'selected' : ''} class="text-warning">PARTIAL</option>
+              <option value="FAIL" ${st === 'FAIL' ? 'selected' : ''} class="text-danger">FAIL</option>
+              <option value="NOT_APPLICABLE" ${st === 'NOT_APPLICABLE' ? 'selected' : ''} class="text-secondary">N/A</option>
+            </select>
+            ${st === 'FAIL' || st === 'PARTIAL' ? `
+              <button class="btn btn-sm btn-outline-danger ms-1" onclick="openFindingModal('${q.id}', '${escapeHtml(q.question_text || q.title)}')">
+                <i class="bi bi-exclamation-triangle"></i> Log Finding
+              </button>
+            ` : ''}
+          </div>
+        </div>
+        <div class="mt-2">
+          <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Assessment observations, evidence references, or auditor notes..." value="${escapeHtml(resp.notes || '')}" onblur="saveNotes('${q.id}', this.value)">
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+async function updateQuestionResponse(qid, status) {
+  try {
+    const existing = responsesMap[qid] || {};
+    const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/responses/${qid}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+      body: JSON.stringify({ status: status, notes: existing.notes || '' })
+    });
+    if (res.ok) {
+      responsesMap[qid] = { ...existing, status: status };
+      renderQuestions(questionsList);
+      updateSummary();
+    }
+  } catch (err) {
+    alert('Failed to update: ' + err.message);
+  }
+}
+
+async function saveNotes(qid, notes) {
+  const existing = responsesMap[qid] || { status: 'NOT_ASSESSED' };
+  if (existing.notes === notes) return;
+  await fetch(`/api/engagements/${ENGAGEMENT_ID}/responses/${qid}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify({ status: existing.status, notes: notes })
+  });
+  responsesMap[qid] = { ...existing, notes: notes };
+}
+
+function openFindingModal(qid, text) {
+  document.getElementById('findingQuestionId').value = qid;
+  document.getElementById('findingTitle').value = `Control Failure: ${text.substring(0, 60)}`;
+  document.getElementById('findingDesc').value = `During the assessment of control [${qid}], non-compliance was observed: ${text}`;
+  document.getElementById('findingRemediation').value = `Implement required security controls to address ${qid}.`;
+  new bootstrap.Modal(document.getElementById('createFindingModal')).show();
+}
+
+async function handleCreateFinding(e) {
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    question_id: form.question_id.value,
+    section: SECTION,
+    title: form.title.value,
+    severity: form.severity.value,
+    affected_asset: form.affected_asset.value,
+    description: form.description.value,
+    recommendation: form.recommendation.value
+  };
+  const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/findings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify(payload)
+  });
+  if (res.ok) {
+    bootstrap.Modal.getInstance(document.getElementById('createFindingModal')).hide();
+    alert('Finding created and synced to Risk Register successfully!');
+  } else {
+    const err = await res.json();
+    alert('Error: ' + (err.error || 'Failed to create finding'));
+  }
+}
+
+function updateSummary() {
+  const total = questionsList.length;
+  let assessed = 0;
+  let fails = 0;
+  questionsList.forEach(q => {
+    const st = (responsesMap[q.id] || {}).status || 'NOT_ASSESSED';
+    if (st !== 'NOT_ASSESSED') assessed++;
+    if (st === 'FAIL') fails++;
+  });
+  document.getElementById('scoreIndicator').textContent = `${assessed}/${total} Assessed (${fails} Failures)`;
+  const badge = document.getElementById('sectionStatusBadge');
+  if (assessed === total && total > 0) {
+    badge.className = 'badge bg-success';
+    badge.textContent = 'EVALUATED';
+  } else if (assessed > 0) {
+    badge.className = 'badge bg-info';
+    badge.textContent = 'IN PROGRESS';
+  } else {
+    badge.className = 'badge bg-secondary';
+    badge.textContent = 'NOT STARTED';
+  }
+}
+
+function filterStatus(mode) {
+  if (mode === 'ALL') {
+    renderQuestions(questionsList);
+  } else if (mode === 'PENDING') {
+    renderQuestions(questionsList.filter(q => ((responsesMap[q.id] || {}).status || 'NOT_ASSESSED') === 'NOT_ASSESSED'));
+  } else {
+    renderQuestions(questionsList.filter(q => ((responsesMap[q.id] || {}).status || '') === mode));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadQuestionnaire);
+</script>
+{% endblock %}
+{% endblock %}

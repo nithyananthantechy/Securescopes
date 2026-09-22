@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+
+{% block title %}Data Loss Prevention (DLP) · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🛡️</span>
+        <h3 class="fw-bold text-light mb-0">Data Loss Prevention (DLP) Assessment</h3>
+        <span class="badge bg-warning text-dark">CRITICAL DATA PROTECTION</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Discover sensitive data repositories, evaluate DLP controls across 11 egress vectors, and log simulated exfiltration tests</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#addDataRecordModal">
+        <i class="bi bi-plus-circle me-1"></i> Add Data Record
+      </button>
+      <button class="btn btn-primary-enterprise" data-bs-toggle="modal" data-bs-target="#addValidationModal">
+        <i class="bi bi-lightning-charge me-1"></i> Log Exfiltration Test
+      </button>
+    </div>
+  </div>
+
+  <!-- 11 Controls Assessment Grid -->
+  <div class="card-scope p-4 mb-4">
+    <h5 class="fw-bold text-light mb-3"><i class="bi bi-shield-check text-info me-2"></i>DLP Control Areas (11 Egress Vectors)</h5>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0" id="dlpControlsTable">
+        <thead>
+          <tr class="text-secondary small text-uppercase">
+            <th>Control Vector</th>
+            <th>Description & Focus</th>
+            <th>Status</th>
+            <th>Residual Risk</th>
+            <th>Notes / Findings</th>
+            <th class="text-end">Update</th>
+          </tr>
+        </thead>
+        <tbody id="dlpControlsBody">
+          <tr><td colspan="6" class="text-center text-secondary py-3">Loading controls...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sensitive Data Inventory -->
+  <div class="card-scope p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold text-light mb-0"><i class="bi bi-database text-warning me-2"></i>Sensitive Data Discovery Inventory</h5>
+      <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#addDataRecordModal"><i class="bi bi-plus"></i> Add Repository</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead>
+          <tr class="text-secondary small text-uppercase">
+            <th>Data Type</th>
+            <th>Sensitivity</th>
+            <th>Storage Location / System</th>
+            <th>Owner</th>
+            <th>Access Control</th>
+            <th>Classification</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody id="dlpDiscoveryBody">
+          <tr><td colspan="7" class="text-center text-secondary py-3">Loading data inventory...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Exfiltration Channel Validation Tests -->
+  <div class="card-scope p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold text-light mb-0"><i class="bi bi-cpu text-danger me-2"></i>Simulated Exfiltration Channel Validations</h5>
+      <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#addValidationModal"><i class="bi bi-plus"></i> Log Test</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead>
+          <tr class="text-secondary small text-uppercase">
+            <th>Vector / Channel</th>
+            <th>Test Description</th>
+            <th>Expected Behavior</th>
+            <th>Actual Result</th>
+            <th>Outcome Status</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody id="dlpValidationsBody">
+          <tr><td colspan="6" class="text-center text-secondary py-3">Loading validation tests...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Add Data Record Modal -->
+<div class="modal fade" id="addDataRecordModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light border border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title">Record Sensitive Data Repository</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="handleAddDataRecord(event)">
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Data Classification Type *</label>
+              <input type="text" name="data_type" class="form-control bg-black text-light border-secondary" required placeholder="e.g. Customer PII / Financial Records">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Sensitivity *</label>
+              <select name="sensitivity" class="form-select bg-black text-light border-secondary">
+                <option value="RESTRICTED">Restricted</option>
+                <option value="CONFIDENTIAL" selected>Confidential</option>
+                <option value="INTERNAL">Internal</option>
+                <option value="PUBLIC">Public</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small">Location / Host / Cloud Bucket *</label>
+            <input type="text" name="location" class="form-control bg-black text-light border-secondary" required placeholder="e.g. PostgreSQL db-prod / AWS S3 customer-data">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Business Owner</label>
+              <input type="text" name="owner" class="form-control bg-black text-light border-secondary" placeholder="e.g. Finance Team">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Access Level</label>
+              <input type="text" name="access_level" class="form-control bg-black text-light border-secondary" placeholder="e.g. Role-based / DB admin only">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary-enterprise">Save Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add Exfiltration Validation Modal -->
+<div class="modal fade" id="addValidationModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light border border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title">Log Exfiltration Vector Test</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="handleAddValidation(event)">
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Egress Channel *</label>
+              <select name="channel" class="form-select bg-black text-light border-secondary">
+                <option value="USB">USB / Removable Media</option>
+                <option value="EMAIL">Personal / External Email</option>
+                <option value="CLOUD_STORAGE">Public Cloud Storage Upload</option>
+                <option value="WEB_UPLOAD">Web File Upload / Pastebin</option>
+                <option value="PRINT">Physical / Network Print</option>
+                <option value="CLIPBOARD">Clipboard / Remote Session</option>
+                <option value="ENCRYPTION">Unencrypted Channel</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Test Outcome Status *</label>
+              <select name="status" class="form-select bg-black text-light border-secondary">
+                <option value="BLOCKED">BLOCKED (PASS)</option>
+                <option value="EXFILTRATED">EXFILTRATED (FAIL)</option>
+                <option value="ALERTED_ONLY">ALERTED ONLY (PARTIAL)</option>
+                <option value="NOT_TESTED">NOT TESTED</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-secondary small">Test Description *</label>
+            <input type="text" name="test_description" class="form-control bg-black text-light border-secondary" required placeholder="e.g. Attempted copy of synthetic PII file to FAT32 USB drive">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-secondary small">Expected Control Behavior</label>
+              <input type="text" name="expected_result" class="form-control bg-black text-light border-secondary" placeholder="e.g. Endpoint DLP denies write operation">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary small">Observed Behavior</label>
+              <input type="text" name="actual_result" class="form-control bg-black text-light border-secondary" placeholder="e.g. File transferred without restriction">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary-enterprise">Save Test Result</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block scripts_extra %}
+<script>
+const ENGAGEMENT_ID = "{{ engagement_id }}";
+
+async function loadDLP() {
+  loadControls();
+  loadDiscovery();
+  loadValidations();
+}
+
+async function loadControls() {
+  try {
+    const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/controls`);
+    const data = await res.json();
+    const list = data.controls || [];
+    const tbody = document.getElementById('dlpControlsBody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary py-3">No controls data.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(c => `
+      <tr>
+        <td class="fw-bold text-light">${(c.control_area || '').replace(/_/g, ' ').toUpperCase()}</td>
+        <td class="small text-secondary">${c.guidance || c.description || '-'}</td>
+        <td>
+          <select class="form-select form-select-sm bg-black text-light border-secondary" style="width:130px" onchange="updateDLPControl('${c.id}', this.value, '${c.risk_level}')">
+            <option value="NOT_ASSESSED" ${c.status === 'NOT_ASSESSED' ? 'selected' : ''}>Not Assessed</option>
+            <option value="PASS" ${c.status === 'PASS' ? 'selected' : ''}>PASS</option>
+            <option value="PARTIAL" ${c.status === 'PARTIAL' ? 'selected' : ''}>PARTIAL</option>
+            <option value="FAIL" ${c.status === 'FAIL' ? 'selected' : ''}>FAIL</option>
+          </select>
+        </td>
+        <td><span class="badge ${c.risk_level === 'HIGH' ? 'bg-danger' : (c.risk_level === 'MEDIUM' ? 'bg-warning text-dark' : 'bg-secondary')}">${c.risk_level || 'MEDIUM'}</span></td>
+        <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" value="${c.notes || ''}" placeholder="Auditor notes..." onblur="updateDLPControlNotes('${c.id}', this.value)"></td>
+        <td class="text-end"><span class="badge bg-secondary">Saved</span></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    document.getElementById('dlpControlsBody').innerHTML = `<tr><td colspan="6" class="text-center text-danger">${err.message}</td></tr>`;
+  }
+}
+
+async function updateDLPControl(cid, status, risk) {
+  await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/controls/${cid}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify({ status: status, risk_level: risk })
+  });
+}
+
+async function updateDLPControlNotes(cid, notes) {
+  await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/controls/${cid}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify({ notes: notes })
+  });
+}
+
+async function loadDiscovery() {
+  const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/discovery`);
+  const data = await res.json();
+  const list = data.records || [];
+  const tbody = document.getElementById('dlpDiscoveryBody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary py-3">No data repositories cataloged.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(d => `
+    <tr>
+      <td class="fw-bold text-light">${d.data_type}</td>
+      <td><span class="badge bg-danger">${d.sensitivity}</span></td>
+      <td class="font-monospace text-info">${d.location}</td>
+      <td>${d.owner || '-'}</td>
+      <td>${d.access_level || '-'}</td>
+      <td><span class="badge bg-secondary">${d.classification_applied ? 'Tagged' : 'Untagged'}</span></td>
+      <td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="deleteDiscovery('${d.id}')"><i class="bi bi-trash"></i></button></td>
+    </tr>
+  `).join('');
+}
+
+async function handleAddDataRecord(e) {
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    data_type: form.data_type.value,
+    sensitivity: form.sensitivity.value,
+    location: form.location.value,
+    owner: form.owner.value,
+    access_level: form.access_level.value
+  };
+  const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/discovery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify(payload)
+  });
+  if (res.ok) {
+    bootstrap.Modal.getInstance(document.getElementById('addDataRecordModal')).hide();
+    form.reset();
+    loadDiscovery();
+  }
+}
+
+async function deleteDiscovery(id) {
+  if (!confirm('Remove record?')) return;
+  await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/discovery/${id}`, {
+    method: 'DELETE',
+    headers: { 'X-CSRF-Token': '{{ csrf_token }}' }
+  });
+  loadDiscovery();
+}
+
+async function loadValidations() {
+  const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/validations`);
+  const data = await res.json();
+  const list = data.validations || [];
+  const tbody = document.getElementById('dlpValidationsBody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary py-3">No exfiltration simulation tests logged yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(v => `
+    <tr>
+      <td><span class="badge bg-secondary">${v.channel}</span></td>
+      <td class="text-light">${v.test_description || '-'}</td>
+      <td class="text-secondary small">${v.expected_result || '-'}</td>
+      <td class="text-secondary small">${v.actual_result || '-'}</td>
+      <td>
+        <span class="badge ${v.status === 'BLOCKED' ? 'bg-success' : (v.status === 'EXFILTRATED' ? 'bg-danger' : 'bg-warning text-dark')}">
+          ${v.status}
+        </span>
+      </td>
+      <td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="deleteValidation('${v.id}')"><i class="bi bi-trash"></i></button></td>
+    </tr>
+  `).join('');
+}
+
+async function handleAddValidation(e) {
+  e.preventDefault();
+  const form = e.target;
+  const payload = {
+    channel: form.channel.value,
+    status: form.status.value,
+    test_description: form.test_description.value,
+    expected_result: form.expected_result.value,
+    actual_result: form.actual_result.value
+  };
+  const res = await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/validations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+    body: JSON.stringify(payload)
+  });
+  if (res.ok) {
+    bootstrap.Modal.getInstance(document.getElementById('addValidationModal')).hide();
+    form.reset();
+    loadValidations();
+  }
+}
+
+async function deleteValidation(id) {
+  if (!confirm('Remove validation test?')) return;
+  await fetch(`/api/engagements/${ENGAGEMENT_ID}/dlp/validations/${id}`, {
+    method: 'DELETE',
+    headers: { 'X-CSRF-Token': '{{ csrf_token }}' }
+  });
+  loadValidations();
+}
+
+document.addEventListener('DOMContentLoaded', loadDLP);
+</script>
+{% endblock %}
+{% endblock %}

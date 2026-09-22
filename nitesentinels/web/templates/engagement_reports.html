@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Deliverables & Reports · {{ engagement.assessment_name }} · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  {% include "engagement_nav.html" %}
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">📑</span>
+        <h3 class="fw-bold text-light mb-0">Client Assessment Reports & Deliverables</h3>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Generate presentation-ready executive briefings and comprehensive technical reports</p>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Executive Report Card -->
+    <div class="col-md-6">
+      <div class="card-scope p-4 h-100 border-primary">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="fs-3">💼</span>
+          <div>
+            <h5 class="fw-bold text-light mb-0">Executive Assessment Report</h5>
+            <span class="text-secondary small">For Leadership, Board & Decision-Makers</span>
+          </div>
+        </div>
+        <p class="text-secondary small mb-4">
+          Features NITECHSPARK cover page, overall risk posture banner, high-level maturity scoring, critical finding summaries, DLP posture, and 30/60/90-day remediation roadmap.
+        </p>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="/api/engagements/{{ engagement_id }}/reports/executive" target="_blank" class="btn btn-primary-enterprise">
+            <i class="bi bi-eye me-1"></i> Preview HTML / Print PDF
+          </a>
+          <a href="/api/engagements/{{ engagement_id }}/reports/executive?format=json" target="_blank" class="btn btn-outline-secondary">
+            <i class="bi bi-code-slash me-1"></i> Export JSON
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Technical Report Card -->
+    <div class="col-md-6">
+      <div class="card-scope p-4 h-100 border-info">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="fs-3">🛠️</span>
+          <div>
+            <h5 class="fw-bold text-light mb-0">Technical Assessment Report</h5>
+            <span class="text-secondary small">For IT Directors, Sysadmins & Engineers</span>
+          </div>
+        </div>
+        <p class="text-secondary small mb-4">
+          Contains complete assessment scope, asset inventory, questionnaire evaluation across 7 domains, deep-dive vulnerability cards, compliance framework citations, and retest evidence.
+        </p>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="/api/engagements/{{ engagement_id }}/reports/technical" target="_blank" class="btn btn-outline-info">
+            <i class="bi bi-eye me-1"></i> Preview HTML / Print PDF
+          </a>
+          <a href="/api/engagements/{{ engagement_id }}/reports/technical?format=json" target="_blank" class="btn btn-outline-secondary">
+            <i class="bi bi-code-slash me-1"></i> Export JSON
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disclaimer Notice -->
+  <div class="card-scope p-4">
+    <h6 class="fw-bold text-warning mb-2"><i class="bi bi-exclamation-triangle me-2"></i>Legal & Delivery Notice</h6>
+    <p class="text-secondary small mb-0">
+      All reports generated through NiteSentinel are proprietary deliverables prepared by NITECHSPARK.
+      Framework references (NIST CSF 2.0, ISO 27001, CIS Controls, PCI DSS, DPDP 2023) are provided for informational benchmarking and risk quantification purposes only, and do not constitute formal compliance certification or statutory audit opinions.
+    </p>
+  </div>
+</main>
+{% endblock %}

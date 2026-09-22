@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Physical Asset Audit Campaigns · NiteSentinel{% endblock %}
+
+{% block content %}
+<main class="ham-main-layout">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">📋</span>
+        <h1 class="h3 mb-0 fw-bold text-light">Physical Asset Audits &amp; Verification</h1>
+        <span class="badge bg-purple-subtle text-light border border-secondary px-2 py-1">ISO 27001 / CIS Control 1</span>
+      </div>
+      <p class="text-secondary small mb-0 mt-1">Conduct scheduled physical inventory audits, reconcile tag locations, scan asset barcodes, and detect ghost hardware.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-primary-enterprise d-flex align-items-center gap-1 shadow-sm" id="btnNewCampaign">
+        <i class="bi bi-plus-circle"></i> New Audit Campaign
+      </button>
+      <a href="/ham/assets" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        <i class="bi bi-hdd-network"></i> Assets Inventory
+      </a>
+    </div>
+  </div>
+
+  <!-- Quick Verification Scan Card -->
+  <div class="card-scope p-4 shadow-sm mb-4">
+    <h2 class="h6 fw-bold text-light mb-3 d-flex align-items-center gap-2">
+      <i class="bi bi-qr-code-scan text-info"></i> Fast Tag Verification &amp; Check-in
+    </h2>
+    <div class="row g-3 align-items-center">
+      <div class="col-12 col-md-5">
+        <div class="input-group">
+          <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-barcode"></i></span>
+          <input type="text" id="scanInputTag" class="form-control bg-dark border-secondary text-light font-monospace" placeholder="Scan barcode or enter Asset Tag (e.g. NS-HW-0012)">
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <select id="selectAuditCampaign" class="form-select bg-dark border-secondary text-light">
+          <option value="">Select Audit Campaign…</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-4 d-flex gap-2">
+        <button type="button" class="btn btn-success" id="btnVerifyTag">
+          <i class="bi bi-check2-circle me-1"></i> Verify &amp; Confirm Found
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btnFlagMissing">
+          <i class="bi bi-flag me-1"></i> Flag Missing
+        </button>
+      </div>
+    </div>
+    <div id="scanFeedback" class="mt-3 small d-none"></div>
+  </div>
+
+  <!-- Campaigns List -->
+  <div class="card-scope p-0 overflow-hidden shadow-sm mb-4">
+    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+      <h2 class="h6 fw-bold text-light mb-0"><i class="bi bi-card-checklist text-info me-2"></i>Active &amp; Completed Audit Campaigns</h2>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRefreshCampaigns"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0 small">
+        <thead class="text-secondary bg-dark">
+          <tr>
+            <th>Campaign Name</th>
+            <th>Target Location / Dept</th>
+            <th>Progress</th>
+            <th>Verified / Total</th>
+            <th>Discrepancies</th>
+            <th>Status</th>
+            <th>Due Date</th>
+          </tr>
+        </thead>
+        <tbody id="campaignsTableBody">
+          <tr>
+            <td colspan="7" class="text-center py-5 text-secondary">
+              <div class="spinner-border spinner-border-sm text-info me-2"></div> Loading audit campaigns…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: Create Audit Campaign -->
+<div class="modal fade" id="modalCampaign" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold"><i class="bi bi-clipboard-plus text-info me-2"></i>Create Audit Campaign</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Campaign Name <span class="text-danger">*</span></label>
+          <input type="text" id="campName" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Q3 Datacenter Physical Audit" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Target Location</label>
+          <input type="text" id="campLocation" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Headquarters Floor 2">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Target Department</label>
+          <input type="text" id="campDept" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="e.g. Engineering">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-secondary">Due Date</label>
+          <input type="date" id="campDueDate" class="form-control form-control-sm bg-dark border-secondary text-light">
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary-enterprise" id="btnSaveCampaign">Create Campaign</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.ham-main-layout {
+  padding: 24px 32px 48px 32px;
+  max-width: 1800px;
+  margin: 0 auto;
+  color: var(--text, #e8eaf6);
+}
+@media (max-width: 768px) {
+  .ham-main-layout {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const CSRF_TOKEN = "{{ csrf_token }}";
+  const modalCampaign = new bootstrap.Modal(document.getElementById("modalCampaign"));
+
+  // Highlight sidebar
+  const hamGroup = document.getElementById("nav-group-ham");
+  if (hamGroup) {
+    hamGroup.classList.add("is-open");
+    const tr = hamGroup.querySelector(".nav-acc-trigger");
+    if (tr) tr.setAttribute("aria-expanded", "true");
+  }
+
+  loadCampaigns();
+  document.getElementById("btnRefreshCampaigns")?.addEventListener("click", loadCampaigns);
+
+  document.getElementById("btnNewCampaign")?.addEventListener("click", () => {
+    document.getElementById("campName").value = "";
+    document.getElementById("campLocation").value = "";
+    document.getElementById("campDept").value = "";
+    modalCampaign.show();
+  });
+
+  document.getElementById("btnSaveCampaign")?.addEventListener("click", async () => {
+    const name = document.getElementById("campName").value.trim();
+    if (!name) { alert("Campaign name is required"); return; }
+
+    try {
+      const res = await fetch("/api/ham/audit/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({
+          name: name,
+          location: document.getElementById("campLocation").value.trim(),
+          department: document.getElementById("campDept").value.trim(),
+          due_date: document.getElementById("campDueDate").value
+        })
+      });
+      if (res.ok) {
+        modalCampaign.hide();
+        loadCampaigns();
+      } else {
+        const err = await res.json();
+        alert("Failed to create campaign: " + (err.error || "Unknown"));
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  });
+
+  async function loadCampaigns() {
+    const tbody = document.getElementById("campaignsTableBody");
+    const selectCamp = document.getElementById("selectAuditCampaign");
+
+    try {
+      const res = await fetch("/api/ham/audit/campaigns");
+      if (!res.ok) throw new Error("Failed to load campaigns");
+      const d = await res.json();
+      const camps = d.campaigns || [];
+
+      selectCamp.innerHTML = '<option value="">Select Audit Campaign…</option>' + camps.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+
+      if (!camps.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-secondary">No audit campaigns created yet. Click "New Audit Campaign" above.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = camps.map(c => {
+        const total = c.total_assets || 1;
+        const verified = c.verified_assets || 0;
+        const pct = Math.round((verified / total) * 100);
+        return `
+          <tr>
+            <td class="fw-bold text-light">${escapeHtml(c.name)}</td>
+            <td>${escapeHtml([c.location, c.department].filter(Boolean).join(" / ") || "All Inventory")}</td>
+            <td style="min-width: 120px;">
+              <div class="progress bg-dark" style="height: 6px;">
+                <div class="progress-bar bg-success" style="width: ${pct}%;"></div>
+              </div>
+            </td>
+            <td class="font-monospace text-secondary">${verified} / ${total} (${pct}%)</td>
+            <td><span class="badge ${c.discrepancies ? 'bg-danger-subtle text-danger' : 'bg-secondary'}">${c.discrepancies || 0} issues</span></td>
+            <td><span class="badge ${c.status === 'completed' ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'}">${escapeHtml(c.status || 'active')}</span></td>
+            <td class="text-secondary">${escapeHtml(c.due_date || '—')}</td>
+          </tr>
+        `;
+      }).join("");
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-secondary">Error loading campaigns.</td></tr>`;
+    }
+  }
+
+  // Fast verify handler
+  document.getElementById("btnVerifyTag")?.addEventListener("click", async () => {
+    const tag = document.getElementById("scanInputTag").value.trim();
+    const campId = document.getElementById("selectAuditCampaign").value;
+    const fb = document.getElementById("scanFeedback");
+
+    if (!tag) { alert("Please enter an asset tag"); return; }
+    if (!campId) { alert("Please select an audit campaign first"); return; }
+
+    try {
+      const res = await fetch(`/api/ham/audit/campaigns/${campId}/result`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({ asset_tag: tag, status: "verified", notes: "Verified via physical scan" })
+      });
+      if (res.ok) {
+        fb.className = "mt-3 small alert alert-success py-2";
+        fb.textContent = `✓ Asset "${tag}" successfully verified and confirmed!`;
+        fb.classList.remove("d-none");
+        document.getElementById("scanInputTag").value = "";
+        loadCampaigns();
+      } else {
+        const err = await res.json();
+        fb.className = "mt-3 small alert alert-danger py-2";
+        fb.textContent = "Verification failed: " + (err.error || "Unknown error");
+        fb.classList.remove("d-none");
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  });
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+});
+</script>
+{% endblock %}
