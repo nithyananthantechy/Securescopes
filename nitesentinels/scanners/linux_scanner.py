@@ -43,151 +43,6 @@ class LinuxScanner:
                 results.extend(f.result())
         return results
 
-    def scan_remote(self, ssh_client):
-        """Dedicated remote scan logic with individual error handling (FIX 1)."""
-        checks = []
-        
-        def run_ssh(command):
-            try:
-                stdin, stdout, stderr = ssh_client.exec_command(command, timeout=30)
-                return stdout.read().decode('utf-8', errors='ignore').strip()
-            except:
-                return ""
-
-        # CHECK 1 - SSH Root login
-        try:
-            result = run_ssh("grep -i 'PermitRootLogin' /etc/ssh/sshd_config 2>/dev/null")
-            status = "PASS" if "no" in result.lower() else "FAIL"
-            checks.append({
-                "category": "SSH",
-                "check": "Root login disabled",
-                "status": status,
-                "severity": "Critical",
-                "details": result or "Not configured"
-            })
-        except: pass
-
-        # CHECK 2 - Password Auth
-        try:
-            result = run_ssh("grep -i 'PasswordAuthentication' /etc/ssh/sshd_config 2>/dev/null")
-            status = "PASS" if "no" in result.lower() else "FAIL"
-            checks.append({
-                "category": "SSH",
-                "check": "Password auth disabled",
-                "status": status,
-                "severity": "Critical",
-                "details": result or "Not configured"
-            })
-        except: pass
-
-        # CHECK 3 - Firewall
-        try:
-            result = run_ssh("ufw status 2>/dev/null || iptables -L 2>/dev/null | head -5")
-            status = "PASS" if "active" in result.lower() or "chain" in result.lower() else "FAIL"
-            checks.append({
-                "category": "Firewall",
-                "check": "Firewall active",
-                "status": status,
-                "severity": "Critical",
-                "details": result[:100] if result else "Not detected"
-            })
-        except: pass
-
-        # CHECK 4 - Root only UID 0
-        try:
-            result = run_ssh("awk -F: '($3==0){print $1}' /etc/passwd")
-            status = "PASS" if result.strip() == "root" else "FAIL"
-            users_list = result.replace('\n', ', ')
-            checks.append({
-                "category": "Users",
-                "check": "Only root has UID 0",
-                "status": status,
-                "severity": "Critical",
-                "details": f"UID 0 users: {users_list}"
-            })
-        except: pass
-
-        # CHECK 5 - Empty passwords
-        try:
-            result = run_ssh("sudo awk -F: '($2==\"\"){print $1}' /etc/shadow 2>/dev/null")
-            status = "PASS" if not result.strip() else "FAIL"
-            checks.append({
-                "category": "Users",
-                "check": "No empty passwords",
-                "status": status,
-                "severity": "Critical",
-                "details": result or "No empty passwords"
-            })
-        except: pass
-
-        # CHECK 6 - Updates available
-        try:
-            result = run_ssh("apt list --upgradable 2>/dev/null | wc -l")
-            count = int(result.strip()) - 1 if result.strip().isdigit() else 0
-            status = "PASS" if count == 0 else "FAIL"
-            checks.append({
-                "category": "Updates",
-                "check": "System up to date",
-                "status": status,
-                "severity": "High",
-                "details": f"{count} updates pending"
-            })
-        except: pass
-
-        # CHECK 7 - fail2ban
-        try:
-            result = run_ssh("systemctl is-active fail2ban 2>/dev/null")
-            status = "PASS" if "active" in result else "FAIL"
-            checks.append({
-                "category": "Firewall",
-                "check": "fail2ban running",
-                "status": status,
-                "severity": "High",
-                "details": f"fail2ban: {result}"
-            })
-        except: pass
-
-        # CHECK 8 - Unattended upgrades
-        try:
-            result = run_ssh("dpkg -l unattended-upgrades 2>/dev/null | grep ii")
-            status = "PASS" if "ii" in result else "FAIL"
-            checks.append({
-                "category": "Updates",
-                "check": "Auto updates enabled",
-                "status": status,
-                "severity": "Medium",
-                "details": result or "Not installed"
-            })
-        except: pass
-
-        # CHECK 9 - World writable dirs
-        try:
-            result = run_ssh("find /tmp /var /etc -maxdepth 2 -perm -o+w -type d 2>/dev/null | head -5")
-            status = "PASS" if not result.strip() else "WARNING"
-            checks.append({
-                "category": "Filesystem",
-                "check": "World-writable dirs",
-                "status": status,
-                "severity": "Medium",
-                "details": result or "None found"
-            })
-        except: pass
-
-        # CHECK 10 - Syslog running
-        try:
-            result = run_ssh("systemctl is-active rsyslog 2>/dev/null || systemctl is-active syslog 2>/dev/null")
-            status = "PASS" if "active" in result else "FAIL"
-            checks.append({
-                "category": "Logging",
-                "check": "Syslog running",
-                "status": status,
-                "severity": "Medium",
-                "details": f"Syslog: {result}"
-            })
-        except: pass
-
-        return checks
-
     def check_ssh(self):
         checks = []
         sshd_config_path = "/etc/ssh/sshd_config"
@@ -202,18 +57,18 @@ class LinuxScanner:
                     details = f"{param} is correctly set to {expected}"
                 else:
                     details = f"Found: {res['stdout']}. Expected: {expected}"
-            checks.append({"category": "SSH", "check": description, "status": status, "severity": severity, "details": details})
-        check_config("PermitRootLogin", "no", "Root login disabled")
-        check_config("PasswordAuthentication", "no", "Password auth disabled")
-        check_config("MaxAuthTries", "3", "MaxAuthTries <= 3")
-        check_config("Protocol", "2", "Protocol 2 only", severity="High")
+            checks.append({"category": "SSH", "check": description, "status": status, "severity": severity, "details": details, "description": desc_text})
+        check_config("PermitRootLogin", "no", "Root login disabled", desc_text="Direct SSH root login should be disabled to prevent brute-force attacks against the root account.")
+        check_config("PasswordAuthentication", "no", "Password auth disabled", desc_text="Password authentication should be disabled in favor of key-based authentication to prevent credential guessing.")
+        check_config("MaxAuthTries", "3", "MaxAuthTries <= 3", desc_text="Limiting the maximum number of authentication attempts thwarts brute-force guessing of SSH credentials.")
+        check_config("Protocol", "2", "Protocol 2 only", severity="High", desc_text="SSH Protocol version 2 should be strictly enforced, as Protocol 1 has known cryptographic weaknesses.")
         return checks
 
     def check_firewall(self):
         checks = []
-        res = self.execute("ufw status")
-        status = "PASS" if "Status: active" in res["stdout"] else "FAIL"
-        checks.append({"category": "Firewall", "check": "UFW Active", "status": status, "severity": "Critical", "details": res["stdout"] if res["success"] else "UFW not found"})
+        res = self.execute("systemctl is-active ufw")
+        status = "PASS" if res["stdout"] == "active" else "FAIL"
+        checks.append({"category": "Firewall", "check": "UFW Active", "status": status, "severity": "Critical", "details": "UFW is active" if status == "PASS" else "UFW inactive or not found", "description": "An active Uncomplicated Firewall (UFW) prevents unauthorized inbound network connections to the system."})
         return checks
 
     def check_users(self):
@@ -221,14 +76,14 @@ class LinuxScanner:
         res = self.execute("awk -F: '$3 == 0 { print $1 }' /etc/passwd")
         users = res["stdout"].split('\n')
         status = "PASS" if len(users) == 1 and users[0] == "root" else "FAIL"
-        checks.append({"category": "Users", "check": "Only root has UID 0", "status": status, "severity": "High", "details": f"Users: {', '.join(users)}"})
+        checks.append({"category": "Users", "check": "Only root has UID 0", "status": status, "severity": "High", "details": f"Users: {', '.join(users)}", "description": "Accounts with a User ID (UID) of 0 have root privileges. Only the default root account should have this UID."})
         return checks
 
     def check_filesystem(self):
         checks = []
         res = self.execute("find / -xdev -type d \( -perm -0002 -a ! -perm -1000 \) 2>/dev/null | head -5")
         status = "PASS" if not res["stdout"] else "WARNING"
-        checks.append({"category": "Filesystem", "check": "World-writable directories", "status": status, "severity": "High", "details": res["stdout"] or "No issues found"})
+        checks.append({"category": "Filesystem", "check": "World-writable directories", "status": status, "severity": "High", "details": res["stdout"] or "No issues found", "description": "World-writable directories without the sticky bit allow any user to delete or modify files, posing a privilege escalation risk."})
         return checks
 
     def check_services(self):
@@ -239,7 +94,7 @@ class LinuxScanner:
             res = self.execute(f"systemctl is-active {svc}")
             if res["stdout"] == "active": found.append(svc)
         status = "PASS" if not found else "FAIL"
-        checks.append({"category": "Services", "check": "Unnecessary services", "status": status, "severity": "Medium", "details": f"Active risky: {', '.join(found)}" if found else "None"})
+        checks.append({"category": "Services", "check": "Unnecessary services", "status": status, "severity": "Medium", "details": f"Active risky: {', '.join(found)}" if found else "None", "description": "Legacy, unencrypted services like Telnet and FTP transmit passwords in cleartext and should be disabled."})
         return checks
 
     def check_updates(self):
@@ -247,12 +102,12 @@ class LinuxScanner:
         res = self.execute("apt-get -s upgrade | grep -P '^\d+ upgraded' | cut -d' ' -f1")
         count = res["stdout"] if res["success"] and res["stdout"] else "0"
         status = "PASS" if count == "0" else "WARNING"
-        checks.append({"category": "Updates", "check": "System updates", "status": status, "severity": "Medium", "details": f"{count} pending"})
+        checks.append({"category": "Updates", "check": "System updates", "status": status, "severity": "Medium", "details": f"{count} pending", "description": "Unapplied system updates can leave the operating system vulnerable to known exploits."})
         return checks
 
     def check_logging(self):
         checks = []
         res = self.execute("systemctl is-active rsyslog")
         status = "PASS" if res["stdout"] == "active" else "FAIL"
-        checks.append({"category": "Logging", "check": "Syslog Running", "status": status, "severity": "Medium", "details": "rsyslog is active" if status == "PASS" else "rsyslog inactive"})
+        checks.append({"category": "Logging", "check": "Syslog Running", "status": status, "severity": "Medium", "details": "rsyslog is active" if status == "PASS" else "rsyslog inactive", "description": "The rsyslog service must be running to ensure security events, audits, and errors are properly logged."})
         return checks
