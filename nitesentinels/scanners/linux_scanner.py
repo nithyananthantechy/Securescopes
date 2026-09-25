@@ -1,4 +1,5 @@
 import os
+import threading
 from nitesentinels.core.utils import run_command, logger
 from concurrent.futures import ThreadPoolExecutor
 
@@ -6,23 +7,28 @@ class LinuxScanner:
     def __init__(self, target_host="local", ssh_client=None):
         self.target_host = target_host
         self.ssh_client = ssh_client # For remote scanning
+        self._lock = threading.Lock()
 
     def execute(self, command):
         """Helper to run command locally or via SSH."""
         if self.target_host == "local":
             return run_command(command)
         else:
-            try:
-                stdin, stdout, stderr = self.ssh_client.exec_command(command, timeout=30)
-                return {
-                    "stdout": stdout.read().decode('utf-8', errors='ignore').strip(),
-                    "stderr": stderr.read().decode('utf-8', errors='ignore').strip(),
-                    "returncode": stdout.channel.recv_exit_status(),
-                    "success": stdout.channel.recv_exit_status() == 0
-                }
-            except Exception as e:
-                logger.error(f"SSH execution failed: {str(e)}")
-                return {"stdout": "", "stderr": str(e), "success": False}
+            with self._lock:
+                try:
+                    stdin, stdout, stderr = self.ssh_client.exec_command(command, timeout=30)
+                    out = stdout.read().decode('utf-8', errors='ignore').strip()
+                    err = stderr.read().decode('utf-8', errors='ignore').strip()
+                    code = stdout.channel.recv_exit_status()
+                    return {
+                        "stdout": out,
+                        "stderr": err,
+                        "returncode": code,
+                        "success": code == 0
+                    }
+                except Exception as e:
+                    logger.error(f"SSH execution failed: {str(e)}")
+                    return {"stdout": "", "stderr": str(e), "success": False}
 
     def run_all_checks(self):
         """Main entry point for local scans."""
@@ -36,7 +42,13 @@ class LinuxScanner:
             self.check_logging,
         ]
         results = []
-        # Run independent checks concurrently to reduce scan latency.
+        # For remote scans over SSH, execute sequentially to prevent Paramiko channel contention and Errno 16 (EBUSY).
+        if self.target_host != "local" or self.ssh_client is not None:
+            for fn in checks:
+                results.extend(fn())
+            return results
+
+        # Run independent checks concurrently to reduce scan latency for local scans.
         with ThreadPoolExecutor(max_workers=min(7, len(checks))) as ex:
             futures = [ex.submit(fn) for fn in checks]
             for f in futures:
