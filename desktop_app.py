@@ -77,8 +77,8 @@ def main():
     server_thread = threading.Thread(target=run_flask, args=(port,), daemon=True)
     server_thread.start()
 
-    # Direct loopback route that auto-authenticates local admin session and loads Dashboard
-    url = f"http://127.0.0.1:{port}/desktop-auth"
+    # Always start at /login so authentication is strictly required
+    url = f"http://127.0.0.1:{port}/login"
 
     for _ in range(40):
         try:
@@ -97,7 +97,7 @@ def main():
         confirm_close=False,
     )
 
-    webview.start(private_mode=False)
+    webview.start(private_mode=True)
 
 
 if __name__ == "__main__":
