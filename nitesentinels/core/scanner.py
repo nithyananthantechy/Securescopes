@@ -90,9 +90,11 @@ class Scanner:
                     port=int(port),
                     username=user,
                     password=password,
-                    timeout=8,
-                    banner_timeout=8,
-                    auth_timeout=8,
+                    timeout=15,
+                    banner_timeout=30,
+                    auth_timeout=30,
+                    look_for_keys=False,
+                    allow_agent=False,
                 )
                 checks.extend(LinuxScanner(target_host=host, ssh_client=ssh).run_all_checks())
                 ssh.close()
@@ -105,9 +107,11 @@ class Scanner:
                     port=int(port),
                     username=user,
                     password=password,
-                    timeout=8,
-                    banner_timeout=8,
-                    auth_timeout=8,
+                    timeout=15,
+                    banner_timeout=30,
+                    auth_timeout=30,
+                    look_for_keys=False,
+                    allow_agent=False,
                 )
                 from securescope.scanners.docker_scanner import DockerScanner
                 checks.extend(DockerScanner().scan_remote(ssh))
