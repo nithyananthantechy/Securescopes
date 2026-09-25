@@ -46,7 +46,7 @@ class LinuxScanner:
     def check_ssh(self):
         checks = []
         sshd_config_path = "/etc/ssh/sshd_config"
-        def check_config(param, expected, description, severity="Critical"):
+        def check_config(param, expected, description, severity="Critical", desc_text=""):
             cmd = f"grep '^{param}' {sshd_config_path}"
             res = self.execute(cmd)
             status = "FAIL"
